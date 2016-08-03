@@ -5,18 +5,49 @@ using Base: Indices, tail
 
 abstract AbstractBorder
 
-# Style is a Symbol: :replicate, :circular, :symmetric, or :reflect
+"""
+`Pad{Style,N}` is a type that stores choices about padding. `Style` is a
+Symbol specifying the boundary conditions of the image, one of
+`:replicate` (repeat edge values to infinity), `:circular` (image edges
+"wrap around"), `:symmetric` (the image reflects between pixels), or
+`:reflect` (the image reflects on the pixel grid). The default value is
+`:replicate`. You can add custom boundary conditions by adding
+addition methods for `padindex`.
+"""
 type Pad{Style,N} <: AbstractBorder
     lo::Dims{N}    # number to extend by on the lower edge for each dimension
     hi::Dims{N}    # number to extend by on the upper edge for each dimension
 end
+
+"""
+    Pad{Style}(m, n, ...)
+
+Pad the input image symmetrically, `m` pixels at the lower and upper edge of dimension 1, `n` pixels for dimension 2, and so forth.
+"""
+(::Type{Pad{Style}}){Style}(both::Int...) = Pad{Style}(both, both)
+"""
+    Pad{Style}((m,n))
+
+Pad the input image symmetrically, `m` pixels at the lower and upper edge of dimension 1, `n` pixels for dimension 2.
+"""
+(::Type{Pad{Style}}){Style,N}(both::Dims{N}) = Pad{Style,N}(both, both)
+
 (::Type{Pad{Style}}){Style  }(lo::Tuple{}, hi::Tuple{}) = Pad{Style,0}(lo, hi)
+
+"""
+    Pad{Style}(lo::Dims, hi::Dims)
+
+Pad the input image by `lo` pixels at the lower edge, and `hi` pixels at the upper edge.
+"""
 (::Type{Pad{Style}}){Style,N}(lo::Dims{N}, hi::Dims{N}) = Pad{Style,N}(lo, hi)
 (::Type{Pad{Style}}){Style,N}(lo::Dims{N}, hi::Tuple{}) = Pad{Style,N}(lo, ntuple(d->0,Val{N}))
 (::Type{Pad{Style}}){Style,N}(lo::Tuple{}, hi::Dims{N}) = Pad{Style,N}(ntuple(d->0,Val{N}), hi)
-(::Type{Pad{Style}}){Style,N}(both::Dims{N}) = Pad{Style,N}(both, both)
-(::Type{Pad{Style}}){Style}(both::Int...) = Pad{Style}(both, both)
 (::Type{Pad{Style}}){Style,N}(inds::Indices{N}) = Pad{Style,N}(map(lo,inds), map(hi,inds))
+"""
+    Pad{Style}(kernel)
+
+Given a filter array `kernel`, determine the amount of padding from the `indices` of `kernel`.
+"""
 (::Type{Pad{Style}}){Style}(kernel::AbstractArray) = Pad{Style}(indices(kernel))
 (::Type{Pad{Style}}){Style}(factkernel::Tuple) = Pad{Style}(flatten(map(indices, factkernel)))
 (::Type{Pad})(args...) = Pad{:replicate}(args...)
@@ -25,18 +56,25 @@ function padindices(img::AbstractArray, border::Pad)
     throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"))
 end
 function padindices{_,Style,N}(img::AbstractArray{_,N}, border::Pad{Style,N})
-    __padindices(border, border.lo, indices(img), border.hi)
+    _padindices(border, border.lo, indices(img), border.hi)
 end
 function padindices{P<:Pad}(img::AbstractArray, ::Type{P})
     throw(ArgumentError("must supply padding sizes to $P"))
 end
 
 # The 3-argument map is not inferrable, so do it manually
-@inline __padindices(border, lo, inds, hi) =
-    (_padindices(border, lo[1], inds[1], hi[1]),
-     __padindices(border, tail(lo), tail(inds), tail(hi))...)
-__padindices(border, ::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
+@inline _padindices(border, lo, inds, hi) =
+    (padindex(border, lo[1], inds[1], hi[1]),
+     _padindices(border, tail(lo), tail(inds), tail(hi))...)
+_padindices(border, ::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
 
+"""
+    padarray(img, border) --> imgpadded
+
+Generate a padded image from an array `img` and a specification
+`border` of the boundary conditions and amount of padding to
+add. `border` can be a `Pad` or `Fill` object.
+"""
 padarray(img, border::Pad)  = img[padindices(img, border)...]
 padarray{P}(img, ::Type{P}) = img[padindices(img, P)...]      # just to throw the nice error
 
@@ -46,7 +84,16 @@ immutable Inner{N} <: AbstractBorder
     hi::Dims{N}
 end
 
-# Fill is a little different, so handle it separately
+# padarray(img, ::Inner) = img # do we need to make a copy here? (for consistency) or throw error?
+
+"""
+    Fill(val)
+    Fill(val, lo, hi)
+
+Pad the edges of the image with a constant value, `val`.
+
+Optionally supply the extent of the padding, see `Pad`.
+"""
 type Fill{T,N} <: AbstractBorder
     value::T
     lo::Dims{N}
@@ -77,18 +124,27 @@ end
 
 # There are other ways to define these, but using `mod` makes it safe
 # for cases where the padding is bigger than length(inds)
-_padindices(border::Pad{:replicate}, lo::Integer, inds::AbstractUnitRange, hi::Integer) =
+padindex(border::Pad{:replicate}, lo::Integer, inds::AbstractUnitRange, hi::Integer) =
     vcat(fill(first(inds), lo), PinIndices(inds), fill(last(inds), hi))
-_padindices(border::Pad{:circular}, lo::Integer, inds::AbstractUnitRange, hi::Integer) =
+padindex(border::Pad{:circular}, lo::Integer, inds::AbstractUnitRange, hi::Integer) =
     modrange(extend(lo, inds, hi), inds)
-function _padindices(border::Pad{:symmetric}, lo::Integer, inds::AbstractUnitRange, hi::Integer)
+function padindex(border::Pad{:symmetric}, lo::Integer, inds::AbstractUnitRange, hi::Integer)
     I = [inds; reverse(inds)]
     I[modrange(extend(lo, inds, hi), 1:2*length(inds))]
 end
-function _padindices(border::Pad{:reflect}, lo::Integer, inds::AbstractUnitRange, hi::Integer)
+function padindex(border::Pad{:reflect}, lo::Integer, inds::AbstractUnitRange, hi::Integer)
     I = [inds; last(inds)-1:-1:first(inds)+1]
     I[modrange(extend(lo, inds, hi), 1:2*length(inds)-2)]
 end
+"""
+    padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer)
+
+Generate an index-vector to be used for padding. `inds` specifies the image indices along a particular axis; `lo` and `hi` are the amount to pad on the lower and upper, respectively, sides of this axis. `border` specifying the style of padding.
+
+You can specialize this for custom `Pad{:name}` types to generate
+arbitrary (cartesian) padding types.
+"""
+padindex
 
 function inner(lo::Integer, inds::AbstractUnitRange, hi::Integer)
     first(inds)+lo:last(inds)-hi

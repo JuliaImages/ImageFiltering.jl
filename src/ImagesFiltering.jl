@@ -15,8 +15,7 @@ abstract Alg
 immutable FFT <: Alg end
 immutable FIR <: Alg end
 
-## imfilter with a finite impulse response kernel
-
+# see below for imfilter docstring
 function imfilter(img::AbstractArray, kernel, args...)
     imfilter(filter_type(img, kernel), img, kernel, args...)
 end
@@ -25,18 +24,83 @@ function imfilter{T}(::Type{T}, img::AbstractArray, kernel, args...)
     imfilter!(similar(img, T), img, kernel, args...)
 end
 
-function imfilter!(out::AbstractArray, img::AbstractArray,
-                   kernel::AbstractVector, dim::Integer, args...)
-    1 <= dim <= ndims(img) || throw(ArgumentError("dim must be between 1 and $(ndims(img)), got $dim"))
-    imfilter!(out, img, ntuple(d->d==dim ? kernel : 1), args...)
+function imfilter(r::AbstractResource, img::AbstractArray, kernel, args...)
+    imfilter(r, filter_type(img, kernel), img, kernel, args...)
 end
 
+function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel, args...)
+    imfilter!(r, similar(img, T), img, kernel, args...)
+end
+
+"""
+    imfilter([T], img, kernel, [border=Pad], [alg]) --> imgfilt
+    imfilter([r], img, kernel, [border=Pad], [alg]) --> imgfilt
+    imfilter(r, T, img, kernel, [border=Pad], [alg]) --> imgfilt
+
+Filter an array `img` with kernel `kernel` by computing their
+correlation.
+
+`kernel[0,0,..]` corresponds to the center (zero displacement) of the
+kernel; the OffsetArrays package allows you to set `kernel`'s
+indices. For example, to filter with a random *centered* 3x3 kernel,
+you might use
+
+    kernel = OffsetArray(rand(3,3), -1:1, -1:1)
+
+`kernel` can be specified as an array or as a "factored kernel," a
+tuple `(filt1, filt2, ...)` of filters to apply along each axis of the
+image. In cases where you know your kernel is separable, this format
+can speed processing.  Each of these should have the same
+dimensionality as the image itself, and be shaped in a manner that
+indicates the filtering axis, e.g., a 3x1 filter for filtering the
+first dimension and a 1x3 filter for filtering the second
+dimension. In two dimensions, any kernel passed as a single matrix is
+checked for separability; if you want to eliminate that check, pass
+the kernel as a single-element tuple, `(kernel,)`.
+
+Optionally specify the `border`, as one of `Fill(value)`,
+`Pad{:replicate}`, `Pad{:circular}`, `Pad{:symmetric}`, `Pad{:reflect}`,
+or `Inner()`. The default is `Pad{:replicate}`. These choices specify
+the boundary conditions, and therefore affect the result at the edges
+of the image.
+
+`alg` allows you to choose the particular algorithm: `FIR()` (finite
+impulse response, aka traditional digital filtering) or `FFT()`
+(Fourier-based filtering). If no choice is specified, one will be
+chosen based on the size of the image and kernel in a way that
+strives to deliver good performance.
+
+Optionally, you can control the element type of the output image by
+passing in a type `T` as the first argument.
+
+You can also dispatch to different implementations by passing in a
+resource `r` as defined by the ComputationalResources package.  For
+example,
+
+    imfilter(ArrayFire(), img, kernel)
+
+would request that the computation be performed on the GPU using the
+ArrayFire libraries.
+
+See also `imfilter!`.
+"""
+imfilter
+
+# see below for imfilter! docstring
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::AbstractArray, args...)
     imfilter!(out, img, factorkernel(kernel), args...)
 end
 
+function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::AbstractArray, args...)
+    imfilter!(r, out, img, factorkernel(kernel), args...)
+end
+
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple)
     imfilter!(out, img, kernel, Pad{:replicate}(kernel))
+end
+
+function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::Tuple)
+    imfilter!(r, out, img, kernel, Pad{:replicate}(kernel))
 end
 
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple, border::AbstractBorder)
@@ -50,6 +114,21 @@ end
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple, border::AbstractBorder, alg::Alg)
     imfilter!(CPU1(alg), out, img, kernel, border)
 end
+
+"""
+    imfilter!(imgfilt, img, kernel, [border=Pad], [alg])
+    imfilter!([r], imgfilt, img, kernel, [border=Pad])
+
+Filter an array `img` with kernel `kernel` by computing their
+correlation, storing the result in `imgfilt`.
+
+The indices of `imgfilt` determine the region over which the filtered
+image is computed---you can use this fact to select a specific region
+of interest.
+
+See `imfilter` for information about the arguments.
+"""
+imfilter!
 
 function imfilter!{S,T,N}(r::AbstractResource,
                           out::AbstractArray{S,N},
@@ -69,8 +148,8 @@ function imfilter!{S,T,K,N}(::CPU1{FIR},
                             kern::AbstractArray{K,N})
     indso, indsA, indsk = indices(out), indices(A), indices(kern)
     for i = 1:N
-        if      first(indsA[i]) != first(indso[i]) + first(indsk[i]) ||
-                last(indsA[i])  != last(indso[i])  + last(indsk[i])
+        if      first(indsA[i]) > first(indso[i]) + first(indsk[i]) ||
+                last(indsA[i])  < last(indso[i])  + last(indsk[i])
             throw(DimensionMismatch("output indices $indso and kernel indices $indsk do not agree with indices of padded input, $indsA"))
         end
     end
