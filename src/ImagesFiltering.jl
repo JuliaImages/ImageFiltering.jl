@@ -5,10 +5,10 @@ using ComputationalResources
 # include("kernel.jl")
 # using .Kernel
 include("border.jl")
-using .Border
-using .Border: AbstractBorder, Replicate, Circular, Symmetric, Reflect, Inner, Fill
+# using .Border
+# using .Border: AbstractBorder, Pad, Inner, Fill
 
-export Kernel, Border, imfilter, imfilter!, padarray
+export Kernel, Pad, Fill, Inner, imfilter, imfilter!, padarray
 
 # deliberately don't export these, but it's expected that they will be used
 abstract Alg
@@ -36,7 +36,7 @@ function imfilter!(out::AbstractArray, img::AbstractArray, kernel::AbstractArray
 end
 
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple)
-    imfilter!(out, img, kernel, Replicate(kernel))
+    imfilter!(out, img, kernel, Pad{:replicate}(kernel))
 end
 
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple, border::AbstractBorder)
@@ -44,7 +44,7 @@ function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple, border
 end
 
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple, alg::Alg)
-    imfilter!(out, img, kernel, Replicate(kernel), alg)
+    imfilter!(out, img, kernel, Pad{:replicate}(kernel), alg)
 end
 
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple, border::AbstractBorder, alg::Alg)
