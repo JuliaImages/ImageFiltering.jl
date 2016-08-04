@@ -49,7 +49,7 @@ Pad the input image by `lo` pixels at the lower edge, and `hi` pixels at the upp
 Given a filter array `kernel`, determine the amount of padding from the `indices` of `kernel`.
 """
 (::Type{Pad{Style}}){Style}(kernel::AbstractArray) = Pad{Style}(indices(kernel))
-(::Type{Pad{Style}}){Style}(factkernel::Tuple) = Pad{Style}(flatten(map(indices, factkernel)))
+(::Type{Pad{Style}}){Style}(factkernel::Tuple) = Pad{Style}(extremize(indices(factkernel[1]), tail(factkernel)...))
 (::Type{Pad})(args...) = Pad{:replicate}(args...)
 
 function padindices(img::AbstractArray, border::Pad)
@@ -69,13 +69,21 @@ end
 _padindices(border, ::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
 
 """
-    padarray(img, border) --> imgpadded
+    padarray([T], img, border) --> imgpadded
 
 Generate a padded image from an array `img` and a specification
 `border` of the boundary conditions and amount of padding to
 add. `border` can be a `Pad` or `Fill` object.
+
+Optionally provide the element type `T` of `imgpadded`.
 """
-padarray(img, border::Pad)  = img[padindices(img, border)...]
+padarray(img, border::Pad)  = padarray(eltype(img), img, border)
+function padarray{T}(::Type{T}, img, border::Pad)
+    inds = padindices(img, border)
+    dest = similar(img, T, map(Base.indices1, inds))
+    Base._unsafe_getindex!(dest, img, inds...)
+    dest
+end
 padarray{P}(img, ::Type{P}) = img[padindices(img, P)...]      # just to throw the nice error
 
 # Make this a separate type because the dispatch almost surely needs to be different
@@ -107,7 +115,7 @@ Fill{T}(value::T) = Fill{T,0}(value)
 Fill{T,N}(value::T, lo::Dims{N}, hi::Dims{N}) = Fill{T,N}(value, lo, hi)
 Fill{T,N}(value::T, inds::Base.Indices{N}) = Fill{T,N}(value, map(lo,inds), map(hi,inds))
 Fill(value, kernel::AbstractArray) = Fill(value, indices(kernel))
-Fill(value, factkernel::Tuple) = Fill(value, flatten(map(indices, factkernel)))
+# Fill(value, factkernel::Tuple) = Fill(value, flatten(map(indices, factkernel)))  # FIXME
 
 (p::Fill)(kernel::AbstractArray) = Fill(p.value, kernel)
 (p::Fill)(factkernel::Tuple) = Fill(p.value, factkernel)
@@ -162,10 +170,15 @@ function extend(lo::Integer, inds::AbstractUnitRange, hi::Integer)
     OffsetArray(newind, newind)
 end
 
-@inline flatten(t::Tuple) = _flatten(t...)
-@inline _flatten(t1::Tuple, t...) = (flatten(t1)..., flatten(t)...)
-@inline _flatten(t1,        t...) = (t1, flatten(t)...)
-_flatten() = ()
+# @inline flatten(t::Tuple) = _flatten(t...)
+# @inline _flatten(t1::Tuple, t...) = (flatten(t1)..., flatten(t)...)
+# @inline _flatten(t1,        t...) = (t1, flatten(t)...)
+# _flatten() = ()
+
+extremize(inds::Indices, kernel1::AbstractArray, kernels...) = extremize(_extremize(inds, indices(kernel1)), kernels...)
+extremize(inds) = inds
+_extremize(inds1, inds2) = map(__extremize, inds1, inds2)
+__extremize(ind1, ind2) = min(first(ind1),first(ind2)):max(last(ind1),last(ind2))
 
 modrange(x, r::AbstractUnitRange) = mod(x-first(r), length(r))+first(r)
 modrange(A::AbstractArray, r::AbstractUnitRange) = map(x->modrange(x, r), A)

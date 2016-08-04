@@ -1,6 +1,7 @@
 module ImagesFiltering
 
 using ComputationalResources
+using ColorVectorSpace  # in case someone filters RGB arrays
 
 # include("kernel.jl")
 # using .Kernel
@@ -28,8 +29,16 @@ function imfilter(r::AbstractResource, img::AbstractArray, kernel, args...)
     imfilter(r, filter_type(img, kernel), img, kernel, args...)
 end
 
-function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel, args...)
-    imfilter!(r, similar(img, T), img, kernel, args...)
+function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::AbstractArray, args...)
+    imfilter(r, T, img, factorkernel(kernel), args...)
+end
+
+function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::Tuple)
+    imfilter(r, T, img, kernel, Pad{:replicate}(kernel))
+end
+
+function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::Tuple, border::AbstractBorder)
+    imfilter!(r, similar(img, T), img, kernel, Pad{:replicate}(kernel))
 end
 
 """
@@ -135,9 +144,17 @@ function imfilter!{S,T,N}(r::AbstractResource,
                           img::AbstractArray{T,N},
                           kernel::Tuple,
                           border::AbstractBorder)
-    A = padarray(img, border)
-    for kern in kernel
-        imfilter!(r, out, A, kern)
+    A = padarray(S, img, border)
+    if length(kernel) == 1
+        imfilter!(r, out, A, kernel[1])
+    else
+        Ac = similar(A)
+        for i = 1:length(kernel)-1
+            kern = kernel[i]
+            imfilter!(r, Ac, A, kern, interior(Ac, kern))
+            A, Ac = Ac, A
+        end
+        imfilter!(r, out, A, kernel[end])
     end
     out
 end
@@ -145,18 +162,23 @@ end
 function imfilter!{S,T,K,N}(::CPU1{FIR},
                             out::AbstractArray{S,N},
                             A::AbstractArray{T,N},
-                            kern::AbstractArray{K,N})
+                            kern::AbstractArray{K,N},
+                            R::CartesianRange=CartesianRange(indices(out)))
     indso, indsA, indsk = indices(out), indices(A), indices(kern)
     for i = 1:N
-        if      first(indsA[i]) > first(indso[i]) + first(indsk[i]) ||
-                last(indsA[i])  < last(indso[i])  + last(indsk[i])
-            throw(DimensionMismatch("output indices $indso and kernel indices $indsk do not agree with indices of padded input, $indsA"))
+        # Check that R is inbounds for out
+        if R.start[i] < first(indso[i]) || R.stop[i] > last(indso[i])
+            throw(DimensionMismatch("output indices $indso disagrees with requested range $R"))
+        end
+        if      first(indsA[i]) > R.start[i] + first(indsk[i]) ||
+                last(indsA[i])  < R.stop[i]  + last(indsk[i])
+            throw(DimensionMismatch("requested range $R and kernel indices $indsk do not agree with indices of padded input, $indsA"))
         end
     end
     (isempty(A) || isempty(kern)) && return out
     p = first(A) * first(kern)
     TT = typeof(p+p)
-    for I in CartesianRange(indso)
+    for I in R
         tmp = zero(TT)
         @inbounds for J in CartesianRange(indsk)
             tmp += A[I+J]*kern[J]
@@ -166,7 +188,11 @@ function imfilter!{S,T,K,N}(::CPU1{FIR},
     out
 end
 
-
+function interior(A, kern)
+    indsA, indsk = indices(A), indices(kern)
+    CartesianRange(CartesianIndex(map((ia,ik)->first(ia) + lo(ik), indsA, indsk)),
+                   CartesianIndex(map((ia,ik)->last(ia)  - hi(ik), indsA, indsk)))
+end
 
 filter_type{S,T}(img::AbstractArray{S}, kernel::AbstractArray{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
 filter_type{S,T}(img::AbstractArray{S}, kernel::Tuple{AbstractArray{T},Vararg{AbstractArray{T}}}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
