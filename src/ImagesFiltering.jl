@@ -1,7 +1,14 @@
 module ImagesFiltering
 
-using ComputationalResources
+using Colors, ImagesCore, MappedArrays, FFTViews, ComputationalResources
 using ColorVectorSpace  # in case someone filters RGB arrays
+
+# deliberately don't export these, but it's expected that they will be used
+abstract Alg
+immutable FFT <: Alg end
+immutable FIR <: Alg end
+
+Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
 
 # include("kernel.jl")
 # using .Kernel
@@ -11,10 +18,7 @@ include("border.jl")
 
 export Kernel, Pad, Fill, Inner, imfilter, imfilter!, padarray
 
-# deliberately don't export these, but it's expected that they will be used
-abstract Alg
-immutable FFT <: Alg end
-immutable FIR <: Alg end
+typealias BorderSpec{P<:Pad,T} Union{Type{P}, Fill{T,0}}
 
 # see below for imfilter docstring
 function imfilter(img::AbstractArray, kernel, args...)
@@ -33,12 +37,14 @@ function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel:
     imfilter(r, T, img, factorkernel(kernel), args...)
 end
 
+# These next two are explicit rather than using args... as a means to
+# prevent specifying both r and an algorithm
 function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::Tuple)
-    imfilter(r, T, img, kernel, Pad{:replicate}(kernel))
+    imfilter(r, T, img, kernel, Pad{:replicate})
 end
 
-function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::Tuple, border::AbstractBorder)
-    imfilter!(r, similar(img, T), img, kernel, Pad{:replicate}(kernel))
+function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::Tuple, border::BorderSpec)
+    imfilter!(r, similar(img, T), img, kernel, border)
 end
 
 """
@@ -104,25 +110,45 @@ function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, 
     imfilter!(r, out, img, factorkernel(kernel), args...)
 end
 
+# function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple)
+#     imfilter!(out, img, kernel, Pad{:replicate}(kernel))
+# end
+
+# function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::Tuple)
+#     imfilter!(r, out, img, kernel, Pad{:replicate}(kernel))
+# end
+
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple)
-    imfilter!(out, img, kernel, Pad{:replicate}(kernel))
+    imfilter!(out, img, kernel, filter_algorithm(out, img, kernel))
 end
 
 function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::Tuple)
-    imfilter!(r, out, img, kernel, Pad{:replicate}(kernel))
+    imfilter!(r, out, img, kernel, Pad{:replicate})
 end
 
-function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple, border::AbstractBorder)
+function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple, border::BorderSpec)
     imfilter!(out, img, kernel, border, filter_algorithm(out, img, kernel))
 end
 
+# function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple, border::BorderSpec)
+#     imfilter!(out, img, kernel, border, filter_algorithm(out, img, kernel))
+# end
+
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple, alg::Alg)
-    imfilter!(out, img, kernel, Pad{:replicate}(kernel), alg)
+    imfilter!(out, img, kernel, Pad{:replicate}, alg)
 end
 
-function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple, border::AbstractBorder, alg::Alg)
+# function imfilter!{B<:AbstractBorder}(out::AbstractArray, img::AbstractArray, kernel::Tuple, border::Union{Type{B},Fill}, alg::Alg)
+#     imfilter!(out, img, kernel, B(kernel, img, alg), alg)
+# end
+
+function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Tuple, border::BorderSpec, alg::Alg)
     imfilter!(CPU1(alg), out, img, kernel, border)
 end
+
+# function imfilter!{B<:AbstractBorder}(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::Tuple, ::Type{B})
+#     imfilter!(r, out, img, kernel, B(kernel, img, Alg(r)))
+# end
 
 """
     imfilter!(imgfilt, img, kernel, [border=Pad], [alg])
@@ -143,8 +169,9 @@ function imfilter!{S,T,N}(r::AbstractResource,
                           out::AbstractArray{S,N},
                           img::AbstractArray{T,N},
                           kernel::Tuple,
-                          border::AbstractBorder)
-    A = padarray(S, img, border)
+                          border::BorderSpec)
+    bord = border(kernel, img, Alg(r))
+    A = padarray(S, img, bord)
     if length(kernel) == 1
         imfilter!(r, out, A, kernel[1])
     else
@@ -159,6 +186,8 @@ function imfilter!{S,T,N}(r::AbstractResource,
     out
 end
 
+## FIR filtering
+
 function imfilter!{S,T,K,N}(::CPU1{FIR},
                             out::AbstractArray{S,N},
                             A::AbstractArray{T,N},
@@ -170,6 +199,7 @@ function imfilter!{S,T,K,N}(::CPU1{FIR},
         if R.start[i] < first(indso[i]) || R.stop[i] > last(indso[i])
             throw(DimensionMismatch("output indices $indso disagrees with requested range $R"))
         end
+        # Check that input A is big enough not to throw a BoundsError
         if      first(indsA[i]) > R.start[i] + first(indsk[i]) ||
                 last(indsA[i])  < R.stop[i]  + last(indsk[i])
             throw(DimensionMismatch("requested range $R and kernel indices $indsk do not agree with indices of padded input, $indsA"))
@@ -187,6 +217,54 @@ function imfilter!{S,T,K,N}(::CPU1{FIR},
     end
     out
 end
+
+### FFT filtering
+
+function imfilter!{S,T,N}(r::CPU1{FFT},
+                          out::AbstractArray{S,N},
+                          img::AbstractArray{T,N},
+                          kernel::Tuple,
+                          border::BorderSpec)
+    bord = border(kernel, img, Alg(r))
+    A = padarray(S, img, bord)
+    kern = prod_kernel(kernel...)
+    krn = FFTView(zeros(eltype(kern), map(length, indices(A))))
+    for I in CartesianRange(indices(kern))
+        krn[I] = kern[I]
+    end
+    Af = filtfft(A, krn)
+    if map(first, indices(out)) == map(first, indices(Af))
+        R = CartesianRange(indices(out))
+        copy!(out, R, Af, R)
+    else
+        dest = FFTView(out)
+        src = Base.of_indices(view(FFTView(Af), indices(dest)...), indices(dest))
+        copy!(dest, src)
+    end
+end
+
+filtfft(A, krn) = irfft(rfft(A).*conj(rfft(krn)), length(indices(A,1)))
+function filtfft{C<:Colorant}(A::AbstractArray{C}, krn)
+    Av, dims = channelview_dims(A)
+    kernrs = kreshape(C, krn)
+    Avf = irfft(rfft(Av, dims).*conj(rfft(kernrs, dims)), length(indices(Av, dims[1])), dims)
+    colorview(base_colorant_type(C){eltype(Avf)}, Avf)
+end
+channelview_dims{C<:Colorant,N}(A::AbstractArray{C,N}) = channelview(A), ntuple(d->d+1, Val{N})
+if ImagesCore.squeeze1
+    channelview_dims{C<:ImagesCore.Color1,N}(A::AbstractArray{C,N}) = channelview(A), ntuple(identity, Val{N})
+end
+
+function kreshape{C<:Colorant}(::Type{C}, krn::FFTView)
+    kern = parent(krn)
+    kernrs = FFTView(reshape(kern, 1, size(kern)...))
+end
+if ImagesCore.squeeze1
+    kreshape{C<:ImagesCore.Color1}(::Type{C}, krn::FFTView) = krn
+end
+
+
+### Utilities
 
 function interior(A, kern)
     indsA, indsk = indices(A), indices(kern)
@@ -231,6 +309,9 @@ function _factorkernel(fk::Tuple{Matrix,Matrix}, kernel::AbstractMatrix)
     copy!(k2, indices(k2)..., kern2, indices(kern2)...)
     (k1, k2)
 end
+
+prod_kernel(kern) = kern
+prod_kernel(kern, kern1, kerns...) = prod_kernel(kern.*kern1, kerns...)
 
 filter_algorithm(out, img, kernel) = FIR()
 

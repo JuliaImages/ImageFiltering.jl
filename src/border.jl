@@ -14,7 +14,7 @@ Symbol specifying the boundary conditions of the image, one of
 `:replicate`. You can add custom boundary conditions by adding
 addition methods for `padindex`.
 """
-type Pad{Style,N} <: AbstractBorder
+immutable Pad{Style,N} <: AbstractBorder
     lo::Dims{N}    # number to extend by on the lower edge for each dimension
     hi::Dims{N}    # number to extend by on the upper edge for each dimension
 end
@@ -50,7 +50,19 @@ Given a filter array `kernel`, determine the amount of padding from the `indices
 """
 (::Type{Pad{Style}}){Style}(kernel::AbstractArray) = Pad{Style}(indices(kernel))
 (::Type{Pad{Style}}){Style}(factkernel::Tuple) = Pad{Style}(extremize(indices(factkernel[1]), tail(factkernel)...))
+(::Type{Pad{Style}}){Style}(factkernel::Tuple, img, ::FIR) = Pad{Style}(factkernel)
 (::Type{Pad})(args...) = Pad{:replicate}(args...)
+
+# Padding for FFT: round up to next size expressible as 2^m*3^n
+function (::Type{Pad{Style}}){Style}(factkernel::Tuple, img, ::FFT)
+    inds = extremize(indices(factkernel[1]), tail(factkernel)...)
+    newinds = map(padfft, inds, map(length, indices(img)))
+    Pad{Style}(newinds)
+end
+function padfft(indk::AbstractUnitRange, l::Integer)
+    lk = length(indk)
+    range(first(indk), nextprod([2,3], l+lk)-l+1)
+end
 
 function padindices(img::AbstractArray, border::Pad)
     throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"))
@@ -77,9 +89,10 @@ add. `border` can be a `Pad` or `Fill` object.
 
 Optionally provide the element type `T` of `imgpadded`.
 """
-padarray(img, border::Pad)  = padarray(eltype(img), img, border)
-function padarray{T}(::Type{T}, img, border::Pad)
+padarray(img::AbstractArray, border::Pad)  = padarray(eltype(img), img, border)
+function padarray{T}(::Type{T}, img::AbstractArray, border::Pad)
     inds = padindices(img, border)
+    # like img[inds...] except that we can control the element type
     dest = similar(img, T, map(Base.indices1, inds))
     Base._unsafe_getindex!(dest, img, inds...)
     dest
@@ -102,7 +115,7 @@ Pad the edges of the image with a constant value, `val`.
 
 Optionally supply the extent of the padding, see `Pad`.
 """
-type Fill{T,N} <: AbstractBorder
+immutable Fill{T,N} <: AbstractBorder
     value::T
     lo::Dims{N}
     hi::Dims{N}
@@ -115,20 +128,26 @@ Fill{T}(value::T) = Fill{T,0}(value)
 Fill{T,N}(value::T, lo::Dims{N}, hi::Dims{N}) = Fill{T,N}(value, lo, hi)
 Fill{T,N}(value::T, inds::Base.Indices{N}) = Fill{T,N}(value, map(lo,inds), map(hi,inds))
 Fill(value, kernel::AbstractArray) = Fill(value, indices(kernel))
-# Fill(value, factkernel::Tuple) = Fill(value, flatten(map(indices, factkernel)))  # FIXME
+Fill(value, factkernel::Tuple) = Fill(value, extremize(indices(factkernel[1]), tail(factkernel)...))
 
-(p::Fill)(kernel::AbstractArray) = Fill(p.value, kernel)
-(p::Fill)(factkernel::Tuple) = Fill(p.value, factkernel)
+(p::Fill)(kernel::AbstractArray, img, ::FIR) = Fill(p.value, kernel)
+(p::Fill)(factkernel::Tuple, img, ::FIR) = Fill(p.value, factkernel)
+function (p::Fill)(factkernel::Tuple, img, ::FFT)
+    inds = extremize(indices(factkernel[1]), tail(factkernel)...)
+    newinds = map(padfft, inds, map(length, indices(img)))
+    Fill(p.value, newinds)
+end
 
-function padarray(img::AbstractArray, border::Fill)
+function padarray{T}(::Type{T}, img::AbstractArray, border::Fill)
     throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"))
 end
-function padarray{T,_,N}(img::AbstractArray{T,N}, f::Fill{_,N})
+function padarray{T,S,_,N}(::Type{T}, img::AbstractArray{S,N}, f::Fill{_,N})
     A = similar(Array{T}, map((l,r,h)->first(r)-l:last(r)+h, f.lo, indices(img), f.hi))
     fill!(A, f.value)
     A[indices(img)...] = img
     A
 end
+padarray(img::AbstractArray, f::Fill) = padarray(eltype(img), f)
 
 # There are other ways to define these, but using `mod` makes it safe
 # for cases where the padding is bigger than length(inds)
