@@ -1,2 +1,9 @@
 julia 0.5-
+Colors
+ImagesCore
+OffsetArrays
 CatIndices
+StaticArrays
+MappedArrays
+FFTViews
+ComputationalResources
