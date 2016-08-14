@@ -48,7 +48,7 @@ end
             a = zeros(l)
             a[c] = 1
             af = exp(-((1:l)-c).^2/(2*σ^2))/(σ*√(2π))
-            ImagesFiltering.imfilter_inplace!(a, kernel, 1, Fill(0))
+            imfilter!(a, a, (kernel,), Fill(0))
             @test norm(a-af) < 0.1*norm(af)
             # aσ[i][:,2n-1:2n] = [af a]
         end
@@ -62,13 +62,12 @@ end
     σ = 5
     x = -2:2
     y = (-3:3)'
-    kernel = Kernel.IIRGaussian(σ)
+    kernel = Kernel.IIRGaussian((σ, σ))
     for img in (copy(imgf), copy(imgg), copy(imgc))
         imgcmp = img[3,4]*exp(-(x.^2 .+ y.^2)/(2*σ^2))/(σ^2*2*pi)
         border = Fill(zero(eltype(img)))
-        ImagesFiltering.imfilter_inplace!(img, kernel, 1, border)
-        ImagesFiltering.imfilter_inplace!(img, kernel, 2, border)
-        @test sumabs2(imgcmp - img) < 0.2^2*sumabs2(imgcmp)
+        imgf = imfilter(img, kernel, border)
+        @test sumabs2(imgcmp - imgf) < 0.2^2*sumabs2(imgcmp)
     end
 end
 
