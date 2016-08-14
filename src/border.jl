@@ -1,7 +1,7 @@
 # module Border
 
 using OffsetArrays, CatIndices
-using Base: Indices, tail
+using Base: Indices, tail, fill_to_length
 
 abstract AbstractBorder
 
@@ -69,8 +69,10 @@ function padfft(indk::AbstractUnitRange, l::Integer)
     range(first(indk), nextprod([2,3], l+lk)-l+1)
 end
 
-function padindices(img::AbstractArray, border::Pad)
-    throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"))
+function padindices{_,Style,N}(img::AbstractArray{_,N}, border::Pad{Style})
+    warn("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions")
+    padindices(img, Pad{Style}(fill_to_length(border.lo, 0, Val{N}),
+                               fill_to_length(border.hi, 0, Val{N})))
 end
 function padindices{_,Style,N}(img::AbstractArray{_,N}, border::Pad{Style,N})
     _padindices(border, border.lo, indices(img), border.hi)
@@ -90,7 +92,7 @@ _padindices(border, ::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
 
 Generate a padded image from an array `img` and a specification
 `border` of the boundary conditions and amount of padding to
-add. `border` can be a `Pad` or `Fill` object.
+add. `border` can be a `Pad`, `Fill`, or `Inner` object.
 
 Optionally provide the element type `T` of `imgpadded`.
 """
@@ -110,7 +112,14 @@ immutable Inner{N} <: AbstractBorder
     hi::Dims{N}
 end
 
-# padarray(img, ::Inner) = img # do we need to make a copy here? (for consistency) or throw error?
+(::Type{Inner})(factkernel::Tuple, img, ::FIR) = Inner(factkernel)
+(::Type{Inner})(factkernel::Tuple) = Inner(extremize(indices(factkernel[1]), tail(factkernel)...))
+(::Type{Inner})(kernel::AbstractArray) = Inner(indices(kernel))
+(::Type{Inner}){N}(inds::Indices{N}) = Inner{N}(map(lo,inds), map(hi,inds))
+
+padarray(img, border::Inner) = padarray(eltype(img), img, border)
+padarray{T}(::Type{T}, img::AbstractArray{T}, border::Inner) = copy(img)
+padarray{T}(::Type{T}, img::AbstractArray, border::Inner) = convert(Array{T}, img)
 
 """
     Fill(val)
@@ -210,5 +219,13 @@ modrange(A::AbstractArray, r::AbstractUnitRange) = map(x->modrange(x, r), A)
 
 arraytype{T}(A::AbstractArray, ::Type{T}) = Array{T}  # fallback
 arraytype(A::BitArray, ::Type{Bool}) = BitArray
+
+interior(A::AbstractArray, kernel::AbstractArray) = _interior(indices(A), indices(kernel))
+interior(A, factkernel::Tuple) = _interior(indices(A), extremize(indices(factkernel[1]), tail(factkernel)...))
+function _interior{N}(indsA::NTuple{N}, indsk)
+    indskN = fill_to_length(indsk, 0:0, Val{N})
+    CartesianRange(CartesianIndex(map((ia,ik)->first(ia) + lo(ik), indsA, indskN)),
+                   CartesianIndex(map((ia,ik)->last(ia)  - hi(ik), indsA, indskN)))
+end
 
 # end

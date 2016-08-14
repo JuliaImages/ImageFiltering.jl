@@ -24,7 +24,7 @@ include("deprecated.jl")
 
 export Kernel, Pad, Fill, Inner, Alg, imfilter, imfilter!, padarray, centered
 
-typealias BorderSpec{P<:Pad,T} Union{Type{P}, Fill{T,0}}
+typealias BorderSpec{P<:Pad,T,I<:Inner} Union{Type{P}, Fill{T,0}, Type{I}}
 
 using .Kernel: TriggsSdika, IIRFilter
 
@@ -37,12 +37,32 @@ function imfilter{T}(::Type{T}, img::AbstractArray, kernel, args...)
     imfilter!(similar(img, T), img, kernel, args...)
 end
 
+function imfilter{T}(::Type{T}, img::AbstractArray, kernel::AbstractArray, border::Type{Inner}, args...)
+    imfilter(T, img, factorkernel(kernel), border, args...)
+end
+
+function imfilter{T}(::Type{T}, img::AbstractArray, kernel::Tuple, border::Type{Inner}, args...)
+    R = interior(img, kernel)
+    inds = to_ranges(R)
+    imfilter!(similar(img, T, inds), img, kernel, args...)
+end
+
 function imfilter(r::AbstractResource, img::AbstractArray, kernel, args...)
     imfilter(r, filter_type(img, kernel), img, kernel, args...)
 end
 
 function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::AbstractArray, args...)
     imfilter(r, T, img, factorkernel(kernel), args...)
+end
+
+function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::AbstractArray, border::Type{Inner}, args...)
+    imfilter(r, T, img, factorkernel(kernel), border, args...)
+end
+
+function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::Tuple, border::Type{Inner}, args...)
+    R = interior(img, kernel)
+    inds = to_ranges(R)
+    imfilter(r, similar(img, T, inds), img, factorkernel(kernel), args...)
 end
 
 # These next two are explicit rather than using args... as a means to
@@ -181,7 +201,7 @@ function imfilter!{S,T,N}(r::AbstractResource,
     bord = border(kernel, img, Alg(r))
     A = padarray(S, img, bord)
     if length(kernel) == 1
-        imfilter!(r, out, A, kernel[1])
+        imfilter!(r, out, A, _reshape(kernel[1], Val{N}))
     else
         Ac = similar(A)
         for i = 1:length(kernel)-1
@@ -189,7 +209,7 @@ function imfilter!{S,T,N}(r::AbstractResource,
             imfilter!(r, Ac, A, kern, interior(Ac, kern))
             A, Ac = Ac, A
         end
-        imfilter!(r, out, A, kernel[end])
+        imfilter!(r, out, A, _reshape(kernel[end], Val{N}))
     end
     out
 end
@@ -288,7 +308,7 @@ function imfilter!{S,T,N}(r::CPU1{FFT},
                           border::BorderSpec)
     bord = border(kernel, img, Alg(r))
     A = padarray(S, img, bord)
-    kern = prod_kernel(kernel...)
+    kern = prod_kernel(Val{N}, kernel...)
     krn = FFTView(zeros(eltype(kern), map(length, indices(A))))
     for I in CartesianRange(indices(kern))
         krn[I] = kern[I]
@@ -299,7 +319,7 @@ function imfilter!{S,T,N}(r::CPU1{FFT},
         copy!(out, R, Af, R)
     else
         dest = FFTView(out)
-        src = Base.of_indices(view(FFTView(Af), indices(dest)...), indices(dest))
+        src = OffsetArray(view(FFTView(Af), indices(dest)...), indices(dest))
         copy!(dest, src)
     end
     out
@@ -494,20 +514,22 @@ end
 
 ### Utilities
 
-function interior(A, kern)
-    indsA, indsk = indices(A), indices(kern)
-    CartesianRange(CartesianIndex(map((ia,ik)->first(ia) + lo(ik), indsA, indsk)),
-                   CartesianIndex(map((ia,ik)->last(ia)  - hi(ik), indsA, indsk)))
-end
-
 filter_type{S,T}(img::AbstractArray{S}, kernel::AbstractArray{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
 filter_type{S,T}(img::AbstractArray{S}, kernel::Tuple{AbstractArray{T},Vararg{AbstractArray{T}}}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
 filter_type{S,T}(img::AbstractArray{S}, kernel::Tuple{IIRFilter{T},Vararg{IIRFilter{T}}}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
 
-factorkernel(kernel::AbstractArray) = (copy(kernelshift(kernel)),)  # copy to ensure consistency
+factorkernel(kernel::AbstractArray) = (copy(kernelshift(indices(kernel), kernel)),)  # copy to ensure consistency
+
+function factorkernel{T}(kernel::AbstractMatrix{T})
+    inds = indices(kernel)
+    m, n = map(length, inds)
+    kern = Array{T}(m, n)
+    copy!(kern, 1:m, 1:n, kernel, inds[1], inds[2])
+    _factorkernel(factorstridedkernel(inds, kern), kernelshift(inds, kernel))
+end
 
 # Note that this isn't (and can't be) type stable
-function factorkernel(kernel::StridedMatrix)
+function factorstridedkernel(inds, kernel::StridedMatrix)
     SVD = svdfact(kernel)
     U, S, Vt = SVD[:U], SVD[:S], SVD[:Vt]
     separable = true
@@ -515,40 +537,41 @@ function factorkernel(kernel::StridedMatrix)
     for i = 2:length(S)
         separable &= (abs(S[i]) < EPS)
     end
-    separable || return (copy(kernelshift(kernel)),)
+    separable || return (copy(kernelshift(inds, kernel)),)
     s = S[1]
     u, v = U[:,1:1], Vt[1:1,:]
     ss = sqrt(s)
-    (kernelshift(ss*u), kernelshift(ss*v))
+    (kernelshift((inds[1], dummyind(inds[1])), ss*u),
+     kernelshift((dummyind(inds[2]), inds[2]), ss*v))
 end
 
-function factorkernel{T}(kernel::AbstractMatrix{T})
-    m, n = length(indices(kernel,1)), length(indices(kernel,2))
-    kern = Array{T}(m, n)
-    copy!(kern, 1:m, 1:n, kernel, indices(kernel,1), indices(kernel,2))
-    _factorkernel(factorkernel(kern), kernel)
-end
-_factorkernel(fk::Tuple{Matrix}, kernel::AbstractMatrix) = (copy(kernelshift(kernel)),)
-function _factorkernel(fk::Tuple{Matrix,Matrix}, kernel::AbstractMatrix)
-    ks = kernelshift(kernel)
-    kern1 = fk[1]
-    k1 = similar(ks, eltype(kern1), (indices(ks,1), 0:0))
-    copy!(k1, indices(k1)..., kern1, indices(kern1)...)
-    kern2 = fk[2]
-    k2 = similar(ks, eltype(kern1), (0:0, indices(kernel,2)))
-    copy!(k2, indices(k2)..., kern2, indices(kern2)...)
-    (k1, k2)
-end
+dummyind(::Base.OneTo) = Base.OneTo(1)
+dummyind(::AbstractUnitRange) = 0:0
 
-prod_kernel(kern) = kern
-prod_kernel(kern, kern1, kerns...) = prod_kernel(kern.*kern1, kerns...)
 
-kernelshift(A::AbstractArray) = _kernelshift(indices(A), A)
-function _kernelshift{N}(::NTuple{N,Base.OneTo}, A)
-    warn("assuming that the origin is at the center of the kernel; to avoid this warning, call `centered(kernel)`")  # this may be necessary long-term?
+_factorkernel(fk::Tuple{AbstractMatrix}, kernel::AbstractMatrix) = (copy(kernel),)
+_factorkernel(fk::Tuple{AbstractMatrix,AbstractMatrix}, kernel::AbstractMatrix) = fk
+
+prod_kernel(kern::AbstractArray) = kern
+prod_kernel(kern::AbstractArray, kern1, kerns...) = prod_kernel(kern.*kern1, kerns...)
+prod_kernel{N}(::Type{Val{N}}, args...) = prod_kernel(Val{N}, prod_kernel(args...))
+prod_kernel{_,N}(::Type{Val{N}}, kernel::AbstractArray{_,N}) = kernel
+function prod_kernel{N}(::Type{Val{N}}, kernel::AbstractArray)
+    inds = indices(kernel)
+    newinds = fill_to_length(inds, oftype(inds[1], 0:0), Val{N})
+    reshape(kernel, newinds)
+end
+kernelshift{N}(inds::NTuple{N,Base.OneTo}, A::StridedArray) = _kernelshift(inds, A)
+kernelshift{N}(inds::NTuple{N,Base.OneTo}, A) = _kernelshift(inds, A)
+function _kernelshift(inds, A)
+    warn("assuming that the origin is at the center of the kernel; to avoid this warning, call `centered(kernel)` or use an OffsetArray")  # this may be necessary long-term?
     centered(A)
 end
-_kernelshift(::Any, A) = A
+kernelshift(inds::Any, A::StridedArray) = OffsetArray(A, inds...)
+function kernelshift(inds::Any, A)
+    @assert indices(A) == inds
+    A
+end
 
 centered(A::AbstractArray) = OffsetArray(A, map(n->-((n+1)>>1), size(A)))
 
@@ -577,6 +600,11 @@ end
 _tail(R::CartesianRange{CartesianIndex{0}}) = R
 _tail(R::CartesianRange) = CartesianRange(CartesianIndex(tail(R.start.I)),
                                           CartesianIndex(tail(R.stop.I)))
+
+to_ranges(R::CartesianRange) = map((b,e)->b:e, R.start.I, R.stop.I)
+
+_reshape{_,N}(A::OffsetArray{_,N}, ::Type{Val{N}}) = A
+_reshape{N}(A::OffsetArray, ::Type{Val{N}}) = OffsetArray(reshape(parent(A), Val{N}), fill_to_length(A.offsets, -1, Val{N}))
 
 function __init__()
     # See ComputationalResources README for explanation
