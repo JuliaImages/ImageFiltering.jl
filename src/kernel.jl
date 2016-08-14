@@ -2,9 +2,9 @@ module Kernel
 
 using StaticArrays
 
-abstract IIRFilter
+abstract IIRFilter{T}
 
-immutable TriggsSdika{T,k,l,L} <: IIRFilter
+immutable TriggsSdika{T,k,l,L} <: IIRFilter{T}
     a::SVector{k,T}
     b::SVector{l,T}
     scale::T
@@ -29,7 +29,7 @@ end
 # Filtering". IEEE Trans. Sig. Proc., 50: 2798-2805 (2002).
 # Note that there's a sign reversal between Young & Triggs.
 function IIRGaussian{T}(::Type{T}, sigma::Real; emit_warning::Bool = true)
-    if emit_warning && sigma < 1
+    if emit_warning && sigma < 1 && sigma != 0
         warn("sigma is too small for accuracy")
     end
     m0 = convert(T,1.16680)
@@ -45,6 +45,18 @@ function IIRGaussian{T}(::Type{T}, sigma::Real; emit_warning::Bool = true)
     a = SVector(a1,a2,a3)
     TriggsSdika(a, B)
 end
-IIRGaussian(sigma::Real; emit_warning::Bool = true) = IIRGaussian(Float64, sigma; emit_warning=emit_warning)
+IIRGaussian(sigma::Real; emit_warning::Bool = true) = IIRGaussian(iirgt(sigma), sigma; emit_warning=emit_warning)
+
+function IIRGaussian{T}(::Type{T}, sigma::Tuple; emit_warning::Bool = true)
+    map(s->IIRGaussian(T, s; emit_warning=emit_warning), sigma)
+end
+IIRGaussian(sigma::Tuple; emit_warning::Bool = true) = IIRGaussian(iirgt(sigma), sigma; emit_warning=emit_warning)
+
+IIRGaussian(sigma::AbstractVector; kwargs...) = IIRGaussian((sigma...,); kwargs...)
+IIRGaussian{T}(::Type{T}, sigma::AbstractVector; kwargs...) = IIRGaussian(T, (sigma...,); kwargs...)
+
+iirgt(sigma::AbstractFloat) = typeof(sigma)
+iirgt(sigma::Real) = Float64
+iirgt(sigma::Tuple) = promote_type(map(iirgt, sigma)...)
 
 end

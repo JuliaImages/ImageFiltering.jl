@@ -72,4 +72,6 @@ end
     end
 end
 
+include("deprecated.jl")
+
 nothing

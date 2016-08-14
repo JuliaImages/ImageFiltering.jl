@@ -1,12 +1,17 @@
 module ImagesFiltering
 
-using Colors, ImagesCore, MappedArrays, FFTViews, StaticArrays, ComputationalResources
+using Colors, FixedPointNumbers, ImagesCore, MappedArrays, FFTViews, StaticArrays, ComputationalResources
 using ColorVectorSpace  # in case someone filters RGB arrays
 
-# deliberately don't export these, but it's expected that they will be used
-abstract Alg
-immutable FFT <: Alg end
-immutable FIR <: Alg end
+typealias FixedColorant{T<:UFixed} Colorant{T}
+
+module Algorithm
+    # deliberately don't export these, but it's expected that they will be used
+    abstract Alg
+    immutable FFT <: Alg end
+    immutable FIR <: Alg end
+end
+using .Algorithm: Alg, FFT, FIR
 
 Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
 
@@ -15,12 +20,13 @@ using .Kernel
 include("border.jl")
 # using .Border
 # using .Border: AbstractBorder, Pad, Inner, Fill
+include("deprecated.jl")
 
-export Kernel, Pad, Fill, Inner, imfilter, imfilter!, padarray
+export Kernel, Pad, Fill, Inner, Alg, imfilter, imfilter!, padarray, centered
 
 typealias BorderSpec{P<:Pad,T} Union{Type{P}, Fill{T,0}}
 
-using .Kernel: TriggsSdika
+using .Kernel: TriggsSdika, IIRFilter
 
 # see below for imfilter docstring
 function imfilter(img::AbstractArray, kernel, args...)
@@ -188,6 +194,51 @@ function imfilter!{S,T,N}(r::AbstractResource,
     out
 end
 
+# NA "padding": normalizing by the number of available values (similar to nanmean)
+function imfilter!{T,S,N}(r::AbstractResource,
+                          out::AbstractArray{S,N},
+                          img::AbstractArray{T,N},
+                          kernel::Tuple,
+                          border::Type{Pad{:na}})
+    _imfilter_na!(r, out, img, kernel, border)
+end
+
+function _imfilter_na!{T,S,N}(r::AbstractResource,
+                              out::AbstractArray{S,N},
+                              img::AbstractArray{T,N},
+                              kernel::Tuple,
+                              border::Type{Pad{:na}})
+    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
+    nanflag = map(isnan, img)
+    hasnans = any(nanflag)
+    if hasnans
+        copy!(out, img)
+        out[nanflag] = zero(T)
+        validpixels = copy!(similar(Array{T}, indices(img)), mappedarray(x->!x, nanflag))
+        imfilter!(r, out, out, kernel, fc)
+        imfilter!(r, validpixels, validpixels, kernel, fn)
+        for I in eachindex(out)
+            out[I] /= validpixels[I]
+        end
+        out[nanflag] = convert(T, NaN)
+    else
+        imfilter!(r, out, img, kernel, fc)
+        normalize_separable!(r, out, kernel, fn)
+    end
+    out
+end
+
+# for types that can't have NaNs, we can skip the isnan check
+function _imfilter_na!{S,T<:Union{Integer,FixedColorant},N}(r::AbstractResource,
+                                                            out::AbstractArray{S,N},
+                                                            img::AbstractArray{T,N},
+                                                            kernel::Tuple,
+                                                            border::Type{Pad{:na}})
+    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))
+    imfilter!(r, out, img, kernel, fc)
+    normalize_separable!(r, out, kernel, fn)
+end
+
 ## FIR filtering
 
 function imfilter!{S,T,K,N}(::CPU1{FIR},
@@ -225,7 +276,15 @@ end
 function imfilter!{S,T,N}(r::CPU1{FFT},
                           out::AbstractArray{S,N},
                           img::AbstractArray{T,N},
-                          kernel::Tuple,
+                          kernel::Tuple{AbstractArray,Vararg{AbstractArray}},
+                          border::Type{Pad{:na}})
+    throw(ArgumentError("na padding is not available for FFT"))
+end
+
+function imfilter!{S,T,N}(r::CPU1{FFT},
+                          out::AbstractArray{S,N},
+                          img::AbstractArray{T,N},
+                          kernel::Tuple{AbstractArray,Vararg{AbstractArray}},
                           border::BorderSpec)
     bord = border(kernel, img, Alg(r))
     A = padarray(S, img, bord)
@@ -243,6 +302,7 @@ function imfilter!{S,T,N}(r::CPU1{FFT},
         src = Base.of_indices(view(FFTView(Af), indices(dest)...), indices(dest))
         copy!(dest, src)
     end
+    out
 end
 
 filtfft(A, krn) = irfft(rfft(A).*conj(rfft(krn)), length(indices(A,1)))
@@ -270,122 +330,158 @@ end
 # recursive filtering". IEEE Trans. on Sig. Proc. 54: 2365-2367
 # (2006).
 
-function imfilter_inplace!(img, kernel::TriggsSdika, dim::Integer, border::BorderSpec)
+# Note this is safe for inplace use, i.e., out === img
+
+typealias BorderSpecRF{P<:Pad{:replicate},T} Union{Type{P}, Fill{T,0}}
+
+function imfilter!{S,T,N}(r::AbstractResource,
+                          out::AbstractArray{S,N},
+                          img::AbstractArray{T,N},
+                          kernel::Tuple{TriggsSdika, Vararg{TriggsSdika}},
+                          border::BorderSpecRF)
+    length(kernel) <= N || throw(DimensionMismatch("cannot have more kernels than dimensions"))
     inds = indices(img)
-    k, l = length(kernel.a), length(kernel.b)
-    if length(inds[dim]) <= max(k, l)
-        throw(DimensionMismatch("size of img along dimension $dim $(length(inds[dim])) is too small for filtering with IIR kernel of length $(max(k,l))"))
-    end
-    Rbegin = CartesianRange(inds[1:dim-1])
-    Rend   = CartesianRange(inds[dim+1:end])
-    _imfilter_inplace!(img, kernel, Rbegin, inds[dim], Rend, border)
+    _imfilter_inplace_tuple!(r, out, img, kernel, CartesianRange(()), inds, CartesianRange(tail(inds)), border)
 end
 
-@noinline function _imfilter_inplace!{T,k,l}(img, kernel::TriggsSdika{T,k,l},
-                                             Rbegin::CartesianRange, ind::AbstractUnitRange,
-                                             Rend::CartesianRange, border::BorderSpec)
+function imfilter!(r::AbstractResource, out, img, kernel::TriggsSdika, dim::Integer, border::BorderSpec)
+    inds = indices(img)
+    k, l = length(kernel.a), length(kernel.b)
+    Rbegin = CartesianRange(inds[1:dim-1])
+    Rend   = CartesianRange(inds[dim+1:end])
+    _imfilter_dim!(r, out, img, kernel, Rbegin, inds[dim], Rend, border)
+end
+
+function _imfilter_inplace_tuple!(r, out, img, kernel, Rbegin, inds, Rend, border)
+    ind = first(inds)
+    _imfilter_dim!(r, out, img, first(kernel), Rbegin, ind, Rend, border)
+    _imfilter_inplace_tuple!(r,
+                             out,
+                             out,
+                             tail(kernel),
+                             CartesianRange(CartesianIndex((Rbegin.start.I..., first(ind))),
+                                            CartesianIndex((Rbegin.stop.I...,  last(ind)))),
+                             tail(inds),
+                             _tail(Rend),
+                             border)
+end
+_imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = out
+
+@noinline function _imfilter_dim!{T,k,l}(r::AbstractResource,
+                                         out, img, kernel::TriggsSdika{T,k,l},
+                                         Rbegin::CartesianRange, ind::AbstractUnitRange,
+                                         Rend::CartesianRange, border::BorderSpec)
+    if all(x->x==0, kernel.a) && all(x->x==0, kernel.b) && kernel.scale == 1
+        if !(out === img)
+            copy!(out, img)
+        end
+        return out
+    end
+    if length(ind) <= max(k, l)
+        throw(DimensionMismatch("size of img along dimension $dim $(length(inds[dim])) is too small for filtering with IIR kernel of length $(max(k,l))"))
+    end
     for Iend in Rend
         # Initialize the left border
         indleft = ind[1:k]
         for Ibegin in Rbegin
-            leftborder!(img, kernel, Ibegin, indleft, Iend, border)
+            leftborder!(out, img, kernel, Ibegin, indleft, Iend, border)
         end
         # Propagate forwards. We omit the final point in case border
         # is Pad{:replicate}, so that the original value is still
         # available. rightborder! will handle that point.
-        for i = ind[k+1]:ind[end-1]
+        for i = ind[k]+1:ind[end-1]
             @inbounds for Ibegin in Rbegin
                 tmp = one(T)*img[Ibegin, i, Iend]
                 for j = 1:k
-                    tmp += kernel.a[j]*img[Ibegin, i-j, Iend]
+                    tmp += kernel.a[j]*out[Ibegin, i-j, Iend]
                 end
-                img[Ibegin, i, Iend] = tmp
+                out[Ibegin, i, Iend] = tmp
             end
         end
         # Initialize the right border
         indright = ind[end-l+1:end]
         for Ibegin in Rbegin
-            rightborder!(img, kernel, Ibegin, indright, Iend, border)
+            rightborder!(out, img, kernel, Ibegin, indright, Iend, border)
         end
         # Propagate backwards
         for i = ind[end-l]:-1:ind[1]
             @inbounds for Ibegin in Rbegin
-                tmp = one(T)*img[Ibegin, i, Iend]
+                tmp = one(T)*out[Ibegin, i, Iend]
                 for j = 1:l
-                    tmp += kernel.b[j]*img[Ibegin, i+j, Iend]
+                    tmp += kernel.b[j]*out[Ibegin, i+j, Iend]
                 end
-                img[Ibegin, i, Iend] = tmp
+                out[Ibegin, i, Iend] = tmp
             end
         end
         # Final scaling
         for i in ind
             @inbounds for Ibegin in Rbegin
-                img[Ibegin, i, Iend] *= kernel.scale
+                out[Ibegin, i, Iend] *= kernel.scale
             end
         end
     end
-    img
+    out
 end
 
 # Implements the initialization in the first paragraph of Triggs & Sdika, section II
-function leftborder!(img, kernel, Ibegin, indleft, Iend, border::Fill)
-    _leftborder!(img, kernel, Ibegin, indleft, Iend, convert(eltype(img), border.value))
+function leftborder!(out, img, kernel, Ibegin, indleft, Iend, border::Fill)
+    _leftborder!(out, img, kernel, Ibegin, indleft, Iend, convert(eltype(img), border.value))
 end
-function leftborder!(img, kernel, Ibegin, indleft, Iend, border::Pad{:replicate})
-    _leftborder!(img, kernel, Ibegin, indleft, Iend, img[Ibegin, indleft[1], Iend])
+function leftborder!(out, img, kernel, Ibegin, indleft, Iend, border::Pad{:replicate})
+    _leftborder!(out, img, kernel, Ibegin, indleft, Iend, img[Ibegin, indleft[1], Iend])
 end
-function _leftborder!{T,k,l}(img, kernel::TriggsSdika{T,k,l}, Ibegin, indleft, Iend, iminus)
+function _leftborder!{T,k,l}(out, img, kernel::TriggsSdika{T,k,l}, Ibegin, indleft, Iend, iminus)
     uminus = iminus/(1-kernel.asum)
     n = 0
     for i in indleft
         n += 1
         tmp = one(T)*img[Ibegin, i, Iend]
         for j = 1:n-1
-            tmp += kernel.a[j]*img[Ibegin, i-j, Iend]
+            tmp += kernel.a[j]*out[Ibegin, i-j, Iend]
         end
         for j = n:k
             tmp += kernel.a[j]*uminus
         end
-        img[Ibegin, i, Iend] = tmp
+        out[Ibegin, i, Iend] = tmp
     end
-    img
+    out
 end
 
 # Implements Triggs & Sdika, Eqs 14-15
-function rightborder!(img, kernel, Ibegin, indright, Iend, border::Fill)
-    _rightborder!(img, kernel, Ibegin, indright, Iend, convert(eltype(img), border.value))
+function rightborder!(out, img, kernel, Ibegin, indright, Iend, border::Fill)
+    _rightborder!(out, img, kernel, Ibegin, indright, Iend, convert(eltype(img), border.value))
 end
-function rightborder!(img, kernel, Ibegin, indright, Iend, border::Pad{:replicate})
-    _rightborder!(img, kernel, Ibegin, indright, Iend, img[Ibegin, indright[end], Iend])
+function rightborder!(out, img, kernel, Ibegin, indright, Iend, border::Pad{:replicate})
+    _rightborder!(out, img, kernel, Ibegin, indright, Iend, img[Ibegin, indright[end], Iend])
 end
-function _rightborder!{T,k,l}(img, kernel::TriggsSdika{T,k,l}, Ibegin, indright, Iend, iplus)
+function _rightborder!{T,k,l}(out, img, kernel::TriggsSdika{T,k,l}, Ibegin, indright, Iend, iplus)
     # The final value from forward-filtering was not calculated, so do that here
     i = last(indright)
     tmp = one(T)*img[Ibegin, i, Iend]
     for j = 1:k
-        tmp += kernel.a[j]*img[Ibegin, i-j, Iend]
+        tmp += kernel.a[j]*out[Ibegin, i-j, Iend]
     end
-    img[Ibegin, i, Iend] = tmp
+    out[Ibegin, i, Iend] = tmp
     # Initialize the v values at and beyond the right edge
     uplus = iplus/(1-kernel.asum)
     vplus = uplus/(1-kernel.bsum)
-    vright = kernel.M * rightΔu(img, uplus, Ibegin, last(indright), Iend, kernel) +
+    vright = kernel.M * rightΔu(out, uplus, Ibegin, last(indright), Iend, kernel) +
              fill(vplus, SVector{l,typeof(vplus)})
-    img[Ibegin, last(indright), Iend] = vright[1]
+    out[Ibegin, last(indright), Iend] = vright[1]
     # Propagate inward
     n = 1
     for i in last(indright)-1:-1:first(indright)
         n += 1
-        tmp = one(T)*img[Ibegin, i, Iend]
+        tmp = one(T)*out[Ibegin, i, Iend]
         for j = 1:n-1
-            tmp += kernel.b[j]*img[Ibegin, i+j, Iend]
+            tmp += kernel.b[j]*out[Ibegin, i+j, Iend]
         end
         for j = n:l
             tmp += kernel.b[j]*vright[j-n+2]
         end
-        img[Ibegin, i, Iend] = tmp
+        out[Ibegin, i, Iend] = tmp
     end
-    img
+    out
 end
 
 # Part of Triggs & Sdika, Eq. 14
@@ -406,8 +502,9 @@ end
 
 filter_type{S,T}(img::AbstractArray{S}, kernel::AbstractArray{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
 filter_type{S,T}(img::AbstractArray{S}, kernel::Tuple{AbstractArray{T},Vararg{AbstractArray{T}}}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
+filter_type{S,T}(img::AbstractArray{S}, kernel::Tuple{IIRFilter{T},Vararg{IIRFilter{T}}}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
 
-factorkernel(kernel::AbstractArray) = (copy(kernel),)  # copy to ensure consistency
+factorkernel(kernel::AbstractArray) = (copy(kernelshift(kernel)),)  # copy to ensure consistency
 
 # Note that this isn't (and can't be) type stable
 function factorkernel(kernel::StridedMatrix)
@@ -418,11 +515,11 @@ function factorkernel(kernel::StridedMatrix)
     for i = 2:length(S)
         separable &= (abs(S[i]) < EPS)
     end
-    separable || return (copy(kernel),)
+    separable || return (copy(kernelshift(kernel)),)
     s = S[1]
     u, v = U[:,1:1], Vt[1:1,:]
     ss = sqrt(s)
-    (ss*u, ss*v)
+    (kernelshift(ss*u), kernelshift(ss*v))
 end
 
 function factorkernel{T}(kernel::AbstractMatrix{T})
@@ -431,13 +528,14 @@ function factorkernel{T}(kernel::AbstractMatrix{T})
     copy!(kern, 1:m, 1:n, kernel, indices(kernel,1), indices(kernel,2))
     _factorkernel(factorkernel(kern), kernel)
 end
-_factorkernel(fk::Tuple{Matrix}, kernel::AbstractMatrix) = (copy(kernel),)
+_factorkernel(fk::Tuple{Matrix}, kernel::AbstractMatrix) = (copy(kernelshift(kernel)),)
 function _factorkernel(fk::Tuple{Matrix,Matrix}, kernel::AbstractMatrix)
+    ks = kernelshift(kernel)
     kern1 = fk[1]
-    k1 = similar(kernel, eltype(kern1), (indices(kernel,1), 0:0))
+    k1 = similar(ks, eltype(kern1), (indices(ks,1), 0:0))
     copy!(k1, indices(k1)..., kern1, indices(kern1)...)
     kern2 = fk[2]
-    k2 = similar(kernel, eltype(kern1), (0:0, indices(kernel,2)))
+    k2 = similar(ks, eltype(kern1), (0:0, indices(kernel,2)))
     copy!(k2, indices(k2)..., kern2, indices(kern2)...)
     (k1, k2)
 end
@@ -445,7 +543,40 @@ end
 prod_kernel(kern) = kern
 prod_kernel(kern, kern1, kerns...) = prod_kernel(kern.*kern1, kerns...)
 
+kernelshift(A::AbstractArray) = _kernelshift(indices(A), A)
+function _kernelshift{N}(::NTuple{N,Base.OneTo}, A)
+    warn("assuming that the origin is at the center of the kernel; to avoid this warning, call `centered(kernel)`")  # this may be necessary long-term?
+    centered(A)
+end
+_kernelshift(::Any, A) = A
+
+centered(A::AbstractArray) = OffsetArray(A, map(n->-((n+1)>>1), size(A)))
+
 filter_algorithm(out, img, kernel) = FIR()
+
+function normalize_separable!{N}(r::AbstractResource, A, kernels::NTuple{N}, border)
+    inds = indices(A)
+    function imfilter_inplace!(r, a, kern, border)
+        imfilter!(r, a, a, (kern,), border)
+    end
+    filtdims = ntuple(d->imfilter_inplace!(r, similar(dims->ones(dims), inds[d]), kernels[d], border), Val{N})
+    normalize_dims!(A, filtdims)
+end
+
+function normalize_dims!{T,N}(A::AbstractArray{T,N}, factors::NTuple{N})
+    for I in CartesianRange(indices(A))
+        tmp = A[I]/factors[1][I[1]]
+        for d = 2:N
+            tmp /= factors[d][I[d]]
+        end
+        A[I] = tmp
+    end
+    A
+end
+
+_tail(R::CartesianRange{CartesianIndex{0}}) = R
+_tail(R::CartesianRange) = CartesianRange(CartesianIndex(tail(R.start.I)),
+                                          CartesianIndex(tail(R.stop.I)))
 
 function __init__()
     # See ComputationalResources README for explanation

@@ -43,6 +43,11 @@ Pad the input image by `lo` pixels at the lower edge, and `hi` pixels at the upp
 (::Type{Pad{Style}}){Style,N}(lo::Dims{N}, hi::Tuple{}) = Pad{Style,N}(lo, ntuple(d->0,Val{N}))
 (::Type{Pad{Style}}){Style,N}(lo::Tuple{}, hi::Dims{N}) = Pad{Style,N}(ntuple(d->0,Val{N}), hi)
 (::Type{Pad{Style}}){Style,N}(inds::Indices{N}) = Pad{Style,N}(map(lo,inds), map(hi,inds))
+
+(::Type{Pad{Style,N}}){Style,N}(lo::AbstractVector, hi::AbstractVector) = Pad{Style,N}((lo...,), (hi...,))
+(::Type{Pad{Style}}){Style}(lo::AbstractVector, hi::AbstractVector) = Pad{Style}((lo...,), (hi...,))  # not inferrable
+
+
 """
     Pad{Style}(kernel)
 
@@ -126,6 +131,7 @@ end
 
 Fill{T}(value::T) = Fill{T,0}(value)
 Fill{T,N}(value::T, lo::Dims{N}, hi::Dims{N}) = Fill{T,N}(value, lo, hi)
+Fill(value, lo::AbstractVector, hi::AbstractVector) = Fill(value, (lo...,), (hi...,))
 Fill{T,N}(value::T, inds::Base.Indices{N}) = Fill{T,N}(value, map(lo,inds), map(hi,inds))
 Fill(value, kernel::AbstractArray) = Fill(value, indices(kernel))
 Fill(value, factkernel::Tuple) = Fill(value, extremize(indices(factkernel[1]), tail(factkernel)...))
@@ -142,12 +148,12 @@ function padarray{T}(::Type{T}, img::AbstractArray, border::Fill)
     throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"))
 end
 function padarray{T,S,_,N}(::Type{T}, img::AbstractArray{S,N}, f::Fill{_,N})
-    A = similar(Array{T}, map((l,r,h)->first(r)-l:last(r)+h, f.lo, indices(img), f.hi))
+    A = similar(arraytype(img, T), map((l,r,h)->first(r)-l:last(r)+h, f.lo, indices(img), f.hi))
     fill!(A, f.value)
     A[indices(img)...] = img
     A
 end
-padarray(img::AbstractArray, f::Fill) = padarray(eltype(img), f)
+padarray(img::AbstractArray, f::Fill) = padarray(eltype(img), img, f)
 
 # There are other ways to define these, but using `mod` makes it safe
 # for cases where the padding is bigger than length(inds)
@@ -201,5 +207,8 @@ __extremize(ind1, ind2) = min(first(ind1),first(ind2)):max(last(ind1),last(ind2)
 
 modrange(x, r::AbstractUnitRange) = mod(x-first(r), length(r))+first(r)
 modrange(A::AbstractArray, r::AbstractUnitRange) = map(x->modrange(x, r), A)
+
+arraytype{T}(A::AbstractArray, ::Type{T}) = Array{T}  # fallback
+arraytype(A::BitArray, ::Type{Bool}) = BitArray
 
 # end
