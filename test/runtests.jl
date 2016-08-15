@@ -14,17 +14,22 @@ using Base.Test
     for img in (copy(imgf), copy(imgi), copy(imgg), copy(imgc))
         targetimg = zeros(typeof(img[1]*kern[1]), size(img))
         targetimg[3:4,2:3] = rot180(kern)*img[3,4]
-        @test imfilter(img, kernel) ≈ targetimg
-        @test imfilter(f32type(img), img, kernel) ≈ float32(targetimg)
-        for border in (Pad{:replicate}, Pad{:circular}, Pad{:symmetric}, Pad{:reflect}, Fill(zero(eltype(img))))
-            @test imfilter(img, kernel, border) ≈ targetimg
-            @test imfilter(f32type(img), img, kernel, border) ≈ float32(targetimg)
-            for alg in (ImagesFiltering.FIR(), ImagesFiltering.FFT())
-                @test imfilter(img, kernel, alg) ≈ targetimg
-                @test imfilter(img, kernel, border, alg) ≈ targetimg
-                @test imfilter(f32type(img), img, kernel, alg) ≈ float32(targetimg)
-                @test imfilter(f32type(img), img, kernel, border, alg) ≈ float32(targetimg)
+        @test @inferred(imfilter(img, kernel)) ≈ targetimg
+        @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32(targetimg)
+        for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(img))))
+            @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
+            @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
+            for alg in (Algorithm.FIR(), Algorithm.FFT())
+                @test @inferred(imfilter(img, kernel, border, alg)) ≈ targetimg
+                @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
             end
+        end
+        targetimg_inner = OffsetArray(targetimg[2:end, 1:end-2], 2:5, 1:3)
+        @test @inferred(imfilter(img, kernel, Inner())) ≈ targetimg_inner
+        @test @inferred(imfilter(f32type(img), img, kernel, Inner())) ≈ float32(targetimg_inner)
+        for alg in (Algorithm.FIR(), Algorithm.FFT())
+            @test @inferred(imfilter(img, kernel, Inner(), alg)) ≈ targetimg_inner
+            @test @inferred(imfilter(f32type(img), img, kernel, Inner(), alg)) ≈ float32(targetimg_inner)
         end
     end
 end
@@ -48,7 +53,7 @@ end
             a = zeros(l)
             a[c] = 1
             af = exp(-((1:l)-c).^2/(2*σ^2))/(σ*√(2π))
-            imfilter!(a, a, (kernel,), Fill(0))
+            @inferred(imfilter!(a, a, (kernel,), Fill(0)))
             @test norm(a-af) < 0.1*norm(af)
             # aσ[i][:,2n-1:2n] = [af a]
         end
@@ -66,7 +71,7 @@ end
     for img in (copy(imgf), copy(imgg), copy(imgc))
         imgcmp = img[3,4]*exp(-(x.^2 .+ y.^2)/(2*σ^2))/(σ^2*2*pi)
         border = Fill(zero(eltype(img)))
-        imgf = imfilter(img, kernel, border)
+        imgf = @inferred(imfilter(img, kernel, border))
         @test sumabs2(imgcmp - imgf) < 0.2^2*sumabs2(imgcmp)
     end
 end

@@ -49,17 +49,16 @@ Pad the input image by `lo` pixels at the lower edge, and `hi` pixels at the upp
 
 
 """
-    Pad{Style}(kernel)
+    Pad{Style}()(kernel)
 
 Given a filter array `kernel`, determine the amount of padding from the `indices` of `kernel`.
 """
-(::Type{Pad{Style}}){Style}(kernel::AbstractArray) = Pad{Style}(indices(kernel))
-(::Type{Pad{Style}}){Style}(factkernel::Tuple) = Pad{Style}(extremize(indices(factkernel[1]), tail(factkernel)...))
-(::Type{Pad{Style}}){Style}(factkernel::Tuple, img, ::FIR) = Pad{Style}(factkernel)
-(::Type{Pad})(args...) = Pad{:replicate}(args...)
+(p::Pad{Style,0}){Style}(kernel::AbstractArray) = Pad{Style}(indices(kernel))
+(p::Pad{Style,0}){Style}(factkernel::Tuple) = Pad{Style}(extremize(indices(factkernel[1]), tail(factkernel)...))
+(p::Pad{Style,0}){Style}(factkernel::Tuple, img, ::FIR) = p(factkernel)
 
 # Padding for FFT: round up to next size expressible as 2^m*3^n
-function (::Type{Pad{Style}}){Style}(factkernel::Tuple, img, ::FFT)
+function (p::Pad{Style,0}){Style}(factkernel::Tuple, img, ::FFT)
     inds = extremize(indices(factkernel[1]), tail(factkernel)...)
     newinds = map(padfft, inds, map(length, indices(img)))
     Pad{Style}(newinds)
@@ -112,10 +111,19 @@ immutable Inner{N} <: AbstractBorder
     hi::Dims{N}
 end
 
-(::Type{Inner})(factkernel::Tuple, img, ::FIR) = Inner(factkernel)
-(::Type{Inner})(factkernel::Tuple) = Inner(extremize(indices(factkernel[1]), tail(factkernel)...))
-(::Type{Inner})(kernel::AbstractArray) = Inner(indices(kernel))
+(::Type{Inner})(both::Int...) = Inner(both, both)
+(::Type{Inner}){N}(both::Dims{N}) = Inner(both, both)
+(::Type{Inner})(lo::Tuple{}, hi::Tuple{}) = Inner{0}(lo, hi)
+(::Type{Inner}){N}(lo::Dims{N}, hi::Tuple{}) = Inner{N}(lo, ntuple(d->0,Val{N}))
+(::Type{Inner}){N}(lo::Tuple{}, hi::Dims{N}) = Inner{N}(ntuple(d->0,Val{N}), hi)
 (::Type{Inner}){N}(inds::Indices{N}) = Inner{N}(map(lo,inds), map(hi,inds))
+(::Type{Inner{N}}){N}(lo::AbstractVector, hi::AbstractVector) = Inner{N}((lo...,), (hi...,))
+(::Type{Inner})(lo::AbstractVector, hi::AbstractVector) = Inner((lo...,), (hi...,)) # not inferrable
+
+(p::Inner{0})(factkernel::Tuple, img, ::FIR) = p(factkernel)
+(p::Inner{0})(factkernel::Tuple, img, ::FFT) = p(factkernel)
+(p::Inner{0})(factkernel::Tuple) = Inner(extremize(indices(factkernel[1]), tail(factkernel)...))
+(p::Inner{0})(kernel::AbstractArray) = Inner(indices(kernel))
 
 padarray(img, border::Inner) = padarray(eltype(img), img, border)
 padarray{T}(::Type{T}, img::AbstractArray{T}, border::Inner) = copy(img)
