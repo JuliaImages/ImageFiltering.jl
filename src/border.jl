@@ -33,6 +33,7 @@ Pad the input image symmetrically, `m` pixels at the lower and upper edge of dim
 (::Type{Pad{Style}}){Style,N}(both::Dims{N}) = Pad{Style,N}(both, both)
 
 (::Type{Pad{Style}}){Style  }(lo::Tuple{}, hi::Tuple{}) = Pad{Style,0}(lo, hi)
+(::Type{Pad})(args...) = Pad{:replicate}(args...)
 
 """
     Pad{Style}(lo::Dims, hi::Dims)
@@ -69,7 +70,12 @@ function padfft(indk::AbstractUnitRange, l::Integer)
 end
 
 function padindices{_,Style,N}(img::AbstractArray{_,N}, border::Pad{Style})
-    warn("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions")
+    str = "$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"
+    if ndims(border) > N
+        throw(ArgumentError(str))
+    else
+        warn(str)
+    end
     padindices(img, Pad{Style}(fill_to_length(border.lo, 0, Val{N}),
                                fill_to_length(border.hi, 0, Val{N})))
 end
@@ -104,6 +110,8 @@ function padarray{T}(::Type{T}, img::AbstractArray, border::Pad)
     dest
 end
 padarray{P}(img, ::Type{P}) = img[padindices(img, P)...]      # just to throw the nice error
+
+Base.ndims{Style,N}(::Pad{Style,N}) = N
 
 # Make this a separate type because the dispatch almost surely needs to be different
 immutable Inner{N} <: AbstractBorder
