@@ -75,3 +75,5 @@ end
         @test sumabs2(imgcmp - imgf) < 0.2^2*sumabs2(imgcmp)
     end
 end
+
+nothing

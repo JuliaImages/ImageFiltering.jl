@@ -6,12 +6,14 @@ using ColorVectorSpace  # in case someone filters RGB arrays
 typealias FixedColorant{T<:UFixed} Colorant{T}
 
 module Algorithm
-    # deliberately don't export these, but it's expected that they will be used
+    # deliberately don't export these, but it's expected that they
+    # will be used as Algorithm.FFT(), etc.
     abstract Alg
     immutable FFT <: Alg end
     immutable FIR <: Alg end
+    immutable IIR <: Alg end
 end
-using .Algorithm: Alg, FFT, FIR
+using .Algorithm: Alg, FFT, FIR, IIR
 
 Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
 
@@ -613,6 +615,7 @@ end
 centered(A::AbstractArray) = OffsetArray(A, map(n->-((n+1)>>1), size(A)))
 
 filter_algorithm(out, img, kernel) = FIR()
+filter_algorithm(out, img, kernel::Tuple{IIRFilter,Vararg{IIRFilter}}) = IIR()
 
 function normalize_separable!{N}(r::AbstractResource, A, kernels::NTuple{N}, border)
     inds = indices(A)
