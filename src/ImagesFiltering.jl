@@ -544,8 +544,7 @@ function _rightborder!{T,k,l}(out, img, kernel::TriggsSdika{T,k,l}, Ibegin, indr
     # Initialize the v values at and beyond the right edge
     uplus = iplus/(1-kernel.asum)
     vplus = uplus/(1-kernel.bsum)
-    vright = kernel.M * rightΔu(out, uplus, Ibegin, last(indright), Iend, kernel) +
-             fill(vplus, SVector{l,typeof(vplus)})
+    vright = kernel.M * rightΔu(out, uplus, Ibegin, last(indright), Iend, kernel) + vplus
     out[Ibegin, last(indright), Iend] = vright[1]
     # Propagate inward
     n = 1
@@ -678,6 +677,7 @@ to_ranges(R::CartesianRange) = map((b,e)->b:e, R.start.I, R.stop.I)
 
 _reshape{_,N}(A::OffsetArray{_,N}, ::Type{Val{N}}) = A
 _reshape{N}(A::OffsetArray, ::Type{Val{N}}) = OffsetArray(reshape(parent(A), Val{N}), fill_to_length(A.offsets, -1, Val{N}))
+_reshape{N}(A::AbstractArray, ::Type{Val{N}}) = reshape(A, Val{N})
 
 function __init__()
     # See ComputationalResources README for explanation
