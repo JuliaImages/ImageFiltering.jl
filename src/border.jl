@@ -64,12 +64,12 @@ Pad the input image by `lo` pixels at the lower edge, and `hi` pixels at the upp
 Given a filter array `kernel`, determine the amount of padding from the `indices` of `kernel`.
 """
 (p::Pad{Style,0}){Style}(kernel::AbstractArray) = Pad{Style}(indices(kernel))
-(p::Pad{Style,0}){Style}(factkernel::Tuple) = Pad{Style}(extremize(indices(factkernel[1]), tail(factkernel)...))
+(p::Pad{Style,0}){Style}(factkernel::Tuple) = Pad{Style}(accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 (p::Pad{Style,0}){Style}(factkernel::Tuple, img, ::FIR) = p(factkernel)
 
 # Padding for FFT: round up to next size expressible as 2^m*3^n
 function (p::Pad{Style,0}){Style}(factkernel::Tuple, img, ::FFT)
-    inds = extremize(indices(factkernel[1]), tail(factkernel)...)
+    inds = accumulate_padding(indices(factkernel[1]), tail(factkernel)...)
     newinds = map(padfft, inds, map(length, indices(img)))
     Pad{Style}(newinds)
 end
@@ -139,7 +139,7 @@ end
 
 (p::Inner{0})(factkernel::Tuple, img, ::FIR) = p(factkernel)
 (p::Inner{0})(factkernel::Tuple, img, ::FFT) = p(factkernel)
-(p::Inner{0})(factkernel::Tuple) = Inner(extremize(indices(factkernel[1]), tail(factkernel)...))
+(p::Inner{0})(factkernel::Tuple) = Inner(accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 (p::Inner{0})(kernel::AbstractArray) = Inner(indices(kernel))
 
 padarray(img, border::Inner) = padarray(eltype(img), img, border)
@@ -168,12 +168,12 @@ Fill{T,N}(value::T, lo::Dims{N}, hi::Dims{N}) = Fill{T,N}(value, lo, hi)
 Fill(value, lo::AbstractVector, hi::AbstractVector) = Fill(value, (lo...,), (hi...,))
 Fill{T,N}(value::T, inds::Base.Indices{N}) = Fill{T,N}(value, map(lo,inds), map(hi,inds))
 Fill(value, kernel::AbstractArray) = Fill(value, indices(kernel))
-Fill(value, factkernel::Tuple) = Fill(value, extremize(indices(factkernel[1]), tail(factkernel)...))
+Fill(value, factkernel::Tuple) = Fill(value, accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 
 (p::Fill)(kernel::AbstractArray, img, ::FIR) = Fill(p.value, kernel)
 (p::Fill)(factkernel::Tuple, img, ::FIR) = Fill(p.value, factkernel)
 function (p::Fill)(factkernel::Tuple, img, ::FFT)
-    inds = extremize(indices(factkernel[1]), tail(factkernel)...)
+    inds = accumulate_padding(indices(factkernel[1]), tail(factkernel)...)
     newinds = map(padfft, inds, map(length, indices(img)))
     Fill(p.value, newinds)
 end
@@ -234,10 +234,11 @@ end
 # @inline _flatten(t1,        t...) = (t1, flatten(t)...)
 # _flatten() = ()
 
-extremize(inds::Indices, kernel1::AbstractArray, kernels...) = extremize(_extremize(inds, indices(kernel1)), kernels...)
-extremize(inds) = inds
-_extremize(inds1, inds2) = map(__extremize, inds1, inds2)
-__extremize(ind1, ind2) = min(first(ind1),first(ind2)):max(last(ind1),last(ind2))
+accumulate_padding(inds::Indices, kernel1::AbstractArray, kernels...) =
+    accumulate_padding(_accumulate_padding(inds, indices(kernel1)), kernels...)
+accumulate_padding(inds) = inds
+_accumulate_padding(inds1, inds2) = map(__accumulate_padding, inds1, inds2)
+__accumulate_padding(ind1, ind2) = first(ind1)+min(0,first(ind2)):last(ind1)+max(0,last(ind2))
 
 modrange(x, r::AbstractUnitRange) = mod(x-first(r), length(r))+first(r)
 modrange(A::AbstractArray, r::AbstractUnitRange) = map(x->modrange(x, r), A)
@@ -246,7 +247,7 @@ arraytype{T}(A::AbstractArray, ::Type{T}) = Array{T}  # fallback
 arraytype(A::BitArray, ::Type{Bool}) = BitArray
 
 interior(A::AbstractArray, kernel::AbstractArray) = _interior(indices(A), indices(kernel))
-interior(A, factkernel::Tuple) = _interior(indices(A), extremize(indices(factkernel[1]), tail(factkernel)...))
+interior(A, factkernel::Tuple) = _interior(indices(A), accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 function _interior{N}(indsA::NTuple{N}, indsk)
     indskN = fill_to_length(indsk, 0:0, Val{N})
     CartesianRange(CartesianIndex(map((ia,ik)->first(ia) + lo(ik), indsA, indskN)),
