@@ -112,9 +112,10 @@ the kernel as a single-element tuple, `(kernel,)`.
 
 Optionally specify the `border`, as one of `Fill(value)`,
 `Pad{:replicate}()`, `Pad{:circular}()`, `Pad{:symmetric}()`,
-`Pad{:reflect}()`, or `Inner()`. The default is
+`Pad{:reflect}()`, `Pad{:na}()`, or `Inner()`. The default is
 `Pad{:replicate}()`. These choices specify the boundary conditions,
-and therefore affect the result at the edges of the image.
+and therefore affect the result at the edges of the image. See
+`padarray` for more information.
 
 `alg` allows you to choose the particular algorithm: `FIR()` (finite
 impulse response, aka traditional digital filtering) or `FFT()`
@@ -135,7 +136,7 @@ example,
 would request that the computation be performed on the GPU using the
 ArrayFire libraries.
 
-See also: imfilter!, centered, Pad, Fill, Inner, IIRGaussian.
+See also: imfilter!, centered, padarray, Pad, Fill, Inner, IIRGaussian.
 """
 imfilter
 
@@ -268,6 +269,12 @@ correlation, storing the result in `imgfilt`, using a finite-impulse
 response (FIR) algorithm. Any necessary padding must have already been
 supplied to `img`.
 
+If the CartesianRange `R` is supplied, only the indices of `imgfilt`
+in the domain of `R` will be calculated. This can be particularly
+useful for "cascaded filters" where you pad over a larger area and
+then calculate the result only over the necessary region at each
+stage.
+
 See also: imfilter.
 """
 function imfilter!{S,T,K,N}(::CPU1{FIR},
@@ -396,7 +403,9 @@ Filter an array `img` with a Triggs-Sdika infinite impulse response
 `imgfilt` can be the same array as `img`.
 
 Either specify one kernel per dimension (as a tuple), or a particular
-dimension `dim` along which to filter.
+dimension `dim` along which to filter. If you exhaust `kernel`s before
+you run out of array dimensions, the remaining dimension(s) will not
+be filtered.
 
 With Triggs-Sdika filtering, the only border options are `Pad{:na}()`,
 `Pad{:replicate}()`, or `Fill(value)`.
@@ -406,11 +415,13 @@ See also: imfilter, TriggsSdika, IIRGaussian.
 function imfilter!(r::AbstractResource, out, img, kernel::TriggsSdika, dim::Integer, border::BorderSpec)
     inds = indices(img)
     k, l = length(kernel.a), length(kernel.b)
+    # This next part is not type-stable, which is why _imfilter_dim! has a @noinline
     Rbegin = CartesianRange(inds[1:dim-1])
     Rend   = CartesianRange(inds[dim+1:end])
     _imfilter_dim!(r, out, img, kernel, Rbegin, inds[dim], Rend, border)
 end
 
+# Lispy and type-stable inplace (currently just Triggs-Sdika) filtering over each dimension
 function _imfilter_inplace_tuple!(r, out, img, kernel, Rbegin, inds, Rend, border)
     ind = first(inds)
     _imfilter_dim!(r, out, img, first(kernel), Rbegin, ind, Rend, border)
@@ -424,8 +435,17 @@ function _imfilter_inplace_tuple!(r, out, img, kernel, Rbegin, inds, Rend, borde
                              _tail(Rend),
                              border)
 end
+# When the final kernel has been used, return the output
 _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = out
 
+# This is the "workhorse" function that performs Triggs-Sdika IIR
+# filtering along a particular dimension. The "pre" dimensions are
+# encoded in Rbegin, the "post" dimensions in Rend, and the dimension
+# we're filtering is sandwiched between these. This design is
+# type-stable and cache-friendly for any dimension---we update values
+# in memory-order rather than along the chosen dimension. Nor does it
+# require that the arrays have efficient linear indexing. For more
+# information, see http://julialang.org/blog/2016/02/iteration.
 @noinline function _imfilter_dim!{T,k,l}(r::AbstractResource,
                                          out, img, kernel::TriggsSdika{T,k,l},
                                          Rbegin::CartesianRange, ind::AbstractUnitRange,
@@ -612,6 +632,19 @@ function kernelshift(inds::Any, A)
     A
 end
 
+"""
+    centered(kernel) -> shiftedkernel
+
+Shift the origin-of-coordinates to the center of `kernel`. The
+center-element of `kernel` will be accessed by `shiftedkernel[0, 0,
+...]`.
+
+This function makes it easy to supply kernels using regular Arrays,
+and provides compatibility with other languages that do not support
+arbitrary indices.
+
+See also: imfilter.
+"""
 centered(A::AbstractArray) = OffsetArray(A, map(n->-((n+1)>>1), size(A)))
 
 filter_algorithm(out, img, kernel) = FIR()

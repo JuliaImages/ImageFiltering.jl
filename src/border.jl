@@ -7,12 +7,21 @@ abstract AbstractBorder
 
 """
 `Pad{Style,N}` is a type that stores choices about padding. `Style` is a
-Symbol specifying the boundary conditions of the image, one of
-`:replicate` (repeat edge values to infinity), `:circular` (image edges
-"wrap around"), `:symmetric` (the image reflects between pixels), or
-`:reflect` (the image reflects on the pixel grid). The default value is
-`:replicate`. You can add custom boundary conditions by adding
-addition methods for `padindex`.
+Symbol specifying the boundary conditions of the image, one of:
+
+- `:replicate` (repeat edge values to infinity)
+- `:circular` (image edges "wrap around")
+- `:symmetric` (the image reflects relative to a position between pixels)
+- `:reflect` (the image reflects relative to the edge itself)
+- `:na` (edges handled with Fill(0) but then normalized by the number of available neighbors)
+
+The default value is `:replicate`. `:na` filtering is a good choice
+for handling arrays with `NaN` entries, which are treated as missing
+values (and results are normalized by the number of values that are
+available).
+
+You can implement custom boundary conditions by adding additional
+methods for `padindex`.
 """
 immutable Pad{Style,N} <: AbstractBorder
     lo::Dims{N}    # number to extend by on the lower edge for each dimension

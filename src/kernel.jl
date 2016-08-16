@@ -14,8 +14,29 @@ immutable TriggsSdika{T,k,l,L} <: IIRFilter{T}
 
     TriggsSdika(a, b, scale, M) = new(a, b, scale, M, sum(a), sum(b))
 end
+"""
+    TriggsSdika(a, b, scale, M)
+
+Defines a kernel for one-dimensional infinite impulse response (IIR)
+filtering. `a` is a "forward" filter, `b` a "backward" filter, `M` is
+a matrix for matching boundary conditions at the right edge, and
+`scale` is a constant scaling applied to each element at the
+conclusion of filtering.
+
+# Citation
+
+B. Triggs and M. Sdika, "Boundary conditions for Young-van Vliet
+recursive filtering". IEEE Trans. on Sig. Proc. 54: 2365-2367
+(2006).
+"""
 TriggsSdika{T,k,l,L}(a::SVector{k,T}, b::SVector{l,T}, scale, M::SMatrix{l,k,T,L}) = TriggsSdika{T,k,l,L}(a, b, scale, M)
 
+"""
+    TriggsSdika(ab, scale)
+
+Create a symmetric Triggs-Sdika filter (with `a = b = ab`). `M` is
+calculated for you. Only length 3 filters are currently supported.
+"""
 function TriggsSdika{T}(a::SVector{3,T}, scale)
     a1, a2, a3 = a[1], a[2], a[3]
     Mdenom = (1+a1-a2+a3)*(1-a1-a2-a3)*(1+a2+(a1-a3)*a3)
@@ -25,9 +46,24 @@ function TriggsSdika{T}(a::SVector{3,T}, scale)
     TriggsSdika(a, a, scale, M/Mdenom)
 end
 
-# I. T. Young, L. J. van Vliet, and M. van Ginkel, "Recursive Gabor
-# Filtering". IEEE Trans. Sig. Proc., 50: 2798-2805 (2002).
 # Note that there's a sign reversal between Young & Triggs.
+"""
+    IIRGaussian([T], σ; emit_warning::Bool=true)
+
+Construct an infinite impulse response (IIR) approximation to a
+Gaussian of standard deviation `σ`. `σ` may either be a single real
+number or a tuple of numbers; in the latter case, a tuple of such filters
+will be created, each for filtering a different dimension of an array.
+
+Optionally specify the type `T` for the filter coefficients; if not
+supplied, it will match `σ` (unless `σ` is not floating-point, in
+which case `Float64` will be chosen).
+
+# Citation
+
+I. T. Young, L. J. van Vliet, and M. van Ginkel, "Recursive Gabor
+Filtering". IEEE Trans. Sig. Proc., 50: 2798-2805 (2002).
+"""
 function IIRGaussian{T}(::Type{T}, sigma::Real; emit_warning::Bool = true)
     if emit_warning && sigma < 1 && sigma != 0
         warn("sigma is too small for accuracy")
