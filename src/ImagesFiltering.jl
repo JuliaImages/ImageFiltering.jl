@@ -298,6 +298,25 @@ function imfilter!{S,T,K,N}(::CPU1{FIR},
             throw(DimensionMismatch("requested range $R and kernel indices $indsk do not agree with indices of padded input, $indsA"))
         end
     end
+    # For performance reasons, we now dispatch to a method that strips
+    # off index-shift containers (in Julia 0.5 we shouldn't remove
+    # boundschecks from OffsetArray).
+    _imfilter_inbounds!(out, A, kern, R)
+end
+
+function _imfilter_inbounds!(out, A::OffsetArray, kern::OffsetArray, R)
+    ΔI = CartesianIndex(kern.offsets) - CartesianIndex(A.offsets)
+    _imfilter_inbounds!(out, (parent(A), ΔI), parent(kern), R)
+end
+function _imfilter_inbounds!(out, A::AbstractArray, kern::OffsetArray, R)
+    ΔI = CartesianIndex(kern.offsets)
+    _imfilter_inbounds!(out, (A, ΔI), parent(kern), R)
+end
+function _imfilter_inbounds!(out, A::OffsetArray, kern::AbstractArray, R)
+    ΔI = CartesianIndex(kern.offsets)
+    _imfilter_inbounds!(out, (parent(A), ΔI), kern, R)
+end
+function _imfilter_inbounds!(out, A::AbstractArray, kern::AbstractArray, R)
     p = first(A) * first(kern)
     TT = typeof(p+p)
     for I in R
@@ -309,6 +328,21 @@ function imfilter!{S,T,K,N}(::CPU1{FIR},
     end
     out
 end
+function _imfilter_inbounds!(out, Ashift::Tuple{AbstractArray,CartesianIndex}, kern, R)
+    A, ΔI = Ashift
+    indsk = indices(kern)
+    p = first(A) * first(kern)
+    TT = typeof(p+p)
+    for I in R
+        tmp = zero(TT)
+        @inbounds for J in CartesianRange(indsk)
+            tmp += A[I+ΔI+J]*kern[J]
+        end
+        @inbounds out[I] = tmp
+    end
+    out
+end
+
 
 ### FFT filtering
 
