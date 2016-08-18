@@ -193,7 +193,11 @@ function padarray{T}(::Type{T}, img::AbstractArray, border::Fill)
 end
 function padarray{T,S,_,N}(::Type{T}, img::AbstractArray{S,N}, f::Fill{_,N})
     A = similar(arraytype(img, T), map((l,r,h)->first(r)-l:last(r)+h, f.lo, indices(img), f.hi))
-    fill!(A, f.value)
+    try
+        fill!(A, f.value)
+    catch
+        error("Unable to fill! an array of element type $(eltype(A)) with the value $(f.value). Supply an appropriate value to `Fill`, such as `zero(eltype(A))`.")
+    end
     A[indices(img)...] = img
     A
 end
