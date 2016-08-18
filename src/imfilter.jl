@@ -1,4 +1,8 @@
 typealias BorderSpec{Style,T} Union{Pad{Style,0}, Fill{T,0}, Inner{0}}
+typealias BorderSpecNoNa{T} Union{Pad{:replicate,0}, Pad{:circular,0}, Pad{:symmetric,0},
+                                  Pad{:reflect,0}, Fill{T,0}, Inner{0}}
+typealias BorderSpecAny Union{BorderSpec,NoPad}
+typealias NDimKernel{N,K} Union{AbstractArray{K,N},Laplacian{N}}
 
 typealias ProcessedKernel Tuple
 
@@ -10,7 +14,7 @@ typealias ProcessedKernel Tuple
 end
 
 # Step 2: if necessary, put the kernel into cannonical (factored) form
-@inline function imfilter{T}(::Type{T}, img::AbstractArray, kernel::AbstractArray, args...)
+@inline function imfilter{T}(::Type{T}, img::AbstractArray, kernel::Union{AbstractArray,Laplacian}, args...)
     imfilter(T, img, factorkernel(kernel), args...)
 end
 
@@ -25,7 +29,7 @@ end
     inds = to_ranges(R)
     imfilter!(similar(img, T, inds), img, kernel, border, args...)
 end
-@inline function imfilter{T}(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpec, args...)
+@inline function imfilter{T}(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny, args...)
     imfilter!(similar(img, T), img, kernel, border, args...)
 end
 
@@ -48,7 +52,7 @@ function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel:
     inds = to_ranges(R)
     imfilter!(r, similar(img, T, inds), img, kernel, border)
 end
-function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpec)
+function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny)
     imfilter!(r, similar(img, T), img, kernel, border)
 end
 
@@ -111,13 +115,21 @@ See also: imfilter!, centered, padarray, Pad, Fill, Inner, IIRGaussian.
 imfilter
 
 # see below for imfilter! docstring
-# imfilter! can be called directly, so we take steps 2&3 here too
+
+# imfilter! can be called directly, so we take steps 2&3 here too. We
+# have to be a little more cautious to make sure that later methods
+# don't inadvertently call back to these: in methods that take an
+# AbstractResource argument, exclude `NoPad()` as a border option.
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::AbstractArray, args...)
     imfilter!(out, img, factorkernel(kernel), args...)
 end
 
-function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::AbstractArray, args...)
-    imfilter!(r, out, img, factorkernel(kernel), args...)
+function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::Union{AbstractArray,Laplacian})
+    imfilter!(r, out, img, factorkernel(kernel))
+end
+
+function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::Union{AbstractArray,Laplacian}, border::BorderSpec)
+    imfilter!(r, out, img, factorkernel(kernel), border)
 end
 
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel)
@@ -129,11 +141,11 @@ function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, 
 end
 
 # Step 5: if necessary, pick an algorithm
-function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpec)
+function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny)
     imfilter!(out, img, kernel, border, filter_algorithm(out, img, kernel))
 end
 
-function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpec, alg::Alg)
+function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny, alg::Alg)
     imfilter!(CPU1(alg), out, img, kernel, border)
 end
 
@@ -153,37 +165,6 @@ See also: imfilter.
 imfilter!
 
 # Step 6: pad the input
-function imfilter!{S,T,N}(r::AbstractResource,
-                          out::AbstractArray{S,N},
-                          img::AbstractArray{T,N},
-                          kernel::ProcessedKernel,
-                          border::BorderSpec)
-    bord = border(kernel, img, Alg(r))
-    A = padarray(S, img, bord)
-    _imfilter_padded!(r, out, A, kernel)
-end
-
-function _imfilter_padded!{_,N}(r, out::AbstractArray{_,N}, A, kernel::Tuple{AbstractArray})
-    imfilter!(r, out, A, _reshape(kernel[1], Val{N}))
-end
-
-function _imfilter_padded!(r, out, A, kernel)
-    Ac = similar(A)
-    _imfilter_padded!(r, out, A, Ac, kernel)
-    return out
-end
-
-function _imfilter_padded!{_,N}(r, out::AbstractArray{_,N}, A, Ac, kernel::Tuple{AbstractArray})
-    kern = kernel[1]
-    imfilter!(r, out, A, _reshape(kern, Val{N}))
-end
-
-function _imfilter_padded!(r, out, A, Ac, kernel::Tuple)
-    kern = kernel[1]
-    imfilter!(r, Ac, A, kern, interior(Ac, kern))
-    _imfilter_padded!(r, out, Ac, A, tail(kernel))
-end
-
 # NA "padding": normalizing by the number of available values (similar to nanmean)
 function imfilter!{T,S,N}(r::AbstractResource,
                           out::AbstractArray{S,N},
@@ -229,32 +210,96 @@ function _imfilter_na!{S,T<:Union{Integer,FixedColorant},N}(r::AbstractResource,
     normalize_separable!(r, out, kernel, fn)
 end
 
+# Any other kind of padding
+function imfilter!{S,T,N}(r::AbstractResource,
+                          out::AbstractArray{S,N},
+                          img::AbstractArray{T,N},
+                          kernel::ProcessedKernel,
+                          border::BorderSpec)
+    bord = border(kernel, img, Alg(r))
+    A = padarray(S, img, bord)
+    # By specifying NoPad(), we ensure that dispatch will never
+    # accidentally "go back" to an earlier routine and apply more
+    # padding
+    imfilter!(r, out, A, kernel, NoPad())
+end
+
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{}, ::NoPad)
+    R = CartesianRange(indices(out))
+    copy!(out, R, A, R)
+end
+
+iscopy(kernel::AbstractArray) = all(x->x==0:0, indices(kernel)) && first(kernel) == 1
+iscopy(kernel::Laplacian) = false
+
+function imfilter!{_,N}(r::AbstractResource, out::AbstractArray{_,N}, A::AbstractArray, kernel::Tuple{AbstractArray}, ::NoPad)
+    kern = kernel[1]
+    iscopy(kern) && return imfilter!(r, out, A, (), NoPad())
+    imfilter!(r, out, A, _reshape(kern, Val{N}), NoPad())
+end
+
+function imfilter!{_,N}(r::AbstractResource, out::AbstractArray{_,N}, A::AbstractArray, kernel::Tuple{Laplacian}, ::NoPad)
+    imfilter!(r, out, A, kernel[1], NoPad())
+end
+
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple, ::NoPad)
+    kern = kernel[1]
+    iscopy(kern) && return imfilter!(r, out, A, tail(kernel), NoPad())
+    # For multiple stages of filtering, we introduce a second buffer
+    # and swap them at each stage. The first of the two is the one
+    # that holds the most recent result.
+    A2 = similar(A)  # let's hope it's really the *same* type...
+    _imfilter!(r, out, A, A2, kernel, NoPad())
+    return out
+end
+
+function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{}, ::NoPad)
+    R = CartesianRange(indices(out))
+    copy!(out, R, A1, R)
+end
+
+function _imfilter!(r, out, A1, A2, kernel::Tuple, ::NoPad)
+    kern = kernel[1]
+    iscopy(kern) && return _imfilter!(r, out, A1, A2, tail(kernel), NoPad())
+    imfilter!(r, A2, A1, kern, NoPad(), interior(r, A2, kern))  # store result in A2
+    _imfilter!(r, out, A2, A1, tail(kernel), NoPad())           # swap the buffers
+end
+
 ## FIR filtering
 
 """
-    imfilter!(::AbstractResource{FIR}, imgfilt, img, kernel, [R=CartesianRange(indices(imfilt))])
+    imfilter!(::AbstractResource{FIR}, imgfilt, img, kernel, NoPad(), [R=CartesianRange(indices(imfilt))])
 
 Filter an array `img` with kernel `kernel` by computing their
 correlation, storing the result in `imgfilt`, using a finite-impulse
 response (FIR) algorithm. Any necessary padding must have already been
-supplied to `img`.
+supplied to `img`. If you want padding applied, instead call
 
-If the CartesianRange `R` is supplied, only the indices of `imgfilt`
-in the domain of `R` will be calculated. This can be particularly
-useful for "cascaded filters" where you pad over a larger area and
-then calculate the result only over the necessary region at each
-stage.
+    imfilter!(::AbstractResource{FIR}, imgfilt, img, kernel, border)
+
+with a specific `border`, or use
+
+    imfilter!(imgfilt, img, kernel, Algorithm.FIR())
+
+for default padding.
+
+If the CartesianRange `R` is supplied, only the elements of `imgfilt`
+with indices in the domain of `R` will be calculated. This can be
+particularly useful for "cascaded filters" where you pad over a larger
+area and then calculate the result over just the necessary region at
+each stage.
 
 See also: imfilter.
 """
-function imfilter!{S,T,K,N}(::CPU1{FIR},
-                            out::AbstractArray{S,N},
-                            A::AbstractArray{T,N},
-                            kern::AbstractArray{K,N},
-                            R::CartesianRange=CartesianRange(indices(out)))
+function imfilter!{S,T,N}(::CPU1{FIR},
+                          out::AbstractArray{S,N},
+                          A::AbstractArray{T,N},
+                          kern::NDimKernel{N},
+                          ::NoPad,
+                          R::CartesianRange=CartesianRange(indices(out)))
     (isempty(A) || isempty(kern)) && return out
     indso, indsA, indsk = indices(out), indices(A), indices(kern)
-    if all(x->x==0:0, indsk) && first(kern) == 1
+    if iscopy(kern)
         return copy!(out, R, A, R)
     end
     for i = 1:N
@@ -287,6 +332,7 @@ function _imfilter_inbounds!(out, A::OffsetArray, kern::AbstractArray, R)
     _imfilter_inbounds!(out, (parent(A), ΔI), kern, R)
 end
 function _imfilter_inbounds!(out, A::AbstractArray, kern::AbstractArray, R)
+    indsk = indices(kern)
     p = first(A) * first(kern)
     TT = typeof(p+p)
     for I in R
@@ -304,9 +350,10 @@ function _imfilter_inbounds!(out, Ashift::Tuple{AbstractArray,CartesianIndex}, k
     p = first(A) * first(kern)
     TT = typeof(p+p)
     for I in R
+        Ishift = I + ΔI
         tmp = zero(TT)
         @inbounds for J in CartesianRange(indsk)
-            tmp += A[I+ΔI+J]*kern[J]
+            tmp += A[Ishift+J]*kern[J]
         end
         @inbounds out[I] = tmp
     end
@@ -317,30 +364,51 @@ end
 ### FFT filtering
 
 """
-    imfilter!(::AbstractResource{FFT}, imgfilt, img, kernel, border)
+    imfilter!(::AbstractResource{FFT}, imgfilt, img, kernel, NoPad())
 
 Filter an array `img` with kernel `kernel` by computing their
 correlation, storing the result in `imgfilt`, using a fast Fourier
-transform (FFT) algorithm. `border` specifies the type of padding to
-be supplied to `img`.
+transform (FFT) algorithm. Any necessary padding must have already
+been applied to `img`. If you want padding applied, instead call
+
+    imfilter!(::AbstractResource{FFT}, imgfilt, img, kernel, border)
+
+with a specific `border`, or use
+
+    imfilter!(imgfilt, img, kernel, Algorithm.FFT())
+
+for default padding.
 
 See also: imfilter.
 """
-function imfilter!{S,T,N}(r::CPU1{FFT},
-                          out::AbstractArray{S,N},
-                          img::AbstractArray{T,N},
-                          kernel::Tuple{AbstractArray,Vararg{AbstractArray}},
-                          border::Type{Pad{:na}})
-    throw(ArgumentError("na padding is not yet available for FFT"))
+function imfilter!{S,T,K,N}(r::AbstractCPU{FFT},
+                            out::AbstractArray{S,N},
+                            img::AbstractArray{T,N},
+                            kernel::AbstractArray{K,N},
+                            ::NoPad)
+    imfilter!(r, out, img, (kernel,), NoPad())
 end
 
-function imfilter!{S,T,N}(r::CPU1{FFT},
+function imfilter!{S,T,N}(r::AbstractCPU{FFT},
                           out::AbstractArray{S,N},
-                          img::AbstractArray{T,N},
+                          A::AbstractArray{T,N},
+                          kernel::Tuple{AbstractArray},
+                          ::NoPad)
+    _imfilter_fft!(r, out, A, kernel, NoPad())  # ambiguity resolution
+end
+function imfilter!{S,T,N}(r::AbstractCPU{FFT},
+                          out::AbstractArray{S,N},
+                          A::AbstractArray{T,N},
                           kernel::Tuple{AbstractArray,Vararg{AbstractArray}},
-                          border::BorderSpec)
-    bord = border(kernel, img, Alg(r))
-    A = padarray(S, img, bord)
+                          ::NoPad)
+    _imfilter_fft!(r, out, A, kernel, NoPad())
+end
+
+function _imfilter_fft!{S,T,N}(r::AbstractCPU{FFT},
+                          out::AbstractArray{S,N},
+                          A::AbstractArray{T,N},
+                          kernel::Tuple{AbstractArray,Vararg{AbstractArray}},
+                          ::NoPad)
     kern = prod_kernel(Val{N}, kernel...)
     krn = FFTView(zeros(eltype(kern), map(length, indices(A))))
     for I in CartesianRange(indices(kern))
@@ -351,6 +419,7 @@ function imfilter!{S,T,N}(r::CPU1{FFT},
         R = CartesianRange(indices(out))
         copy!(out, R, Af, R)
     else
+        # Exploit the periodic boundary conditions of FFTView
         dest = FFTView(out)
         src = OffsetArray(view(FFTView(Af), indices(dest)...), indices(dest))
         copy!(dest, src)
@@ -579,8 +648,14 @@ end
 filter_type{S,T}(img::AbstractArray{S}, kernel::AbstractArray{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
 filter_type{S,T}(img::AbstractArray{S}, kernel::Tuple{AbstractArray{T},Vararg{AbstractArray{T}}}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
 filter_type{S,T}(img::AbstractArray{S}, kernel::Tuple{IIRFilter{T},Vararg{IIRFilter{T}}}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
+filter_type{S<:Union{UFixed,FixedColorant}}(img::AbstractArray{S}, ::Laplacian) = float32(S)
+filter_type{S<:Colorant}(img::AbstractArray{S}, ::Laplacian) = S
+filter_type{S<:AbstractFloat}(img::AbstractArray{S}, ::Laplacian) = S
+filter_type{S<:Signed}(img::AbstractArray{S}, ::Laplacian) = S
+filter_type{S<:Unsigned}(img::AbstractArray{S}, ::Laplacian) = signed(S)
 
 factorkernel(kernel::AbstractArray) = (copy(kernelshift(indices(kernel), kernel)),)  # copy to ensure consistency
+factorkernel(L::Laplacian) = (L,)
 
 function factorkernel{T}(kernel::AbstractMatrix{T})
     inds = indices(kernel)
@@ -609,11 +684,6 @@ function factorstridedkernel(inds, kernel::StridedMatrix)
      kernelshift((dummyind(inds[2]), inds[2]), ss*v))
 end
 
-dummyind(::Base.OneTo) = Base.OneTo(1)
-dummyind(::AbstractUnitRange) = 0:0
-
-dummykernel{N}(inds::Indices{N}) = similar(dims->ones(ntuple(d->1,Val{N})), map(dummyind, inds))
-
 prod_kernel(kern::AbstractArray) = kern
 prod_kernel(kern::AbstractArray, kern1, kerns...) = prod_kernel(kern.*kern1, kerns...)
 prod_kernel{N}(::Type{Val{N}}, args...) = prod_kernel(Val{N}, prod_kernel(args...))
@@ -634,21 +704,6 @@ function kernelshift(inds::Any, A)
     @assert indices(A) == inds
     A
 end
-
-"""
-    centered(kernel) -> shiftedkernel
-
-Shift the origin-of-coordinates to the center of `kernel`. The
-center-element of `kernel` will be accessed by `shiftedkernel[0, 0,
-...]`.
-
-This function makes it easy to supply kernels using regular Arrays,
-and provides compatibility with other languages that do not support
-arbitrary indices.
-
-See also: imfilter.
-"""
-centered(A::AbstractArray) = OffsetArray(A, map(n->-((n+1)>>1), size(A)))
 
 filter_algorithm(out, img, kernel) = FIR()
 filter_algorithm(out, img, kernel::Tuple{IIRFilter,Vararg{IIRFilter}}) = IIR()
@@ -672,13 +727,3 @@ function normalize_dims!{T,N}(A::AbstractArray{T,N}, factors::NTuple{N})
     end
     A
 end
-
-_tail(R::CartesianRange{CartesianIndex{0}}) = R
-_tail(R::CartesianRange) = CartesianRange(CartesianIndex(tail(R.start.I)),
-                                          CartesianIndex(tail(R.stop.I)))
-
-to_ranges(R::CartesianRange) = map((b,e)->b:e, R.start.I, R.stop.I)
-
-_reshape{_,N}(A::OffsetArray{_,N}, ::Type{Val{N}}) = A
-_reshape{N}(A::OffsetArray, ::Type{Val{N}}) = OffsetArray(reshape(parent(A), Val{N}), fill_to_length(A.offsets, -1, Val{N}))
-_reshape{N}(A::AbstractArray, ::Type{Val{N}}) = reshape(A, Val{N})

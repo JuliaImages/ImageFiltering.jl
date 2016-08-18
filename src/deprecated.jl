@@ -86,11 +86,11 @@ export imfilter_gaussian
 function imfilter_gaussian(img, sigma; emit_warning=true, astype=nothing)
     if astype != nothing
         depwarn("imfilter_gaussian(img, sigma; astype=$astype, kwargs...) is deprecated; use `imfilter($astype, img, IIRGaussian(sigma; kwargs...))` instead, possibly with `Pad{:na}()`", :imfilter_gaussian)
-        factkernel = Kernel.IIRGaussian(astype, sigma; emit_warning=emit_warning)
+        factkernel = KernelFactors.IIRGaussian(astype, sigma; emit_warning=emit_warning)
         return imfilter(astype, img, factkernel, Pad{:na}())
     end
     depwarn("imfilter_gaussian(img, sigma; kwargs...) is deprecated; use `imfilter(img, IIRGaussian(sigma; kwargs...))` instead, possibly with `Pad{:na}()`", :imfilter_gaussian)
-    factkernel = Kernel.IIRGaussian(sigma; emit_warning=emit_warning)
+    factkernel = KernelFactors.IIRGaussian(sigma; emit_warning=emit_warning)
     imfilter(_eltype(Float64, eltype(img)), img, factkernel, Pad{:na}())
 end
 

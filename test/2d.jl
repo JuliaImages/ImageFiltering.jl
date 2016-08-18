@@ -44,7 +44,7 @@ end
     #     aσ[i] = Array{Float64}(l, 2*length(σs))
     # end
     for (n,σ) in enumerate(σs)
-        kernel = Kernel.IIRGaussian(σ)
+        kernel = KernelFactors.IIRGaussian(σ)
         A = [kernel.a'; eye(2) zeros(2)]
         B = [kernel.b'; eye(2) zeros(2)]
         I1 = zeros(3,3); I1[1,1] = 1
@@ -67,7 +67,7 @@ end
     σ = 5
     x = -2:2
     y = (-3:3)'
-    kernel = Kernel.IIRGaussian((σ, σ))
+    kernel = KernelFactors.IIRGaussian((σ, σ))
     for img in (copy(imgf), copy(imgg), copy(imgc))
         imgcmp = img[3,4]*exp(-(x.^2 .+ y.^2)/(2*σ^2))/(σ^2*2*pi)
         border = Fill(zero(eltype(img)))
@@ -75,5 +75,6 @@ end
         @test sumabs2(imgcmp - imgf) < 0.2^2*sumabs2(imgcmp)
     end
 end
+
 
 nothing

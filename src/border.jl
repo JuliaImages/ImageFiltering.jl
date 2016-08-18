@@ -1,9 +1,17 @@
 # module Border
 
 using OffsetArrays, CatIndices
-using Base: Indices, tail, fill_to_length
 
 abstract AbstractBorder
+
+immutable NoPad <: AbstractBorder end
+
+"""
+    NoPad()
+
+Indicates that no padding should be applied to the input array.
+"""
+NoPad
 
 """
 `Pad{Style,N}` is a type that stores choices about padding. `Style` is a
@@ -64,8 +72,10 @@ Pad the input image by `lo` pixels at the lower edge, and `hi` pixels at the upp
 Given a filter array `kernel`, determine the amount of padding from the `indices` of `kernel`.
 """
 (p::Pad{Style,0}){Style}(kernel::AbstractArray) = Pad{Style}(indices(kernel))
+(p::Pad{Style,0}){Style}(kernel::Laplacian) = Pad{Style}(indices(kernel))
 (p::Pad{Style,0}){Style}(factkernel::Tuple) = Pad{Style}(accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 (p::Pad{Style,0}){Style}(factkernel::Tuple, img, ::FIR) = p(factkernel)
+(p::Pad{Style,0}){Style}(kernel::Laplacian, img, ::FIR) = p(kernel)
 
 # Padding for FFT: round up to next size expressible as 2^m*3^n
 function (p::Pad{Style,0}){Style}(factkernel::Tuple, img, ::FFT)
@@ -246,7 +256,10 @@ modrange(A::AbstractArray, r::AbstractUnitRange) = map(x->modrange(x, r), A)
 arraytype{T}(A::AbstractArray, ::Type{T}) = Array{T}  # fallback
 arraytype(A::BitArray, ::Type{Bool}) = BitArray
 
-interior(A::AbstractArray, kernel::AbstractArray) = _interior(indices(A), indices(kernel))
+interior(r::AbstractResource{FFT}, A::AbstractArray, kernel) = indices(A)  # periodic boundary conditions
+interior(r::AbstractResource, A::AbstractArray, kernel) = interior(A, kernel)
+
+interior(A::AbstractArray, kernel::Union{AbstractArray,Laplacian}) = _interior(indices(A), indices(kernel))
 interior(A, factkernel::Tuple) = _interior(indices(A), accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 function _interior{N}(indsA::NTuple{N}, indsk)
     indskN = fill_to_length(indsk, 0:0, Val{N})

@@ -1,9 +1,10 @@
 module ImagesFiltering
 
-using Colors, FixedPointNumbers, ImagesCore, MappedArrays, FFTViews, StaticArrays, ComputationalResources
+using Colors, FixedPointNumbers, ImagesCore, MappedArrays, FFTViews, OffsetArrays, StaticArrays, ComputationalResources
 using ColorVectorSpace  # in case someone filters RGB arrays
+using Base: Indices, tail, fill_to_length
 
-export Kernel, Pad, Fill, Inner, Algorithm, imfilter, imfilter!, padarray, centered
+export Kernel, KernelFactors, Pad, Fill, Inner, Algorithm, imfilter, imfilter!, padarray, centered
 
 typealias FixedColorant{T<:UFixed} Colorant{T}
 
@@ -19,12 +20,16 @@ using .Algorithm: Alg, FFT, FIR, IIR
 
 Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
 
+include("utils.jl")
 include("kernel.jl")
 using .Kernel
-using .Kernel: TriggsSdika, IIRFilter
+using .Kernel: Laplacian
+include("kernelfactors.jl")
+using .KernelFactors: TriggsSdika, IIRFilter
 include("border.jl")
 include("deprecated.jl")
 include("imfilter.jl")
+include("specialty.jl")
 
 function __init__()
     # See ComputationalResources README for explanation

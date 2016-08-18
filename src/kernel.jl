@@ -1,98 +1,168 @@
 module Kernel
 
-using StaticArrays
-
-abstract IIRFilter{T}
-
-immutable TriggsSdika{T,k,l,L} <: IIRFilter{T}
-    a::SVector{k,T}
-    b::SVector{l,T}
-    scale::T
-    M::SMatrix{l,k,T,L}
-    asum::T
-    bsum::T
-
-    TriggsSdika(a, b, scale, M) = new(a, b, scale, M, sum(a), sum(b))
-end
-"""
-    TriggsSdika(a, b, scale, M)
-
-Defines a kernel for one-dimensional infinite impulse response (IIR)
-filtering. `a` is a "forward" filter, `b` a "backward" filter, `M` is
-a matrix for matching boundary conditions at the right edge, and
-`scale` is a constant scaling applied to each element at the
-conclusion of filtering.
-
-# Citation
-
-B. Triggs and M. Sdika, "Boundary conditions for Young-van Vliet
-recursive filtering". IEEE Trans. on Sig. Proc. 54: 2365-2367
-(2006).
-"""
-TriggsSdika{T,k,l,L}(a::SVector{k,T}, b::SVector{l,T}, scale, M::SMatrix{l,k,T,L}) = TriggsSdika{T,k,l,L}(a, b, scale, M)
+using StaticArrays, OffsetArrays
+import ..ImagesFiltering: _reshape
 
 """
-    TriggsSdika(ab, scale)
+`kern1, kern2 = ando3()` returns optimal 3x3 gradient filters for dimensions 1 and 2 of your image, as defined in
+Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.
 
-Create a symmetric Triggs-Sdika filter (with `a = b = ab`). `M` is
-calculated for you. Only length 3 filters are currently supported.
+See also: KernelFactors.ando3, Kernel.ando4, Kernel.ando5.
 """
-function TriggsSdika{T}(a::SVector{3,T}, scale)
-    a1, a2, a3 = a[1], a[2], a[3]
-    Mdenom = (1+a1-a2+a3)*(1-a1-a2-a3)*(1+a2+(a1-a3)*a3)
-    M = @SMatrix([-a3*a1+1-a3^2-a2     (a3+a1)*(a2+a3*a1)  a3*(a1+a3*a2);
-                  a1+a3*a2            -(a2-1)*(a2+a3*a1)  -(a3*a1+a3^2+a2-1)*a3;
-                  a3*a1+a2+a1^2-a2^2   a1*a2+a3*a2^2-a1*a3^2-a3^3-a3*a2+a3  a3*(a1+a3*a2)]);
-    TriggsSdika(a, a, scale, M/Mdenom)
+function ando3()
+    k1, k2 = KernelFactors.ando3()
+    k1[1].*k1[2], k2[1].*k2[2]
 end
 
-# Note that there's a sign reversal between Young & Triggs.
 """
-    IIRGaussian([T], σ; emit_warning::Bool=true)
+`kern1, kern2 = ando4()` returns optimal 4x4 gradient filters for dimensions 1 and 2 of your image, as defined in
+Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.
 
-Construct an infinite impulse response (IIR) approximation to a
-Gaussian of standard deviation `σ`. `σ` may either be a single real
-number or a tuple of numbers; in the latter case, a tuple of such filters
-will be created, each for filtering a different dimension of an array.
-
-Optionally specify the type `T` for the filter coefficients; if not
-supplied, it will match `σ` (unless `σ` is not floating-point, in
-which case `Float64` will be chosen).
-
-# Citation
-
-I. T. Young, L. J. van Vliet, and M. van Ginkel, "Recursive Gabor
-Filtering". IEEE Trans. Sig. Proc., 50: 2798-2805 (2002).
+See also: `KernelFactors.ando4`, `Kernel.ando3`, `Kernel.ando5`.
 """
-function IIRGaussian{T}(::Type{T}, sigma::Real; emit_warning::Bool = true)
-    if emit_warning && sigma < 1 && sigma != 0
-        warn("sigma is too small for accuracy")
+function ando4()
+    f = centered(@SMatrix [ -0.022116 -0.025526  0.025526  0.022116
+                            -0.098381 -0.112984  0.112984  0.098381
+                            -0.098381 -0.112984  0.112984  0.098381
+                            -0.022116 -0.025526  0.025526  0.022116 ])
+    return f', f
+end
+
+"""
+`kern1, kern2 = ando5()` returns optimal 5x5 gradient filters for dimensions 1 and 2 of your image, as defined in
+Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.
+
+See also: `KernelFactors.ando5`, `Kernel.ando3`, `Kernel.ando4`.
+"""
+function ando5()
+    f = centered(@SMatrix [ -0.003776 -0.010199  0.0  0.010199  0.003776
+                            -0.026786 -0.070844  0.0  0.070844  0.026786
+                            -0.046548 -0.122572  0.0  0.122572  0.046548
+                            -0.026786 -0.070844  0.0  0.070844  0.026786
+                            -0.003776 -0.010199  0.0  0.010199  0.003776 ])
+    return f', f
+end
+
+"""
+    gaussian((σ1, σ2, ...), [l]) -> g
+    gaussian(σ)                  -> g
+
+Construct a multidimensional gaussian filter, with standard deviation
+`σd` along dimension `d`. Optionally provide the kernel length `l`,
+which must be a tuple of the same length.
+
+If `σ` is supplied as a single number, a symmetric 2d kernel is
+constructed.
+
+See also: KernelFactors.gaussian.
+"""
+@inline gaussian{N}(σs::NTuple{N,Real}, ls::NTuple{N,Integer}) =
+    broadcast(.*, KernelFactors.gaussian(σs, ls)...)
+@inline gaussian{N}(σs::NTuple{N,Real}) = broadcast(.*, KernelFactors.gaussian(σ)...)
+gaussian(σ::Real) = gausian((σ, σ))
+
+"""
+    DoG((σp1, σp2, ...), (σm1, σm2, ...), [l]) -> k
+    DoG((σ1, σ2, ...))                         -> k
+    DoG(σ::Real)                               -> k
+
+Construct a multidimensional difference-of-gaussian kernel `k`, equal
+to `gaussian(σp, l)-gaussian(σm, l)`.  When only a single `σ` is
+supplied, the default is to choose `σp = σ, σm = √2 σ`. Optionally
+provide the kernel length `l`; the default is to extend by two
+`max(σp,σm)` in each direction from the center. `l` must be odd.
+
+If `σ` is provided as a single number, a symmetric 2d DoG kernel is
+returned.
+
+See also: KernelFactors.IIRGaussian.
+"""
+DoG{N}(σps::NTuple{N,Real}, σms::NTuple{N,Real}, ls::NTuple{N,Integer}) =
+    gaussian(σps, ls) - gaussian(σms, ls)
+function DoG{N}(σps::NTuple{N,Real})
+    σms = map(s->s*√2, σps)
+    neg = gaussian(σms)
+    l = map(length, indices(neg))
+    gaussian(σps, l) - neg
+end
+DoG(σ::Real) = DoG((σ,σ))
+
+"""
+    LoG((σ1, σ2, ...)) -> k
+    LoG(σ)             -> k
+
+Construct a Laplacian-of-Gaussian kernel `k`. `σd` is the gaussian width
+along dimension `d`.  If `σ` is supplied as a single number, a
+symmetric 2d kernel is returned.
+
+See also: KernelFactors.IIRGaussian and Kernel.Laplacian.
+"""
+function LoG{N}(σs::NTuple{N})
+    w = CartesianIndex(map(n->(ceil(Int,8.5*n)>>1), σs))
+    R = CartesianRange(-w, w)
+    σ = SVector(σs)
+    C = 1/(prod(σ)*(2π)^(N/2))
+    σ2 = σ.^2
+    iσ4 = sum(1./σ2.^2)
+    function df(I::CartesianIndex, σ2, iσ4)
+        x = SVector(I.I)
+        xσ = sum(x.^2./σ2)
+        (xσ - iσ4) * exp(-xσ/2)
     end
-    m0 = convert(T,1.16680)
-    m1 = convert(T,1.10783)
-    m2 = convert(T,1.40586)
-    q = convert(T,1.31564*(sqrt(1+0.490811*sigma*sigma) - 1))
-    ascale = (m0+q)*(m1*m1 + m2*m2  + 2m1*q + q*q)
-    B = (m0*(m1*m1 + m2*m2)/ascale)^2
-    # This is what Young et al call -b, but in filt() notation would be called a
-    a1 = q*(2*m0*m1 + m1*m1 + m2*m2 + (2*m0+4*m1)*q + 3*q*q)/ascale
-    a2 = -q*q*(m0 + 2m1 + 3q)/ascale
-    a3 = q*q*q/ascale
-    a = SVector(a1,a2,a3)
-    TriggsSdika(a, B)
+    centered([C*df(I, σ2, iσ4) for I in R])
 end
-IIRGaussian(sigma::Real; emit_warning::Bool = true) = IIRGaussian(iirgt(sigma), sigma; emit_warning=emit_warning)
+LoG(σ::Real) = LoG((σ,σ))
 
-function IIRGaussian{T}(::Type{T}, sigma::Tuple; emit_warning::Bool = true)
-    map(s->IIRGaussian(T, s; emit_warning=emit_warning), sigma)
+immutable Laplacian{N}
+    flags::NTuple{N,Bool}
+    offsets::Vector{CartesianIndex{N}}
+
+    function Laplacian(flags::NTuple{N,Bool})
+        offsets = Array{CartesianIndex{N}}(0)
+        for i = 1:N
+            if flags[i]
+                push!(offsets,
+                      CartesianIndex{N}((ntuple(d->0, i-1)..., 1, ntuple(d->0, N-i)...)))
+            end
+        end
+        new(flags, offsets)
+    end
 end
-IIRGaussian(sigma::Tuple; emit_warning::Bool = true) = IIRGaussian(iirgt(sigma), sigma; emit_warning=emit_warning)
 
-IIRGaussian(sigma::AbstractVector; kwargs...) = IIRGaussian((sigma...,); kwargs...)
-IIRGaussian{T}(::Type{T}, sigma::AbstractVector; kwargs...) = IIRGaussian(T, (sigma...,); kwargs...)
+"""
+    Laplacian((true,true,false,...))
+    Laplacian(dims, N)
+    Lacplacian()
 
-iirgt(sigma::AbstractFloat) = typeof(sigma)
-iirgt(sigma::Real) = Float64
-iirgt(sigma::Tuple) = promote_type(map(iirgt, sigma)...)
+Laplacian kernel in `N` dimensions, taking derivatives along the
+directions marked as `true` in the supplied tuple. Alternatively, one
+can pass `dims`, a listing of the dimensions for
+differentiation. (However, this variant is not inferrable.)
+
+`Laplacian()` is the 2d laplacian, equivalent to `Laplacian((true,true))`.
+
+The kernel is represented as an opaque type, but you can use
+`convert(AbstractArray, L)` to convert it into array format.
+"""
+Laplacian{N}(flags::NTuple{N,Bool}) = Laplacian{N}(flags)
+Laplacian() = Laplacian((true,true))
+
+function Laplacian(dims, N::Int)
+    flags = falses(N)
+    flags[[dims...]] = true
+    Laplacian((flags...,))
+end
+
+Base.indices(L::Laplacian) = map(f->f ? (-1:1) : (0:0), L.flags)
+Base.isempty(L::Laplacian) = false
+function Base.convert{N}(::Type{AbstractArray}, L::Laplacian{N})
+    A = zeros(Int, indices(L)...)
+    for I in L.offsets
+        A[I] = A[-I] = 1
+    end
+    A[ntuple(d->0, Val{N})...] = -2*length(L.offsets)
+    A
+end
+_reshape{N}(L::Laplacian{N}, ::Type{Val{N}}) = L
 
 end
