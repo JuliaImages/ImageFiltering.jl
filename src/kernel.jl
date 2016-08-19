@@ -1,6 +1,7 @@
 module Kernel
 
 using StaticArrays, OffsetArrays
+using ..ImagesFiltering: centered, KernelFactors
 import ..ImagesFiltering: _reshape
 
 """
@@ -44,7 +45,7 @@ function ando5()
 end
 
 """
-    gaussian((σ1, σ2, ...), [l]) -> g
+    gaussian((σ1, σ2, ...), [(l1, l2, ...]) -> g
     gaussian(σ)                  -> g
 
 Construct a multidimensional gaussian filter, with standard deviation
@@ -58,8 +59,14 @@ See also: KernelFactors.gaussian.
 """
 @inline gaussian{N}(σs::NTuple{N,Real}, ls::NTuple{N,Integer}) =
     broadcast(.*, KernelFactors.gaussian(σs, ls)...)
-@inline gaussian{N}(σs::NTuple{N,Real}) = broadcast(.*, KernelFactors.gaussian(σ)...)
-gaussian(σ::Real) = gausian((σ, σ))
+gaussian(σ::Tuple{Real}, l::Tuple{Integer}) = KernelFactors.gaussian(σ[1], l[1])
+gaussian(σ::Tuple{}, l::Tuple{}) = reshape([1])  # 0d
+
+@inline gaussian{N}(σs::NTuple{N,Real}) = broadcast(.*, KernelFactors.gaussian(σs)...)
+gaussian(σ::Tuple{Real}) = KernelFactors.gaussian(σ[1])
+gaussian(σ::Tuple{}) = reshape([1])
+
+gaussian(σ::Real) = gaussian((σ, σ))
 
 """
     DoG((σp1, σp2, ...), (σm1, σm2, ...), [l]) -> k

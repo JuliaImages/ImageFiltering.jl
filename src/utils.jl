@@ -22,6 +22,9 @@ _reshape{_,N}(A::OffsetArray{_,N}, ::Type{Val{N}}) = A
 _reshape{N}(A::OffsetArray, ::Type{Val{N}}) = OffsetArray(reshape(parent(A), Val{N}), fill_to_length(A.offsets, -1, Val{N}))
 _reshape{N}(A::AbstractArray, ::Type{Val{N}}) = reshape(A, Val{N})
 
+samedims{N}(::Type{Val{N}}, kernel) = _reshape(kernel, Val{N})
+samedims{N}(::Type{Val{N}}, kernel::Tuple) = map(k->_reshape(k, Val{N}), kernel)
+samedims{T,N}(::AbstractArray{T,N}, kernel) = samedims(Val{N}, kernel)
 
 _tail(R::CartesianRange{CartesianIndex{0}}) = R
 _tail(R::CartesianRange) = CartesianRange(CartesianIndex(tail(R.start.I)),

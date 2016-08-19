@@ -232,14 +232,14 @@ end
 iscopy(kernel::AbstractArray) = all(x->x==0:0, indices(kernel)) && first(kernel) == 1
 iscopy(kernel::Laplacian) = false
 
-function imfilter!{_,N}(r::AbstractResource, out::AbstractArray{_,N}, A::AbstractArray, kernel::Tuple{AbstractArray}, ::NoPad)
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{AbstractArray}, ::NoPad)
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, (), NoPad())
-    imfilter!(r, out, A, _reshape(kern, Val{N}), NoPad())
+    imfilter!(r, out, A, samedims(out, kern), NoPad())
 end
 
-function imfilter!{_,N}(r::AbstractResource, out::AbstractArray{_,N}, A::AbstractArray, kernel::Tuple{Laplacian}, ::NoPad)
-    imfilter!(r, out, A, kernel[1], NoPad())
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Laplacian}, ::NoPad)
+    imfilter!(r, out, A, samedims(out, kernel[1]), NoPad())
 end
 
 function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple, ::NoPad)
@@ -261,8 +261,9 @@ end
 function _imfilter!(r, out, A1, A2, kernel::Tuple, ::NoPad)
     kern = kernel[1]
     iscopy(kern) && return _imfilter!(r, out, A1, A2, tail(kernel), NoPad())
-    imfilter!(r, A2, A1, kern, NoPad(), interior(r, A2, kern))  # store result in A2
-    _imfilter!(r, out, A2, A1, tail(kernel), NoPad())           # swap the buffers
+    kernN = samedims(A2, kern)
+    imfilter!(r, A2, A1, kernN, NoPad(), interior(r, A2, kernN))  # store result in A2
+    _imfilter!(r, out, A2, A1, tail(kernel), NoPad())             # swap the buffers
 end
 
 ## FIR filtering
@@ -654,7 +655,7 @@ filter_type{S<:AbstractFloat}(img::AbstractArray{S}, ::Laplacian) = S
 filter_type{S<:Signed}(img::AbstractArray{S}, ::Laplacian) = S
 filter_type{S<:Unsigned}(img::AbstractArray{S}, ::Laplacian) = signed(S)
 
-factorkernel(kernel::AbstractArray) = (copy(kernelshift(indices(kernel), kernel)),)  # copy to ensure consistency
+factorkernel(kernel::AbstractArray) = (kernelshift(indices(kernel), kernel),)
 factorkernel(L::Laplacian) = (L,)
 
 function factorkernel{T}(kernel::AbstractMatrix{T})
@@ -675,7 +676,7 @@ function factorstridedkernel(inds, kernel::StridedMatrix)
     end
     if !separable
         ks = kernelshift(inds, kernel)
-        return (copy(ks), dummykernel(indices(ks)))
+        return (dummykernel(indices(ks)), ks)
     end
     s = S[1]
     u, v = U[:,1:1], Vt[1:1,:]
@@ -685,7 +686,7 @@ function factorstridedkernel(inds, kernel::StridedMatrix)
 end
 
 prod_kernel(kern::AbstractArray) = kern
-prod_kernel(kern::AbstractArray, kern1, kerns...) = prod_kernel(kern.*kern1, kerns...)
+prod_kernel(kern::AbstractArray, kern1, kerns...) = broadcast(.*, kern, kern1, kerns...) #prod_kernel(kern.*kern1, kerns...)
 prod_kernel{N}(::Type{Val{N}}, args...) = prod_kernel(Val{N}, prod_kernel(args...))
 prod_kernel{_,N}(::Type{Val{N}}, kernel::AbstractArray{_,N}) = kernel
 function prod_kernel{N}(::Type{Val{N}}, kernel::AbstractArray)
@@ -693,6 +694,7 @@ function prod_kernel{N}(::Type{Val{N}}, kernel::AbstractArray)
     newinds = fill_to_length(inds, oftype(inds[1], 0:0), Val{N})
     reshape(kernel, newinds)
 end
+
 kernelshift{N}(inds::NTuple{N,Base.OneTo}, A::StridedArray) = _kernelshift(inds, A)
 kernelshift{N}(inds::NTuple{N,Base.OneTo}, A) = _kernelshift(inds, A)
 function _kernelshift(inds, A)

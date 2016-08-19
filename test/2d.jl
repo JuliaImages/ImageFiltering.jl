@@ -6,12 +6,37 @@ using Base.Test
     imgi = zeros(Int, 5, 7); imgi[3,4] = 1
     imgg = fill(Gray(0), 5, 7); imgg[3,4] = 1
     imgc = fill(RGB(0,0,0), 5, 7); imgc[3,4] = RGB(1,0,0)
-    kern = [0.1 0.2; 0.4 0.5]
-    kernel = OffsetArray(kern, -1:0, 1:2)
     f32type(img) = f32type(eltype(img))
     f32type{C<:Colorant}(::Type{C}) = base_colorant_type(C){Float32}
     f32type{T<:Number}(::Type{T}) = Float32
-    for img in (copy(imgf), copy(imgi), copy(imgg), copy(imgc))
+    # Dense kernel
+    kern = [0.1 0.2; 0.4 0.5]
+    kernel = OffsetArray(kern, -1:0, 1:2)
+    for img in (imgf, imgi, imgg, imgc)
+        targetimg = zeros(typeof(img[1]*kern[1]), size(img))
+        targetimg[3:4,2:3] = rot180(kern)*img[3,4]
+        @test @inferred(imfilter(img, kernel)) ≈ targetimg
+        @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32(targetimg)
+        for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(img))))
+            @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
+            @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
+            for alg in (Algorithm.FIR(), Algorithm.FFT())
+                @test @inferred(imfilter(img, kernel, border, alg)) ≈ targetimg
+                @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
+            end
+        end
+        targetimg_inner = OffsetArray(targetimg[2:end, 1:end-2], 2:5, 1:3)
+        @test @inferred(imfilter(img, kernel, Inner())) ≈ targetimg_inner
+        @test @inferred(imfilter(f32type(img), img, kernel, Inner())) ≈ float32(targetimg_inner)
+        for alg in (Algorithm.FIR(), Algorithm.FFT())
+            @test @inferred(imfilter(img, kernel, Inner(), alg)) ≈ targetimg_inner
+            @test @inferred(imfilter(f32type(img), img, kernel, Inner(), alg)) ≈ float32(targetimg_inner)
+        end
+    end
+    # Factored kernel
+    kernel = (OffsetArray([0.2,0.8], -1:0), OffsetArray([0.3 0.6], 0:0, 1:2))
+    kern = parent(kernel[1]).*parent(kernel[2])
+    for img in (imgf, imgi, imgg, imgc)
         targetimg = zeros(typeof(img[1]*kern[1]), size(img))
         targetimg[3:4,2:3] = rot180(kern)*img[3,4]
         @test @inferred(imfilter(img, kernel)) ≈ targetimg

@@ -21,11 +21,11 @@ using .Algorithm: Alg, FFT, FIR, IIR
 Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
 
 include("utils.jl")
+include("kernelfactors.jl")
+using .KernelFactors: TriggsSdika, IIRFilter
 include("kernel.jl")
 using .Kernel
 using .Kernel: Laplacian
-include("kernelfactors.jl")
-using .KernelFactors: TriggsSdika, IIRFilter
 include("border.jl")
 include("deprecated.jl")
 include("imfilter.jl")

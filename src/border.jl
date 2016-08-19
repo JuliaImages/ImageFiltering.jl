@@ -251,7 +251,10 @@ end
 accumulate_padding(inds::Indices, kernel1::AbstractArray, kernels...) =
     accumulate_padding(_accumulate_padding(inds, indices(kernel1)), kernels...)
 accumulate_padding(inds) = inds
-_accumulate_padding(inds1, inds2) = map(__accumulate_padding, inds1, inds2)
+_accumulate_padding(inds1, inds2) = (__accumulate_padding(inds1[1], inds2[1]), _accumulate_padding(tail(inds1), tail(inds2))...)
+_accumulate_padding(::Tuple{}, ::Tuple{}) = ()
+_accumulate_padding(::Tuple{}, inds2) = inds2
+_accumulate_padding(inds1, ::Tuple{}) = inds1
 __accumulate_padding(ind1, ind2) = first(ind1)+min(0,first(ind2)):last(ind1)+max(0,last(ind2))
 
 modrange(x, r::AbstractUnitRange) = mod(x-first(r), length(r))+first(r)

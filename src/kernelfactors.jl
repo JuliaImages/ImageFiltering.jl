@@ -2,6 +2,7 @@ module KernelFactors
 
 using StaticArrays, OffsetArrays
 using ..ImagesFiltering: centered, dummyind, _reshape
+using Base: tail
 
 abstract IIRFilter{T}
 
@@ -215,7 +216,7 @@ appropriately along its "leading" dimensions; the dimensionality of each is
 """
 kernelfactors{N}(factors::NTuple{N,AbstractVector}) = _kernelfactors((), factors)
 
-_kernelfactors(out, ::Tuple{}) = out
+_kernelfactors(out::NTuple, ::Tuple{}) = out
 @inline function _kernelfactors{L,M}(out::NTuple{L}, factors::NTuple{M,AbstractVector})
     # L+M=N
     f = factors[1]
