@@ -147,6 +147,7 @@ function TriggsSdika{T}(a::SVector{3,T}, scale)
                   a3*a1+a2+a1^2-a2^2   a1*a2+a3*a2^2-a1*a3^2-a3^3-a3*a2+a3  a3*(a1+a3*a2)]);
     TriggsSdika(a, a, scale, M/Mdenom)
 end
+Base.vec(kernel::TriggsSdika) = kernel
 
 # Note that there's a sign reversal between Young & Triggs.
 """
@@ -197,11 +198,8 @@ iirgt(sigma::AbstractFloat) = typeof(sigma)
 iirgt(sigma::Real) = Float64
 iirgt(sigma::Tuple) = promote_type(map(iirgt, sigma)...)
 
-function LoG(σ::Real)
-end
-
 ###### Utilities
-×
+
 """
     kernelfactors(factors::Tuple)
 

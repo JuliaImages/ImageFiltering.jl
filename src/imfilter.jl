@@ -179,22 +179,12 @@ function _imfilter_na!{T,S,N}(r::AbstractResource,
                               img::AbstractArray{T,N},
                               kernel::ProcessedKernel,
                               border::Pad{:na,0})
-    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
-    nanflag = map(isnan, img)
+    nanflag = isnan.(img)
     hasnans = any(nanflag)
-    if hasnans
-        copy!(out, img)
-        out[nanflag] = zero(T)
-        validpixels = copy!(similar(Array{T}, indices(img)), mappedarray(x->!x, nanflag))
-        imfilter!(r, out, out, kernel, fc)
-        imfilter!(r, validpixels, validpixels, kernel, fn)
-        for I in eachindex(out)
-            out[I] /= validpixels[I]
-        end
-        out[nanflag] = convert(T, NaN)
+    if hasnans || !isseparable(kernel)
+        imfilter_na_inseparable!(r, out, img, nanflag, kernel)
     else
-        imfilter!(r, out, img, kernel, fc)
-        normalize_separable!(r, out, kernel, fn)
+        imfilter_na_separable!(r, out, img, kernel)
     end
     out
 end
@@ -205,9 +195,12 @@ function _imfilter_na!{S,T<:Union{Integer,FixedColorant},N}(r::AbstractResource,
                                                             img::AbstractArray{T,N},
                                                             kernel::ProcessedKernel,
                                                             border::Pad{:na,0})
-    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))
-    imfilter!(r, out, img, kernel, fc)
-    normalize_separable!(r, out, kernel, fn)
+    if isseparable(kernel)
+        imfilter_na_separable!(r, out, img, kernel)
+    else
+        nanflag = similar(dims->falses(dims), indices(img))
+        imfilter_na_inseparable!(r, out, img, nanflag, kernel)
+    end
 end
 
 # Any other kind of padding
@@ -698,7 +691,7 @@ end
 kernelshift{N}(inds::NTuple{N,Base.OneTo}, A::StridedArray) = _kernelshift(inds, A)
 kernelshift{N}(inds::NTuple{N,Base.OneTo}, A) = _kernelshift(inds, A)
 function _kernelshift(inds, A)
-    warn("assuming that the origin is at the center of the kernel; to avoid this warning, call `centered(kernel)` or use an OffsetArray")  # this may be necessary long-term?
+    Base.depwarn("assuming that the origin is at the center of the kernel; to avoid this warning, call `centered(kernel)` or use an OffsetArray", :_kernelshift)  # this may be necessary long-term?
     centered(A)
 end
 kernelshift(inds::Any, A::StridedArray) = OffsetArray(A, inds...)
@@ -710,12 +703,56 @@ end
 filter_algorithm(out, img, kernel) = FIR()
 filter_algorithm(out, img, kernel::Tuple{IIRFilter,Vararg{IIRFilter}}) = IIR()
 
-function normalize_separable!{N}(r::AbstractResource, A, kernels::NTuple{N}, border)
+isseparable(kernels::Tuple{Vararg{TriggsSdika}}) = true
+isseparable(kernels::Tuple) = all(x->extendeddims(x)==1, kernels)
+
+function imfilter_na_inseparable!{T}(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple{Vararg{TriggsSdika}})
+    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
+    copy!(out, img)
+    out[nanflag] = zero(T)
+    validpixels = copy!(similar(Array{eltype(T)}, indices(img)), mappedarray(x->!x, nanflag))
+    # TriggsSdika is safe for inplace operations
+    imfilter!(r, out, out, kernel, fc)
+    imfilter!(r, validpixels, validpixels, kernel, fn)
+    for I in eachindex(out)
+        out[I] /= validpixels[I]
+    end
+    out[nanflag] = nan(T)
+    out
+end
+
+function imfilter_na_inseparable!{T}(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple)
+    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
+    imgtmp = copy!(similar(out, indices(img)), img)
+    imgtmp[nanflag] = zero(T)
+    validpixels = copy!(similar(Array{eltype(T)}, indices(img)), mappedarray(x->!x, nanflag))
+    imfilter!(r, out, imgtmp, kernel, fc)
+    vp = imfilter(r, validpixels, kernel, fn)
+    for I in eachindex(out)
+        out[I] /= vp[I]
+    end
+    out[nanflag] = nan(T)
+    out
+end
+
+function imfilter_na_separable!{T}(r, out::AbstractArray{T}, img, kernel::Tuple)
+    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
+    imfilter!(r, out, img, kernel, fc)
+    normalize_separable!(r, out, kernel, fn)
+end
+
+function normalize_separable!{N}(r::AbstractResource, A, kernels::NTuple{N,TriggsSdika}, border)
     inds = indices(A)
     function imfilter_inplace!(r, a, kern, border)
         imfilter!(r, a, a, (kern,), border)
     end
     filtdims = ntuple(d->imfilter_inplace!(r, similar(dims->ones(dims), inds[d]), kernels[d], border), Val{N})
+    normalize_dims!(A, filtdims)
+end
+
+function normalize_separable!{N}(r::AbstractResource, A, kernels::NTuple{N}, border)
+    inds = indices(A)
+    filtdims = ntuple(d->imfilter(r, similar(dims->ones(dims), inds[d]), _vec(kernels[d]), border), Val{N})
     normalize_dims!(A, filtdims)
 end
 

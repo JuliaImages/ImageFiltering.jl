@@ -1,10 +1,12 @@
-using ImagesFiltering, ImagesCore, OffsetArrays, Colors, FFTViews
+using ImagesFiltering, ImagesCore, OffsetArrays, Colors, FFTViews, ColorVectorSpace
 using Base.Test
 
 @testset "FIR/FFT" begin
     f32type(img) = f32type(eltype(img))
     f32type{C<:Colorant}(::Type{C}) = base_colorant_type(C){Float32}
     f32type{T<:Number}(::Type{T}) = Float32
+    zerona!(a) = (a[isnan.(a)] = zero(eltype(a)); a)
+    zerona!(a, nanflag) = (a[nanflag] = zero(eltype(a)); a)
     ## Images for which the boundary conditions will be irrelevant
     imgf = zeros(5, 7); imgf[3,4] = 1
     imgi = zeros(Int, 5, 7); imgi[3,4] = 1
@@ -86,6 +88,14 @@ using Base.Test
         ret[2,1] = kern[1,1]*x
         ret
     end
+    function target1{T}(img::AbstractArray{T}, kern, ::Pad{:na})
+        ret = float64(zero(img))
+        x = img[1,2]
+        ret[1,1] = kern[2,1]*x/(kern[2,1]+kern[2,2])
+        ret[2,1] = kern[1,1]*x/sum(kern)
+        ret[:,end] = nan(eltype(ret))  # for the last column, this kernel is entirely in the padding region
+        ret
+    end
     for img in (imgf, imgi, imgg, imgc)
         for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(img))))
             targetimg = target1(img, kern, border)
@@ -95,6 +105,16 @@ using Base.Test
                 @test @inferred(imfilter(img, kernel, border, alg)) ≈ targetimg
                 @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
             end
+        end
+        border = Pad{:na}()
+        targetimg0 = target1(img, kern, border)
+        nanflag = isnan.(targetimg0)
+        targetimg = zerona!(copy(targetimg0))
+        @test @inferred(zerona!(imfilter(img, kernel, border))) ≈ targetimg
+        @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border))) ≈ float32(targetimg)
+        for alg in (Algorithm.FIR(), Algorithm.FFT())
+            @test @inferred(zerona!(imfilter(img, kernel, border, alg), nanflag)) ≈ targetimg
+            @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border, alg), nanflag)) ≈ float32(targetimg)
         end
     end
     # Factored kernel
@@ -109,6 +129,16 @@ using Base.Test
                 @test @inferred(imfilter(img, kernel, border, alg)) ≈ targetimg
                 @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
             end
+        end
+        border = Pad{:na}()
+        targetimg0 = target1(img, kern, border)
+        nanflag = isnan.(targetimg0)
+        targetimg = zerona!(copy(targetimg0))
+        @test @inferred(zerona!(imfilter(img, kernel, border))) ≈ targetimg
+        @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border))) ≈ float32(targetimg)
+        for alg in (Algorithm.FIR(), Algorithm.FFT())
+            @test @inferred(zerona!(imfilter(img, kernel, border, alg), nanflag)) ≈ targetimg
+            @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border, alg), nanflag)) ≈ float32(targetimg)
         end
     end
 end
