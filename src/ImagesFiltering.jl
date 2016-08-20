@@ -2,7 +2,7 @@ module ImagesFiltering
 
 using Colors, FixedPointNumbers, ImagesCore, MappedArrays, FFTViews, OffsetArrays, StaticArrays, ComputationalResources
 using ColorVectorSpace  # in case someone filters RGB arrays
-using Base: Indices, tail, fill_to_length
+using Base: Indices, tail, fill_to_length, @pure
 
 export Kernel, KernelFactors, Pad, Fill, Inner, Algorithm, imfilter, imfilter!, padarray, centered
 

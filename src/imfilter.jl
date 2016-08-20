@@ -120,7 +120,7 @@ imfilter
 # have to be a little more cautious to make sure that later methods
 # don't inadvertently call back to these: in methods that take an
 # AbstractResource argument, exclude `NoPad()` as a border option.
-function imfilter!(out::AbstractArray, img::AbstractArray, kernel::AbstractArray, args...)
+function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Union{AbstractArray,Laplacian}, args...)
     imfilter!(out, img, factorkernel(kernel), args...)
 end
 
@@ -321,11 +321,11 @@ function _imfilter_inbounds!(out, A::AbstractArray, kern::OffsetArray, R)
     ΔI = CartesianIndex(kern.offsets)
     _imfilter_inbounds!(out, (A, ΔI), parent(kern), R)
 end
-function _imfilter_inbounds!(out, A::OffsetArray, kern::AbstractArray, R)
-    ΔI = CartesianIndex(kern.offsets)
+function _imfilter_inbounds!(out, A::OffsetArray, kern, R)
+    ΔI = -CartesianIndex(A.offsets)
     _imfilter_inbounds!(out, (parent(A), ΔI), kern, R)
 end
-function _imfilter_inbounds!(out, A::AbstractArray, kern::AbstractArray, R)
+function _imfilter_inbounds!(out, A::AbstractArray, kern, R)
     indsk = indices(kern)
     p = first(A) * first(kern)
     TT = typeof(p+p)
@@ -640,13 +640,22 @@ end
 ### Utilities
 
 filter_type{S,T}(img::AbstractArray{S}, kernel::AbstractArray{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
-filter_type{S,T}(img::AbstractArray{S}, kernel::Tuple{AbstractArray{T},Vararg{AbstractArray{T}}}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
-filter_type{S,T}(img::AbstractArray{S}, kernel::Tuple{IIRFilter{T},Vararg{IIRFilter{T}}}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
+filter_type{S,T}(img::AbstractArray{S}, kernel::IIRFilter{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
 filter_type{S<:Union{UFixed,FixedColorant}}(img::AbstractArray{S}, ::Laplacian) = float32(S)
 filter_type{S<:Colorant}(img::AbstractArray{S}, ::Laplacian) = S
 filter_type{S<:AbstractFloat}(img::AbstractArray{S}, ::Laplacian) = S
 filter_type{S<:Signed}(img::AbstractArray{S}, ::Laplacian) = S
 filter_type{S<:Unsigned}(img::AbstractArray{S}, ::Laplacian) = signed(S)
+
+@inline function filter_type(img, kernel::Tuple{Any,Vararg{Any}})
+    T = filter_type(img, kernel[1])
+    filter_type(T, img, tail(kernel))
+end
+@inline function filter_type{T}(::Type{T}, img, kernel::Tuple{Any,Vararg{Any}})
+    S = promote_type(T, filter_type(img, kernel[1]))
+    filter_type(S, img, tail(kernel))
+end
+filter_type{T}(::Type{T}, img, kernel::Tuple{}) = T
 
 factorkernel(kernel::AbstractArray) = (kernelshift(indices(kernel), kernel),)
 factorkernel(L::Laplacian) = (L,)

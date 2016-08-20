@@ -17,6 +17,8 @@ using Base.Test
             af = imfilter(a, kern)
             T = eltype(a)
             @test af == [zero(T),a[3],-2a[3],a[3],zero(T)]
+            af = imfilter(a, (kern,))
+            @test af == [zero(T),a[3],-2a[3],a[3],zero(T)]
         end
         for a in (makeimpulse(Float64, (5,), 1),
                   makeimpulse(Gray{U8}, (5,), 1),
