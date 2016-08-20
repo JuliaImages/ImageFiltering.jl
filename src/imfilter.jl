@@ -333,7 +333,8 @@ function _imfilter_inbounds!(out, A::OffsetArray, kern, R)
 end
 function _imfilter_inbounds!(out, A::AbstractArray, kern, R)
     indsk = indices(kern)
-    p = first(A) * first(kern)
+    Rk = CartesianRange(indsk)
+    p = A[first(R)+first(Rk)] * first(kern)
     TT = typeof(p+p)
     for I in R
         tmp = zero(TT)
@@ -347,9 +348,9 @@ end
 function _imfilter_inbounds!(out, Ashift::Tuple{AbstractArray,CartesianIndex}, kern, R)
     A, ΔI = Ashift
     indsk = indices(kern)
-    p = first(A) * first(kern)
-    TT = typeof(p+p)
     Rk = CartesianRange(indsk)
+    p = A[first(R)+first(Rk)+ΔI] * first(kern)
+    TT = typeof(p+p)
     for I in R
         Ishift = I + ΔI
         tmp = zero(TT)
