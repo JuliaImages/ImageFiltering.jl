@@ -28,7 +28,7 @@ using Base.Test
                 @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
             end
         end
-        targetimg_inner = OffsetArray(targetimg[2:end, 1:end-2], 2:5, 1:3)
+        targetimg_inner = OffsetArray(targetimg[2:end, 1:end-2], 2:5, 1:5)
         @test @inferred(imfilter(img, kernel, Inner())) ≈ targetimg_inner
         @test @inferred(imfilter(f32type(img), img, kernel, Inner())) ≈ float32(targetimg_inner)
         for alg in (Algorithm.FIR(), Algorithm.FFT())
@@ -52,7 +52,8 @@ using Base.Test
                 @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
             end
         end
-        targetimg_inner = OffsetArray(targetimg[2:end, 1:end-2], 2:5, 1:3)
+        targetimg_inner = OffsetArray(targetimg[2:end, 1:end-2], 2:5, 1:5)
+        @test @inferred(imfilter(img, kernel, Inner())) ≈ targetimg_inner
         @test @inferred(imfilter(img, kernel, Inner())) ≈ targetimg_inner
         @test @inferred(imfilter(f32type(img), img, kernel, Inner())) ≈ float32(targetimg_inner)
         for alg in (Algorithm.FIR(), Algorithm.FFT())

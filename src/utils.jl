@@ -35,7 +35,7 @@ function _vec(a::OffsetArray)
     if i == 0
         i = 1
     end
-    OffsetArray(vec(parent(a)), inds[1])
+    OffsetArray(vec(parent(a)), inds[i])
 end
 
 samedims{N}(::Type{Val{N}}, kernel) = _reshape(kernel, Val{N})

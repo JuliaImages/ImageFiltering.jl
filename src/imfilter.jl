@@ -251,7 +251,13 @@ function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{}, ::NoPad)
     copy!(out, R, A1, R)
 end
 
-function _imfilter!(r, out, A1, A2, kernel::Tuple, ::NoPad)
+function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any}, ::NoPad)
+    kern = kernel[1]
+    iscopy(kern) && return imfilter!(r, out, A, (), NoPad())
+    imfilter!(r, out, A1, samedims(out, kern), NoPad())
+end
+
+function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any,Any,Vararg{Any}}, ::NoPad)
     kern = kernel[1]
     iscopy(kern) && return _imfilter!(r, out, A1, A2, tail(kernel), NoPad())
     kernN = samedims(A2, kern)
@@ -343,10 +349,11 @@ function _imfilter_inbounds!(out, Ashift::Tuple{AbstractArray,CartesianIndex}, k
     indsk = indices(kern)
     p = first(A) * first(kern)
     TT = typeof(p+p)
+    Rk = CartesianRange(indsk)
     for I in R
         Ishift = I + ΔI
         tmp = zero(TT)
-        @inbounds for J in CartesianRange(indsk)
+        @inbounds for J in Rk
             tmp += A[Ishift+J]*kern[J]
         end
         @inbounds out[I] = tmp
