@@ -4,22 +4,63 @@ using StaticArrays, OffsetArrays
 using ..ImagesFiltering: centered, KernelFactors
 import ..ImagesFiltering: _reshape
 
-"""
-`kern1, kern2 = ando3()` returns optimal 3x3 gradient filters for dimensions 1 and 2 of your image, as defined in
-Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.
-
-See also: KernelFactors.ando3, Kernel.ando4, Kernel.ando5.
-"""
-function ando3()
-    k1, k2 = KernelFactors.ando3()
+function product2d(kf)
+    k1, k2 = kf
     k1[1].*k1[2], k2[1].*k2[2]
 end
 
 """
-`kern1, kern2 = ando4()` returns optimal 4x4 gradient filters for dimensions 1 and 2 of your image, as defined in
-Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.
+    diff1, diff2 = sobel()
 
-See also: `KernelFactors.ando4`, `Kernel.ando3`, `Kernel.ando5`.
+Return kernels for two-dimensional gradient compution using the Sobel
+operator. `diff1` computes the gradient along the first (y) dimension,
+and `diff2` computes the gradient along the second (x) dimension.
+
+See also: KernelFactors.sobel, Kernel.prewitt, Kernel.ando.
+"""
+sobel() = product2d(KernelFactors.sobel())
+
+"""
+    diff1, diff2 = prewitt()
+
+Return kernels for two-dimensional gradient compution using the
+Prewitt operator.  `diff1` computes the gradient along the first (y)
+dimension, and `diff2` computes the gradient along the second (x)
+dimension.
+
+See also: KernelFactors.prewitt, Kernel.sobel, Kernel.ando.
+"""
+prewitt() = product2d(KernelFactors.prewitt())
+
+"""
+    diff1, diff2 = ando3()
+
+Return 3x3 kernels for two-dimensional gradient compution using the
+optimal "Ando" filters.  `diff1` computes the gradient along the
+y-axis (first dimension), and `diff2` computes the gradient along the
+x-axis (second dimension).
+
+# Citation
+Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
+2000
+
+See also: KernelFactors.ando3, Kernel.ando4, Kernel.ando5.
+"""
+ando3() = product2d(KernelFactors.ando3())
+
+"""
+    diff1, diff2 = ando4()
+
+Return 4x4 kernels for two-dimensional gradient compution using the
+optimal "Ando" filters.  `diff1` computes the gradient along the
+y-axis (first dimension), and `diff2` computes the gradient along the
+x-axis (second dimension).
+
+# Citation
+Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
+2000
+
+See also: KernelFactors.ando4, Kernel.ando3, Kernel.ando5.
 """
 function ando4()
     f = centered(@SMatrix [ -0.022116 -0.025526  0.025526  0.022116
@@ -30,8 +71,16 @@ function ando4()
 end
 
 """
-`kern1, kern2 = ando5()` returns optimal 5x5 gradient filters for dimensions 1 and 2 of your image, as defined in
-Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.
+    diff1, diff2 = ando5()
+
+Return 5x5 kernels for two-dimensional gradient compution using the
+optimal "Ando" filters.  `diff1` computes the gradient along the
+y-axis (first dimension), and `diff2` computes the gradient along the
+x-axis (second dimension).
+
+# Citation
+Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
+2000
 
 See also: `KernelFactors.ando5`, `Kernel.ando3`, `Kernel.ando4`.
 """
@@ -69,9 +118,9 @@ gaussian(σ::Tuple{}) = reshape([1])
 gaussian(σ::Real) = gaussian((σ, σ))
 
 """
-    DoG((σp1, σp2, ...), (σm1, σm2, ...), [l]) -> k
-    DoG((σ1, σ2, ...))                         -> k
-    DoG(σ::Real)                               -> k
+    DoG((σp1, σp2, ...), (σm1, σm2, ...), [l1, l2, ...]) -> k
+    DoG((σ1, σ2, ...))                                   -> k
+    DoG(σ::Real)                                         -> k
 
 Construct a multidimensional difference-of-gaussian kernel `k`, equal
 to `gaussian(σp, l)-gaussian(σm, l)`.  When only a single `σ` is
