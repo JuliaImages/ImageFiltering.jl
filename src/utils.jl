@@ -18,23 +18,27 @@ dummyind(::AbstractUnitRange) = 0:0
 
 dummykernel{N}(inds::Indices{N}) = similar(dims->ones(ntuple(d->1,Val{N})), map(dummyind, inds))
 
-extendeddims(k::AbstractArray) = sum(ind->length(ind)>1, indices(k))
+nextendeddims(inds::Indices) = sum(ind->length(ind)>1, inds)
+nextendeddims(a::AbstractArray) = nextendeddims(indices(a))
+
+function checkextended(inds::Indices, n)
+    dimstr = n == 1 ? "dimension" : "dimensions"
+    nextendeddims(inds) != n && throw(ArgumentError("need $n extended $dimstr, got indices $inds"))
+    nothing
+end
+checkextended(a::AbstractArray, n) = checkextended(indices(a), n)
 
 _reshape{_,N}(A::OffsetArray{_,N}, ::Type{Val{N}}) = A
 _reshape{N}(A::OffsetArray, ::Type{Val{N}}) = OffsetArray(reshape(parent(A), Val{N}), fill_to_length(A.offsets, -1, Val{N}))
 _reshape{N}(A::AbstractArray, ::Type{Val{N}}) = reshape(A, Val{N})
 
 _vec(a::AbstractVector) = a
-_vec(a::AbstractArray) = vec(a)
-_vec{_}(a::OffsetArray{_,0}) = a
+_vec(a::AbstractArray) = (checkextended(a, 1); a)
 _vec{_}(a::OffsetArray{_,1}) = a
 function _vec(a::OffsetArray)
     inds = indices(a)
-    extendeddims(a) < 2 || throw(ArgumentError("_vec only works on arrays with just 1 extended dimension, got indices $inds"))
+    checkextended(inds, 1)
     i = find(ind->length(ind)>1, inds)
-    if i == 0
-        i = 1
-    end
     OffsetArray(vec(parent(a)), inds[i])
 end
 

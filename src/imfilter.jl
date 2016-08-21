@@ -222,39 +222,29 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
     copy!(out, R, A, R)
 end
 
-iscopy(kernel::AbstractArray) = all(x->x==0:0, indices(kernel)) && first(kernel) == 1
-iscopy(kernel::Laplacian) = false
-
-function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{AbstractArray}, ::NoPad)
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any}, ::NoPad)
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, (), NoPad())
     imfilter!(r, out, A, samedims(out, kern), NoPad())
 end
 
-function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Laplacian}, ::NoPad)
-    imfilter!(r, out, A, samedims(out, kernel[1]), NoPad())
-end
-
-function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple, ::NoPad)
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, ::NoPad)
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, tail(kernel), NoPad())
     # For multiple stages of filtering, we introduce a second buffer
     # and swap them at each stage. The first of the two is the one
     # that holds the most recent result.
-    A2 = similar(A)  # let's hope it's really the *same* type...
+    A2 = similar(A)  # for type-stability, let's hope it's really the *same* type...
     _imfilter!(r, out, A, A2, kernel, NoPad())
     return out
 end
 
 function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{}, ::NoPad)
-    R = CartesianRange(indices(out))
-    copy!(out, R, A1, R)
+    imfilter!(r, out, A1, kernel, NoPad())
 end
 
 function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any}, ::NoPad)
-    kern = kernel[1]
-    iscopy(kern) && return imfilter!(r, out, A, (), NoPad())
-    imfilter!(r, out, A1, samedims(out, kern), NoPad())
+    imfilter!(r, out, A1, kernel, NoPad())
 end
 
 function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any,Any,Vararg{Any}}, ::NoPad)
@@ -525,7 +515,7 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
                                          out, img, kernel::TriggsSdika{T,k,l},
                                          Rbegin::CartesianRange, ind::AbstractUnitRange,
                                          Rend::CartesianRange, border::BorderSpec)
-    if all(x->x==0, kernel.a) && all(x->x==0, kernel.b) && kernel.scale == 1
+    if iscopy(kernel)
         if !(out === img)
             copy!(out, img)
         end
@@ -647,23 +637,30 @@ end
 
 ### Utilities
 
-filter_type{S,T}(img::AbstractArray{S}, kernel::AbstractArray{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
-filter_type{S,T}(img::AbstractArray{S}, kernel::IIRFilter{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
-filter_type{S<:Union{UFixed,FixedColorant}}(img::AbstractArray{S}, ::Laplacian) = float32(S)
-filter_type{S<:Colorant}(img::AbstractArray{S}, ::Laplacian) = S
-filter_type{S<:AbstractFloat}(img::AbstractArray{S}, ::Laplacian) = S
-filter_type{S<:Signed}(img::AbstractArray{S}, ::Laplacian) = S
-filter_type{S<:Unsigned}(img::AbstractArray{S}, ::Laplacian) = signed(S)
+filter_type{S}(img::AbstractArray{S}, kernel) = filter_type(S, kernel)
 
-@inline function filter_type(img, kernel::Tuple{Any,Vararg{Any}})
+filter_type{S,T}(::Type{S}, kernel::AbstractArray{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
+filter_type{S,T}(::Type{S}, kernel::IIRFilter{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
+filter_type{S<:Union{UFixed,FixedColorant}}(::Type{S}, ::Laplacian) = float32(S)
+filter_type{S<:Colorant}(::Type{S}, kernel::Laplacian) = S
+filter_type{S<:AbstractFloat}(::Type{S}, ::Laplacian) = S
+filter_type{S<:Signed}(::Type{S}, ::Laplacian) = S
+filter_type{S<:Unsigned}(::Type{S}, ::Laplacian) = signed_type(S)
+filter_type(::Type{Bool}, ::Laplacian) = Int8
+
+signed_type(::Type{UInt8})  = Int16
+signed_type(::Type{UInt16}) = Int32
+signed_type(::Type{UInt32}) = Int64
+
+@inline function filter_type(img::AbstractArray, kernel::Tuple{Any,Vararg{Any}})
     T = filter_type(img, kernel[1])
     filter_type(T, img, tail(kernel))
 end
-@inline function filter_type{T}(::Type{T}, img, kernel::Tuple{Any,Vararg{Any}})
+@inline function filter_type{T}(::Type{T}, img::AbstractArray, kernel::Tuple{Any,Vararg{Any}})
     S = promote_type(T, filter_type(img, kernel[1]))
     filter_type(S, img, tail(kernel))
 end
-filter_type{T}(::Type{T}, img, kernel::Tuple{}) = T
+filter_type{T}(::Type{T}, img::AbstractArray, kernel::Tuple{}) = T
 
 factorkernel(kernel::AbstractArray) = (kernelshift(indices(kernel), kernel),)
 factorkernel(L::Laplacian) = (L,)
@@ -705,14 +702,16 @@ function prod_kernel{N}(::Type{Val{N}}, kernel::AbstractArray)
     reshape(kernel, newinds)
 end
 
+kernelshift(::Tuple{}, A::StridedArray) = A
+kernelshift(::Tuple{}, A) = A
 kernelshift{N}(inds::NTuple{N,Base.OneTo}, A::StridedArray) = _kernelshift(inds, A)
 kernelshift{N}(inds::NTuple{N,Base.OneTo}, A) = _kernelshift(inds, A)
 function _kernelshift(inds, A)
     Base.depwarn("assuming that the origin is at the center of the kernel; to avoid this warning, call `centered(kernel)` or use an OffsetArray", :_kernelshift)  # this may be necessary long-term?
     centered(A)
 end
-kernelshift(inds::Any, A::StridedArray) = OffsetArray(A, inds...)
-function kernelshift(inds::Any, A)
+kernelshift(inds::Indices, A::StridedArray) = OffsetArray(A, inds...)
+function kernelshift(inds::Indices, A)
     @assert indices(A) == inds
     A
 end
@@ -721,7 +720,7 @@ filter_algorithm(out, img, kernel) = FIR()
 filter_algorithm(out, img, kernel::Tuple{IIRFilter,Vararg{IIRFilter}}) = IIR()
 
 isseparable(kernels::Tuple{Vararg{TriggsSdika}}) = true
-isseparable(kernels::Tuple) = all(x->extendeddims(x)==1, kernels)
+isseparable(kernels::Tuple) = all(x->nextendeddims(x)==1, kernels)
 
 function imfilter_na_inseparable!{T}(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple{Vararg{TriggsSdika}})
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
@@ -783,3 +782,7 @@ function normalize_dims!{T,N}(A::AbstractArray{T,N}, factors::NTuple{N})
     end
     A
 end
+
+iscopy(kernel::AbstractArray) = all(x->x==0:0, indices(kernel)) && first(kernel) == 1
+iscopy(kernel::Laplacian) = false
+iscopy(kernel::TriggsSdika) = all(x->x==0, kernel.a) && all(x->x==0, kernel.b) && kernel.scale == 1

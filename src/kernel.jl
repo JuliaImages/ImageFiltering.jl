@@ -110,8 +110,11 @@ See also: KernelFactors.gaussian.
     broadcast(.*, KernelFactors.gaussian(σs, ls)...)
 gaussian(σ::Tuple{Real}, l::Tuple{Integer}) = KernelFactors.gaussian(σ[1], l[1])
 gaussian(σ::Tuple{}, l::Tuple{}) = reshape([1])  # 0d
+gaussian{T<:Real,I<:Integer}(σs::AbstractVector{T}, ls::AbstractVector{I}) =
+    gaussian((σs...,), (ls...,))
 
 @inline gaussian{N}(σs::NTuple{N,Real}) = broadcast(.*, KernelFactors.gaussian(σs)...)
+gaussian{T<:Real}(σs::AbstractVector{T}) = gaussian((σs...,))
 gaussian(σ::Tuple{Real}) = KernelFactors.gaussian(σ[1])
 gaussian(σ::Tuple{}) = reshape([1])
 

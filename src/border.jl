@@ -47,6 +47,7 @@ Pad the input image symmetrically, `m` pixels at the lower and upper edge of dim
 
 Pad the input image symmetrically, `m` pixels at the lower and upper edge of dimension 1, `n` pixels for dimension 2.
 """
+(::Type{Pad{Style}}){Style}(::Tuple{}) = Pad{Style}()
 (::Type{Pad{Style}}){Style,N}(both::Dims{N}) = Pad{Style,N}(both, both)
 
 (::Type{Pad{Style}}){Style  }(lo::Tuple{}, hi::Tuple{}) = Pad{Style,0}(lo, hi)
@@ -178,10 +179,10 @@ Fill{T,N}(value::T, lo::Dims{N}, hi::Dims{N}) = Fill{T,N}(value, lo, hi)
 Fill(value, lo::AbstractVector, hi::AbstractVector) = Fill(value, (lo...,), (hi...,))
 Fill{T,N}(value::T, inds::Base.Indices{N}) = Fill{T,N}(value, map(lo,inds), map(hi,inds))
 Fill(value, kernel::AbstractArray) = Fill(value, indices(kernel))
+Fill(value, kernel::Laplacian) = Fill(value, indices(kernel))
 Fill(value, factkernel::Tuple) = Fill(value, accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 
-(p::Fill)(kernel::AbstractArray, img, ::FIR) = Fill(p.value, kernel)
-(p::Fill)(factkernel::Tuple, img, ::FIR) = Fill(p.value, factkernel)
+(p::Fill)(kernel, img, ::FIR) = Fill(p.value, kernel)
 function (p::Fill)(factkernel::Tuple, img, ::FFT)
     inds = accumulate_padding(indices(factkernel[1]), tail(factkernel)...)
     newinds = map(padfft, inds, map(length, indices(img)))
@@ -248,8 +249,10 @@ end
 # @inline _flatten(t1,        t...) = (t1, flatten(t)...)
 # _flatten() = ()
 
-accumulate_padding(inds::Indices, kernel1::AbstractArray, kernels...) =
+accumulate_padding(inds::Indices, kernel1, kernels...) =
     accumulate_padding(_accumulate_padding(inds, indices(kernel1)), kernels...)
+accumulate_padding(inds::Indices, kernel1::TriggsSdika, kernels...) =
+    accumulate_padding(inds, kernels...)
 accumulate_padding(inds) = inds
 _accumulate_padding(inds1, inds2) = (__accumulate_padding(inds1[1], inds2[1]), _accumulate_padding(tail(inds1), tail(inds2))...)
 _accumulate_padding(::Tuple{}, ::Tuple{}) = ()
@@ -263,7 +266,6 @@ modrange(A::AbstractArray, r::AbstractUnitRange) = map(x->modrange(x, r), A)
 arraytype{T}(A::AbstractArray, ::Type{T}) = Array{T}  # fallback
 arraytype(A::BitArray, ::Type{Bool}) = BitArray
 
-interior(r::AbstractResource{FFT}, A::AbstractArray, kernel) = indices(A)  # periodic boundary conditions
 interior(r::AbstractResource, A::AbstractArray, kernel) = interior(A, kernel)
 
 interior(A::AbstractArray, kernel::Union{AbstractArray,Laplacian}) = _interior(indices(A), indices(kernel))

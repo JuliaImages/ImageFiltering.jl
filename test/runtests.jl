@@ -9,6 +9,7 @@ include("border.jl")
 include("2d.jl")
 include("cascade.jl")
 include("specialty.jl")
+include("basic.jl")
 include("deprecated.jl")
 
 nothing

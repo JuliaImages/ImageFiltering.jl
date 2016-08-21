@@ -1,4 +1,4 @@
-using ImagesFiltering, ImagesCore, OffsetArrays, Colors, FFTViews, ColorVectorSpace
+using ImagesFiltering, ImagesCore, OffsetArrays, Colors, FFTViews, ColorVectorSpace, ComputationalResources
 using Base.Test
 
 @testset "FIR/FFT" begin
@@ -18,15 +18,26 @@ using Base.Test
     for img in (imgf, imgi, imgg, imgc)
         targetimg = zeros(typeof(img[1]*kern[1]), size(img))
         targetimg[3:4,2:3] = rot180(kern)*img[3,4]
-        @test @inferred(imfilter(img, kernel)) ≈ targetimg
+        @test (ret = @inferred(imfilter(img, kernel))) ≈ targetimg
+        @test @inferred(imfilter(img, (kernel,))) ≈ targetimg
         @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32(targetimg)
+        fill!(ret, zero(eltype(ret)))
+        @test @inferred(imfilter!(ret, img, kernel)) ≈ targetimg
+        fill!(ret, zero(eltype(ret)))
+        @test @inferred(imfilter!(CPU1(Algorithm.FIR()), ret, img, kernel)) ≈ targetimg
         for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(img))))
-            @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
+            @test (ret = @inferred(imfilter(img, kernel, border))) ≈ targetimg
             @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
+            fill!(ret, zero(eltype(ret)))
+            @test @inferred(imfilter!(ret, img, kernel, border)) ≈ targetimg
             for alg in (Algorithm.FIR(), Algorithm.FFT())
                 @test @inferred(imfilter(img, kernel, border, alg)) ≈ targetimg
+                @test @inferred(imfilter(img, (kernel,), border, alg)) ≈ targetimg
                 @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
+                fill!(ret, zero(eltype(ret)))
+                @test @inferred(imfilter!(CPU1(alg), ret, img, kernel, border)) ≈ targetimg
             end
+            @test_throws MethodError imfilter!(CPU1(Algorithm.FIR()), ret, img, kernel, border, Algorithm.FFT())
         end
         targetimg_inner = OffsetArray(targetimg[2:end, 1:end-2], 2:5, 1:5)
         @test @inferred(imfilter(img, kernel, Inner())) ≈ targetimg_inner
@@ -34,6 +45,7 @@ using Base.Test
         for alg in (Algorithm.FIR(), Algorithm.FFT())
             @test @inferred(imfilter(img, kernel, Inner(), alg)) ≈ targetimg_inner
             @test @inferred(imfilter(f32type(img), img, kernel, Inner(), alg)) ≈ float32(targetimg_inner)
+            @test @inferred(imfilter(CPU1(alg), img, kernel, Inner())) ≈ targetimg_inner
         end
     end
     # Factored kernel
@@ -51,6 +63,7 @@ using Base.Test
                 @test @inferred(imfilter(img, kernel, border, alg)) ≈ targetimg
                 @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
             end
+            @test_throws MethodError imfilter!(CPU1(Algorithm.FIR()), ret, img, kernel, border, Algorithm.FFT())
         end
         targetimg_inner = OffsetArray(targetimg[2:end, 1:end-2], 2:5, 1:5)
         @test @inferred(imfilter(img, kernel, Inner())) ≈ targetimg_inner
@@ -173,6 +186,14 @@ using Base.Test
             @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border, alg), nanflag)) ≈ float32(targetimg)
         end
     end
+    # filtering with a 0d kernel
+    a = rand(3,3)
+    # @test_approx_eq imfilter(a, reshape([2])) 2a
+    # imfilter! as a copy
+    ret = zeros(3, 3)
+    b = @inferred(imfilter!(CPU1(Algorithm.FIR()), ret, a, (), NoPad()))
+    @test b == a
+    @test !(b === a)
 end
 
 @testset "TriggsSdika 1d" begin
@@ -209,12 +230,20 @@ end
     x = -2:2
     y = (-3:3)'
     kernel = KernelFactors.IIRGaussian((σ, σ))
-    for img in (copy(imgf), copy(imgg), copy(imgc))
+    for img in (imgf, imgg, imgc)
         imgcmp = img[3,4]*exp(-(x.^2 .+ y.^2)/(2*σ^2))/(σ^2*2*pi)
         border = Fill(zero(eltype(img)))
+        img0 = copy(img)
         imgf = @inferred(imfilter(img, kernel, border))
         @test sumabs2(imgcmp - imgf) < 0.2^2*sumabs2(imgcmp)
+        @test img == img0
+        @test imgf != img
     end
+    ret = imfilter(imgf, KernelFactors.IIRGaussian((0,σ)), Pad{:replicate}())
+    @test ret != imgf
+    out = similar(ret)
+    imfilter!(CPU1(Algorithm.IIR()), out, imgf, KernelFactors.IIRGaussian(σ), 2, Pad{:replicate}())
+    @test out == ret
 end
 
 

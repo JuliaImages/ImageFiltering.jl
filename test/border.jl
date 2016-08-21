@@ -1,4 +1,4 @@
-using ImagesFiltering, OffsetArrays
+using ImagesFiltering, OffsetArrays, Colors
 using Base.Test
 
 @testset "padarray" begin
@@ -122,6 +122,64 @@ using Base.Test
     B = view(A,1:8,1:8,1:8)
     @test isa(parent(padarray(A, Pad((1,1,1)))), BitArray{3})
     @test isa(parent(padarray(B, Pad((1,1,1)))), BitArray{3})
+    A = reshape(1:15, 3, 5)
+    B = @inferred(padarray(A, Inner((1,1))))
+    @test B == A
+    # test that it's a copy
+    B[1,1] = 0
+    @test B != A
+    A = rand(RGB{U8}, 3, 5)
+    ret = @test_throws ErrorException padarray(A, Fill(0, (0,0), (0,0)))
+    @test contains(ret.value.msg, "element type ColorTypes.RGB")
+    A = bitrand(3, 5)
+    ret = @test_throws ErrorException padarray(A, Fill(7, (0,0), (0,0)))
+    @test contains(ret.value.msg, "element type Bool")
+    @test isa(parent(padarray(A, Fill(false, (1,1), (1,1)))), BitArray)
+end
+
+@testset "Pad" begin
+    @test Pad{:replicate}([1,2], [5,3]) == Pad{:replicate}((1,2), (5,3))
+    @test @inferred(Pad{:replicate,2}([1,2], [5,3])) == Pad{:replicate}((1,2), (5,3))
+    @test_throws TypeError Pad{:replicate,3}([1,2], [5,3])
+    @test @inferred(Pad{:circular}()(rand(3,5))) == Pad{:circular,2}((0,0),(3,5))
+    @test @inferred(Pad{:circular}()(centered(rand(3,5)))) == Pad{:circular,2}((1,2),(1,2))
+    @test @inferred(Pad{:symmetric}()(Kernel.Laplacian())) == Pad{:symmetric,2}((1,1),(1,1))
+    @test @inferred(Pad{:symmetric}()(Kernel.Laplacian(), rand(5,5), Algorithm.FIR())) == Pad{:symmetric,2}((1,1),(1,1))
+
+    a = reshape(1:15, 3, 5)
+    targetinds = (OffsetArray([1,1,2,3,3], 0:4), OffsetArray([1:5;], 1:5))
+    ERROLD = STDERR
+    tmpfile = tempname()
+    try
+        open(tmpfile, "w") do f
+            redirect_stderr(f)
+            @test @inferred(ImagesFiltering.padindices(rand(3,5), Pad{:replicate}((1,)))) == targetinds
+        end
+    finally
+        redirect_stderr(ERROLD)
+    end
+    @test contains(readstring(tmpfile), "lacks the proper padding sizes")
+end
+
+@testset "Inner" begin
+    @test @inferred(Inner((1,2))) == Inner((1,2), (1,2))
+    @test @inferred(Inner((1,2), ())) == Inner((1,2), (0,0))
+    @test @inferred(Inner((), (1,2))) == Inner((0,0), (1,2))
+    @test @inferred(Inner{2}([1,2],[5,6])) == Inner((1,2), (5,6))
+    @test Inner([1,2],[5,6]) == Inner((1,2), (5,6))
+    @test @inferred(Inner()(rand(3,5))) == Inner((0,0),(3,5))
+end
+
+@testset "Fill" begin
+    @test Fill(1,[1,2],[5,6]) == Fill(1, (1,2), (5,6))
+    @test @inferred(Fill(-1, rand(3,5))) == Fill(-1, (0,0), (3,5))
+    @test @inferred(Fill(2)(Kernel.Laplacian(), rand(5,5), Algorithm.FIR())) == Fill(2, (1,1),(1,1))
+end
+
+@testset "misc" begin
+    a0 = reshape([1])  # 0-dimensional
+    @test ImagesFiltering.accumulate_padding((), a0) == ()
+    @test ImagesFiltering.accumulate_padding((0:1, -1:1), a0) == (0:1, -1:1)
 end
 
 nothing

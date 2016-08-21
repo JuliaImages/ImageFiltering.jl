@@ -6,6 +6,8 @@ using Base: tail
 
 abstract IIRFilter{T}
 
+Base.eltype{T}(kernel::IIRFilter{T}) = T
+
 #### FIR filters
 
 ## gradients
