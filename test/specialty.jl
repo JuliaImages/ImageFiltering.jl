@@ -186,6 +186,15 @@ using Base.Test
         @test indices(Kernel.DoG((5,), (7,), (21,))) == (-10:10,)
     end
 
+    @testset "LoG" begin
+        img = rand(20,21)
+        σs = (2.5, 3.2)
+        kernel1 = Kernel.LoG(σs)
+        kernel2 = (KernelFactors.IIRGaussian(σs)..., Kernel.Laplacian())
+        imgf1 = imfilter(img, kernel1)
+        imgf2 = imfilter(img, kernel2)
+        @test cor(vec(imgf1), vec(imgf2)) > 0.8
+    end
 end
 
 nothing

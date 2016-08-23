@@ -162,13 +162,13 @@ function LoG{N}(σs::NTuple{N})
     σ = SVector(σs)
     C = 1/(prod(σ)*(2π)^(N/2))
     σ2 = σ.^2
-    iσ4 = sum(1./σ2.^2)
-    function df(I::CartesianIndex, σ2, iσ4)
+    σ2i = sum(1./σ2)
+    function df(I::CartesianIndex, σ2, σ2i)
         x = SVector(I.I)
-        xσ = sum(x.^2./σ2)
-        (xσ - iσ4) * exp(-xσ/2)
+        xσ = x.^2./σ2
+        (sum(xσ./σ2) - σ2i) * exp(-sum(xσ)/2)
     end
-    centered([C*df(I, σ2, iσ4) for I in R])
+    centered([C*df(I, σ2, σ2i) for I in R])
 end
 LoG(σ::Real) = LoG((σ,σ))
 
