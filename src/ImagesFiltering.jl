@@ -22,10 +22,13 @@ Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
 
 include("utils.jl")
 include("kernelfactors.jl")
-using .KernelFactors: TriggsSdika, IIRFilter
+using .KernelFactors: TriggsSdika, IIRFilter, ReshapedVector, iterdims
 include("kernel.jl")
 using .Kernel
 using .Kernel: Laplacian
+
+typealias ArrayLike{T} Union{AbstractArray{T}, IIRFilter{T}, ReshapedVector{T}}
+
 include("border.jl")
 include("deprecated.jl")
 include("imfilter.jl")

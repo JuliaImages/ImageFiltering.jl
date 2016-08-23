@@ -1,12 +1,81 @@
 module KernelFactors
 
 using StaticArrays, OffsetArrays
-using ..ImagesFiltering: centered, dummyind, _reshape
-using Base: tail
+using ..ImagesFiltering: centered, dummyind
+import ..ImagesFiltering: _reshape, _vec, nextendeddims
+using Base: tail, Indices
 
 abstract IIRFilter{T}
 
 Base.eltype{T}(kernel::IIRFilter{T}) = T
+
+"""
+    ReshapedVector{N,Npre}(data)
+
+Return an object of dimensionality `N`, where `data` must have
+dimensionality 1. The indices are `0:0` for the first `Npre`
+dimensions, have the indices of `data` for dimension `Npre+1`, and are
+`0:0` for the remaining dimensions.
+
+`data` must support `eltype` and `ndims`, but does not have to be an
+AbstractArray.
+
+ReshapedVectors allow one to specify a "filtering dimension" for a
+1-dimensional filter.
+"""
+immutable ReshapedVector{T,N,Npre,V}  # note not <: AbstractArray{T,N} (more general)
+    data::V
+
+    function ReshapedVector(data::V)
+        ndims(V) == 1 || throw(DimensionMismatch("must be one dimensional, got $(ndims(V))"))
+        new(data)
+    end
+end
+
+(::Type{ReshapedVector{N,Npre}}){N,Npre,V}(data::V) = ReshapedVector{eltype(data),N,Npre,V}(data)
+# Convenient loop constructor that uses dummy NTuple{N,Bool} to keep
+# track of dimensions for type-stability
+@inline function ReshapedVector{Npre,Npost}(pre::NTuple{Npre,Bool}, data, post::NTuple{Npost,Bool})
+    total = (pre..., true, post...)
+    _reshapedvector(total, pre, data)
+end
+_reshapedvector{N,Npre}(::NTuple{N,Bool}, ::NTuple{Npre,Bool}, data) = ReshapedVector{eltype(data),N,Npre,typeof(data)}(data)
+
+Base.eltype{T}(A::ReshapedVector{T}) = T
+Base.ndims{_,N}(A::ReshapedVector{_,N}) = N
+Base.isempty(A::ReshapedVector) = isempty(A.data)
+
+@inline Base.indices{_,N,Npre}(A::ReshapedVector{_,N,Npre}) = Base.fill_to_length((Base.ntuple(d->0:0, Val{Npre})..., Base.indices1(A.data)), 0:0, Val{N})
+
+_reshape{T,N}(A::ReshapedVector{T,N}, ::Type{Val{N}}) = A
+_vec(A::ReshapedVector) = A.data
+nextendeddims(a::ReshapedVector) = 1
+
+"""
+    iterdims(inds, v::ReshapedVector{T,N,Npre}) -> Rpre, ind, Rpost
+
+Return a pair `Rpre`, `Rpost` of CartesianRanges that correspond to
+pre- and post- dimensions for iterating over an array with indices
+`inds`. `Rpre` corresponds to the `Npre` "pre" dimensions, and `Rpost`
+to the trailing dimensions (not including the vector object wrapped in
+`v`).  Concretely,
+
+    Rpre  = CartesianRange(inds[1:Npre])
+    ind   = inds[Npre+1]
+    Rpost = CartesianRange(inds[Npre+2:end])
+
+although the implementation differs for reason of type-stability.
+"""
+function iterdims{_,N,Npre}(inds::Indices{N}, v::ReshapedVector{_,N,Npre})
+    indspre, ind, indspost = _iterdims((), (), inds, v)
+    CartesianRange(indspre), ind, CartesianRange(indspost)
+end
+@inline function _iterdims(indspre, ::Tuple{}, inds, v)
+    _iterdims((indspre..., inds[1]), (), tail(inds), v)  # consume inds and push to indspre
+end
+@inline function _iterdims{_,N,Npre}(indspre::NTuple{Npre}, ::Tuple{}, inds, v::ReshapedVector{_,N,Npre})
+    indspre, inds[1], tail(inds)   # return the "central" and trailing dimensions
+end
 
 #### FIR filters
 
@@ -150,6 +219,11 @@ function TriggsSdika{T}(a::SVector{3,T}, scale)
     TriggsSdika(a, a, scale, M/Mdenom)
 end
 Base.vec(kernel::TriggsSdika) = kernel
+Base.ndims(kernel::TriggsSdika) = 1
+Base.ndims{T<:TriggsSdika}(::Type{T}) = 1
+Base.indices1(kernel::TriggsSdika) = 0:0
+Base.indices(kernel::TriggsSdika) = (indices1(kernel),)
+Base.isempty(kernel::TriggsSdika) = false
 
 # Note that there's a sign reversal between Young & Triggs.
 """
@@ -169,14 +243,14 @@ which case `Float64` will be chosen).
 I. T. Young, L. J. van Vliet, and M. van Ginkel, "Recursive Gabor
 Filtering". IEEE Trans. Sig. Proc., 50: 2798-2805 (2002).
 """
-function IIRGaussian{T}(::Type{T}, sigma::Real; emit_warning::Bool = true)
-    if emit_warning && sigma < 1 && sigma != 0
-        warn("sigma is too small for accuracy")
+function IIRGaussian{T}(::Type{T}, σ::Real; emit_warning::Bool = true)
+    if emit_warning && σ < 1 && σ != 0
+        warn("σ is too small for accuracy")
     end
     m0 = convert(T,1.16680)
     m1 = convert(T,1.10783)
     m2 = convert(T,1.40586)
-    q = convert(T,1.31564*(sqrt(1+0.490811*sigma*sigma) - 1))
+    q = convert(T,1.31564*(sqrt(1+0.490811*σ*σ) - 1))
     ascale = (m0+q)*(m1*m1 + m2*m2  + 2m1*q + q*q)
     B = (m0*(m1*m1 + m2*m2)/ascale)^2
     # This is what Young et al call -b, but in filt() notation would be called a
@@ -186,19 +260,26 @@ function IIRGaussian{T}(::Type{T}, sigma::Real; emit_warning::Bool = true)
     a = SVector(a1,a2,a3)
     TriggsSdika(a, B)
 end
-IIRGaussian(sigma::Real; emit_warning::Bool = true) = IIRGaussian(iirgt(sigma), sigma; emit_warning=emit_warning)
+IIRGaussian(σ::Real; emit_warning::Bool = true) = IIRGaussian(iirgt(σ), σ; emit_warning=emit_warning)
 
-function IIRGaussian{T}(::Type{T}, sigma::Tuple; emit_warning::Bool = true)
-    map(s->IIRGaussian(T, s; emit_warning=emit_warning), sigma)
+function IIRGaussian{T,N}(::Type{T}, σs::NTuple{N,Real}; emit_warning::Bool = true)
+    iirg(T, (), σs, tail(ntuple(d->true, Val{N})), emit_warning)
 end
-IIRGaussian(sigma::Tuple; emit_warning::Bool = true) = IIRGaussian(iirgt(sigma), sigma; emit_warning=emit_warning)
+IIRGaussian(σs::Tuple; emit_warning::Bool = true) = IIRGaussian(iirgt(σs), σs; emit_warning=emit_warning)
 
-IIRGaussian(sigma::AbstractVector; kwargs...) = IIRGaussian((sigma...,); kwargs...)
-IIRGaussian{T}(::Type{T}, sigma::AbstractVector; kwargs...) = IIRGaussian(T, (sigma...,); kwargs...)
+IIRGaussian(σs::AbstractVector; kwargs...) = IIRGaussian((σs...,); kwargs...)
+IIRGaussian{T}(::Type{T}, σs::AbstractVector; kwargs...) = IIRGaussian(T, (σs...,); kwargs...)
 
-iirgt(sigma::AbstractFloat) = typeof(sigma)
-iirgt(sigma::Real) = Float64
-iirgt(sigma::Tuple) = promote_type(map(iirgt, sigma)...)
+iirgt(σ::AbstractFloat) = typeof(σ)
+iirgt(σ::Real) = Float64
+iirgt(σs::Tuple) = promote_type(map(iirgt, σs)...)
+
+@inline function iirg{T}(::Type{T}, pre, σs, post, emit_warning)
+    kern = ReshapedVector(pre, IIRGaussian(T, σs[1]; emit_warning=emit_warning), post)
+    (kern, iirg(T, (pre..., post[1]), tail(σs), tail(post), emit_warning)...)
+end
+iirg{T}(::Type{T}, pre, σs::Tuple{Real}, ::Tuple{}, emit_warning) =
+    (ReshapedVector(pre, IIRGaussian(T, σs[1]; emit_warning=emit_warning), ()),)
 
 ###### Utilities
 

@@ -28,6 +28,8 @@ function checkextended(inds::Indices, n)
 end
 checkextended(a::AbstractArray, n) = checkextended(indices(a), n)
 
+ranges(R::CartesianRange) = map(colon, R.start.I, R.stop.I)
+
 _reshape{_,N}(A::OffsetArray{_,N}, ::Type{Val{N}}) = A
 _reshape{N}(A::OffsetArray, ::Type{Val{N}}) = OffsetArray(reshape(parent(A), Val{N}), fill_to_length(A.offsets, -1, Val{N}))
 _reshape{N}(A::AbstractArray, ::Type{Val{N}}) = reshape(A, Val{N})

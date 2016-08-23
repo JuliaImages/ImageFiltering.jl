@@ -4,14 +4,20 @@ using OffsetArrays, CatIndices
 
 abstract AbstractBorder
 
-immutable NoPad <: AbstractBorder end
+immutable NoPad{T} <: AbstractBorder
+    border::T
+end
+NoPad() = NoPad(nothing)
 
 """
     NoPad()
+    NoPad(border)
 
-Indicates that no padding should be applied to the input array.
+Indicates that no padding should be applied to the input array. Passing a `border` object allows you to preserve "memory" of a border choice; it can be retrieved by indexing with `[]`.
 """
 NoPad
+
+Base.getindex(np::NoPad) = np.border
 
 """
 `Pad{Style,N}` is a type that stores choices about padding. `Style` is a
@@ -125,8 +131,12 @@ padarray(img::AbstractArray, border::Pad)  = padarray(eltype(img), img, border)
 function padarray{T}(::Type{T}, img::AbstractArray, border::Pad)
     inds = padindices(img, border)
     # like img[inds...] except that we can control the element type
-    dest = similar(img, T, map(Base.indices1, inds))
-    Base._unsafe_getindex!(dest, img, inds...)
+    newinds = map(Base.indices1, inds)
+    dest = similar(img, T, newinds)
+    @unsafe for I in CartesianRange(newinds)
+        J = CartesianIndex(map((i,x)->x[i], I.I, inds))
+        dest[I] = img[J]
+    end
     dest
 end
 padarray{P}(img, ::Type{P}) = img[padindices(img, P)...]      # just to throw the nice error
@@ -268,7 +278,7 @@ arraytype(A::BitArray, ::Type{Bool}) = BitArray
 
 interior(r::AbstractResource, A::AbstractArray, kernel) = interior(A, kernel)
 
-interior(A::AbstractArray, kernel::Union{AbstractArray,Laplacian}) = _interior(indices(A), indices(kernel))
+interior(A::AbstractArray, kernel::Union{ArrayLike,Laplacian}) = _interior(indices(A), indices(kernel))
 interior(A, factkernel::Tuple) = _interior(indices(A), accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 function _interior{N}(indsA::NTuple{N}, indsk)
     indskN = fill_to_length(indsk, 0:0, Val{N})
