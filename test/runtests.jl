@@ -7,6 +7,7 @@ asa = detect_ambiguities(StaticArrays, Base)
 
 include("border.jl")
 include("2d.jl")
+include("triggs.jl")
 include("cascade.jl")
 include("specialty.jl")
 include("basic.jl")
