@@ -208,7 +208,7 @@ function imfilter!{S,T,N}(r::AbstractResource,
                           img::AbstractArray{T,N},
                           kernel::ProcessedKernel,
                           border::BorderSpec)
-    bord = border(kernel, img, Alg(r))
+    bord = border(kernel, img, Alg(r))  # if it's FFT, the size of img is also relevant
     A = padarray(S, img, bord)
     # By specifying NoPad(), we ensure that dispatch will never
     # accidentally "go back" to an earlier routine and apply more
@@ -257,9 +257,6 @@ function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any,Any,Vararg{
     iscopy(kern) && return _imfilter!(r, out, A1, A2, tail(kernel), border, inds)
     kernN = samedims(A2, kern)
     imfilter!(r, A2, A1, kernN, border, inds)  # store result in A2
-    if fillbuf_nan[]
-        @show A2
-    end
     kernelt = tail(kernel)
     newinds = next_interior(inds, kernelt)
     _imfilter!(r, out, A2, A1, tail(kernel), border, newinds)          # swap the buffers
@@ -300,6 +297,7 @@ function imfilter!{S,T,N}(r::CPU1{FIR},
     (isempty(A) || isempty(kern)) && return out
     indso, indsA, indsk = indices(out), indices(A), indices(kern)
     if iscopy(kern)
+        R = CartesianRange(inds)
         return copy!(out, R, A, R)
     end
     for i = 1:N

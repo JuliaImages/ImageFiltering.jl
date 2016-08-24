@@ -2,7 +2,7 @@ using ImagesFiltering, Colors, ComputationalResources
 using Base.Test
 
 @testset "TriggsSdika" begin
-    @testset "TriggsSdika 1d" begin
+    @testset "1d" begin
         l = 1000
         x = [1, 2, 3, 5, 10, 20, l>>1, l-19, l-9, l-4, l-2, l-1, l]
         σs = [3.1, 5, 10.0, 20, 50.0, 100.0]
@@ -28,7 +28,7 @@ using Base.Test
         end
     end
 
-    @testset "TriggsSdika images" begin
+    @testset "images" begin
         imgf = zeros(5, 7); imgf[3,4] = 1
         imgg = fill(Gray{Float32}(0), 5, 7); imgg[3,4] = 1
         imgc = fill(RGB{Float64}(0,0,0), 5, 7); imgc[3,4] = RGB(1,0,0)

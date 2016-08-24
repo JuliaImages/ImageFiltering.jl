@@ -170,11 +170,17 @@ using Base.Test
         @test @inferred(Inner{2}([1,2],[5,6])) == Inner((1,2), (5,6))
         @test Inner([1,2],[5,6]) == Inner((1,2), (5,6))
         @test @inferred(Inner()(rand(3,5))) == Inner((0,0),(3,5))
+        @test @inferred(Inner()(centered(rand(3,5)))) == Inner((1,2),(1,2))
     end
 
     @testset "Fill" begin
         @test Fill(1,[1,2],[5,6]) == Fill(1, (1,2), (5,6))
+        @test @inferred(Fill(-1)(rand(3,5))) == Fill(-1, (0,0), (3,5))
+        @test @inferred(Fill(-1)(centered(rand(3,5)))) == Fill(-1, (1,2), (1,2))
         @test @inferred(Fill(-1, rand(3,5))) == Fill(-1, (0,0), (3,5))
+        @test @inferred(Fill(-1, centered(rand(3,5)))) == Fill(-1, (1,2), (1,2))
+        @test @inferred(Fill(-1)(rand(3,5))) == Fill(-1, (0,0), (3,5))
+        @test @inferred(Fill(-1)(centered(rand(3,5)))) == Fill(-1, (1,2), (1,2))
         @test @inferred(Fill(2)(Kernel.Laplacian(), rand(5,5), Algorithm.FIR())) == Fill(2, (1,1),(1,1))
     end
 

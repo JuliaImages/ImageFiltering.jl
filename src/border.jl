@@ -165,7 +165,7 @@ end
 
 padarray(img, border::Inner) = padarray(eltype(img), img, border)
 padarray{T}(::Type{T}, img::AbstractArray{T}, border::Inner) = copy(img)
-padarray{T}(::Type{T}, img::AbstractArray, border::Inner) = convert(Array{T}, img)
+padarray{T}(::Type{T}, img::AbstractArray, border::Inner) = copy!(similar(Array{T}, indices(img)), img)
 
 """
     Fill(val)
@@ -192,6 +192,7 @@ Fill(value, kernel::AbstractArray) = Fill(value, indices(kernel))
 Fill(value, kernel::Laplacian) = Fill(value, indices(kernel))
 Fill(value, factkernel::Tuple) = Fill(value, accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 
+(p::Fill)(kernel) = Fill(p.value, kernel)
 (p::Fill)(kernel, img, ::FIR) = Fill(p.value, kernel)
 function (p::Fill)(factkernel::Tuple, img, ::FFT)
     inds = accumulate_padding(indices(factkernel[1]), tail(factkernel)...)
