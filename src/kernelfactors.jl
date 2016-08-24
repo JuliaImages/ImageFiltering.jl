@@ -222,8 +222,11 @@ Base.vec(kernel::TriggsSdika) = kernel
 Base.ndims(kernel::TriggsSdika) = 1
 Base.ndims{T<:TriggsSdika}(::Type{T}) = 1
 Base.indices1(kernel::TriggsSdika) = 0:0
-Base.indices(kernel::TriggsSdika) = (indices1(kernel),)
+Base.indices(kernel::TriggsSdika) = (Base.indices1(kernel),)
 Base.isempty(kernel::TriggsSdika) = false
+
+iterdims(inds::Indices{1}, kern::TriggsSdika) = (), inds[1], ()
+_reshape(kern::TriggsSdika, ::Type{Val{1}}) = kern
 
 # Note that there's a sign reversal between Young & Triggs.
 """

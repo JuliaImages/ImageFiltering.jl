@@ -282,8 +282,14 @@ interior(A::AbstractArray, kernel::Union{ArrayLike,Laplacian}) = _interior(indic
 interior(A, factkernel::Tuple) = _interior(indices(A), accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 function _interior{N}(indsA::NTuple{N}, indsk)
     indskN = fill_to_length(indsk, 0:0, Val{N})
-    CartesianRange(CartesianIndex(map((ia,ik)->first(ia) + lo(ik), indsA, indskN)),
-                   CartesianIndex(map((ia,ik)->last(ia)  - hi(ik), indsA, indskN)))
+    map((ia,ik)->first(ia) + lo(ik) : last(ia) - hi(ik), indsA, indskN)
+end
+
+next_interior(inds::Indices, ::Tuple{}) = inds
+function next_interior(inds::Indices, kernel::Tuple)
+    kern = first(kernel)
+    iscopy(kern) && return next_interior(inds, tail(kernel))
+    _interior(inds, indices(kern))
 end
 
 # end

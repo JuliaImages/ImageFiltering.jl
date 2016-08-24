@@ -194,6 +194,11 @@ using Base.Test
         imgf1 = imfilter(img, kernel1)
         imgf2 = imfilter(img, kernel2)
         @test cor(vec(imgf1), vec(imgf2)) > 0.8
+        # Ensure that edge-trimming under successive stages of filtering works correctly
+        ImagesFiltering.fillbuf_nan[] = true
+        kernel3 = (Kernel.Laplacian(), KernelFactors.IIRGaussian(σs)...)
+        @test !any(isnan, imfilter(img, kernel3))
+        ImagesFiltering.fillbuf_nan[] = false
     end
 end
 

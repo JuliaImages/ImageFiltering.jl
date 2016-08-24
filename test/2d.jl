@@ -12,21 +12,22 @@ using Base.Test
     imgi = zeros(Int, 5, 7); imgi[3,4] = 1
     imgg = fill(Gray(0), 5, 7); imgg[3,4] = 1
     imgc = fill(RGB(0,0,0), 5, 7); imgc[3,4] = RGB(1,0,0)
-    # Dense kernel
+    # Dense inseparable kernel
     kern = [0.1 0.2; 0.4 0.5]
     kernel = OffsetArray(kern, -1:0, 1:2)
     for img in (imgf, imgi, imgg, imgc)
         targetimg = zeros(typeof(img[1]*kern[1]), size(img))
         targetimg[3:4,2:3] = rot180(kern)*img[3,4]
-        @test (ret = @inferred(imfilter(img, kernel))) ≈ targetimg
+        @test @inferred(imfilter(img, kernel)) ≈ targetimg
         @test @inferred(imfilter(img, (kernel,))) ≈ targetimg
         @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32(targetimg)
+        ret = imfilter(img, kernel)
         fill!(ret, zero(eltype(ret)))
         @test @inferred(imfilter!(ret, img, kernel)) ≈ targetimg
         fill!(ret, zero(eltype(ret)))
         @test @inferred(imfilter!(CPU1(Algorithm.FIR()), ret, img, kernel)) ≈ targetimg
         for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(img))))
-            @test (ret = @inferred(imfilter(img, kernel, border))) ≈ targetimg
+            @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
             @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
             fill!(ret, zero(eltype(ret)))
             @test @inferred(imfilter!(ret, img, kernel, border)) ≈ targetimg
