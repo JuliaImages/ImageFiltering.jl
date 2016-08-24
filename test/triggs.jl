@@ -28,6 +28,15 @@ using Base.Test
         end
     end
 
+    @testset "commutivity" begin
+        img = 1:8
+        k1 = KernelFactors.IIRGaussian(2)
+        k2 = centered(ones(3)/3)
+        for border in (Pad{:replicate}(), Fill(0))
+            @test_approx_eq imfilter(img, (k1, k2), border) imfilter(img, (k2, k1), border)
+        end
+    end
+
     @testset "images" begin
         imgf = zeros(5, 7); imgf[3,4] = 1
         imgg = fill(Gray{Float32}(0), 5, 7); imgg[3,4] = 1

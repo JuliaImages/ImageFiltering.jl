@@ -80,13 +80,13 @@ Given a filter array `kernel`, determine the amount of padding from the `indices
 """
 (p::Pad{Style,0}){Style}(kernel::AbstractArray) = Pad{Style}(indices(kernel))
 (p::Pad{Style,0}){Style}(kernel::Laplacian) = Pad{Style}(indices(kernel))
-(p::Pad{Style,0}){Style}(factkernel::Tuple) = Pad{Style}(accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
+(p::Pad{Style,0}){Style}(factkernel::Tuple) = Pad{Style}(calculate_padding(factkernel))
 (p::Pad{Style,0}){Style}(factkernel::Tuple, img, ::FIR) = p(factkernel)
 (p::Pad{Style,0}){Style}(kernel::Laplacian, img, ::FIR) = p(kernel)
 
 # Padding for FFT: round up to next size expressible as 2^m*3^n
 function (p::Pad{Style,0}){Style}(factkernel::Tuple, img, ::FFT)
-    inds = accumulate_padding(indices(factkernel[1]), tail(factkernel)...)
+    inds = calculate_padding(factkernel)
     newinds = map(padfft, inds, map(length, indices(img)))
     Pad{Style}(newinds)
 end
@@ -160,7 +160,7 @@ end
 
 (p::Inner{0})(factkernel::Tuple, img, ::FIR) = p(factkernel)
 (p::Inner{0})(factkernel::Tuple, img, ::FFT) = p(factkernel)
-(p::Inner{0})(factkernel::Tuple) = Inner(accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
+(p::Inner{0})(factkernel::Tuple) = Inner(calculate_padding(factkernel))
 (p::Inner{0})(kernel::AbstractArray) = Inner(indices(kernel))
 
 padarray(img, border::Inner) = padarray(eltype(img), img, border)
@@ -190,12 +190,12 @@ Fill(value, lo::AbstractVector, hi::AbstractVector) = Fill(value, (lo...,), (hi.
 Fill{T,N}(value::T, inds::Base.Indices{N}) = Fill{T,N}(value, map(lo,inds), map(hi,inds))
 Fill(value, kernel::AbstractArray) = Fill(value, indices(kernel))
 Fill(value, kernel::Laplacian) = Fill(value, indices(kernel))
-Fill(value, factkernel::Tuple) = Fill(value, accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
+Fill(value, factkernel::Tuple) = Fill(value, calculate_padding(factkernel))
 
 (p::Fill)(kernel) = Fill(p.value, kernel)
 (p::Fill)(kernel, img, ::FIR) = Fill(p.value, kernel)
 function (p::Fill)(factkernel::Tuple, img, ::FFT)
-    inds = accumulate_padding(indices(factkernel[1]), tail(factkernel)...)
+    inds = calculate_padding(factkernel)
     newinds = map(padfft, inds, map(length, indices(img)))
     Fill(p.value, newinds)
 end
@@ -259,6 +259,31 @@ end
 # @inline _flatten(t1::Tuple, t...) = (flatten(t1)..., flatten(t)...)
 # @inline _flatten(t1,        t...) = (t1, flatten(t)...)
 # _flatten() = ()
+
+@inline function calculate_padding(kernel::Tuple{Any, Vararg{Any}})
+    inds = accumulate_padding(indices(kernel[1]), tail(kernel)...)
+    if hastriggs(kernel) && hasfir(kernel)
+        return map(doublepadding, inds)
+    end
+    inds
+end
+
+hastriggs(kernel) = _hastriggs(false, kernel...)
+_hastriggs(ret) = ret
+_hastriggs(ret, kern, kernel...) = _hastriggs(ret, kernel...)
+_hastriggs(ret, kern::AnyTriggs, kernel...) = true
+
+hasfir(kernel) = _hasfir(false, kernel...)
+_hasfir(ret) = ret
+_hasfir(ret, kern, kernel...) = true
+_hasfir(ret, kern::AnyTriggs, kernel...) = _hasfir(ret, kernel...)
+
+function doublepadding(ind::AbstractUnitRange)
+    f, l = first(ind), last(ind)
+    f = f < 0 ? 2f : f
+    l = l > 0 ? 2l : l
+    f:l
+end
 
 accumulate_padding(inds::Indices, kernel1, kernels...) =
     accumulate_padding(_accumulate_padding(inds, indices(kernel1)), kernels...)

@@ -1,12 +1,3 @@
-typealias BorderSpec{Style,T} Union{Pad{Style,0}, Fill{T,0}, Inner{0}}
-typealias BorderSpecNoNa{T} Union{Pad{:replicate,0}, Pad{:circular,0}, Pad{:symmetric,0},
-                                  Pad{:reflect,0}, Fill{T,0}, Inner{0}}
-typealias BorderSpecAny Union{BorderSpec,NoPad}
-typealias NDimKernel{N,K} Union{AbstractArray{K,N},ReshapedVector{K,N},Laplacian{N}}
-typealias ReshapedTriggsSdika{T,N,Npre,V<:TriggsSdika} ReshapedVector{T,N,Npre,V}
-
-typealias ProcessedKernel Tuple
-
 # see below for imfilter docstring
 
 # Step 1: if necessary, determine the output's element type
@@ -244,12 +235,28 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
     return out
 end
 
+# We deliberately drop `inds` in the next methods: when `kernel` is a tuple
+# that has both TriggsSdika and FIR filters, the overall padding
+# gets doubled, yet we only trim off the minimum at each
+# stage. Consequently, `inds` might be optimistic about the range
+# available in `out`.
 function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{}, border::NoPad, inds::Indices)
-    imfilter!(r, out, A1, kernel, border, inds)
+    imfilter!(r, out, A1, kernel, border)
 end
 
 function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any}, border::NoPad, inds::Indices)
-    imfilter!(r, out, A1, kernel[1], border, inds)
+    imfilter!(r, out, A1, kernel[1], border)
+end
+
+# However, here it's important to filter over the whole passed-in
+# range, and then copy! to out
+function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{AnyTriggs}, border::NoPad, inds::Indices)
+    if inds != indices(out)
+        imfilter!(r, A2, A1, kernel[1], border, inds)
+        R = CartesianRange(indices(out))
+        return copy!(out, R, A2, R)
+    end
+    imfilter!(r, out, A1, kernel[1], border)
 end
 
 function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds::Indices)
@@ -432,8 +439,6 @@ end
 # (2006).
 
 # Note this is safe for inplace use, i.e., out === img
-
-typealias BorderSpecRF{T} Union{Pad{:replicate,0}, Fill{T,0}}
 
 function imfilter!{S,T,N}(r::AbstractResource,
                           out::AbstractArray{S,N},

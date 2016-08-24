@@ -23,14 +23,29 @@ Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
 include("utils.jl")
 include("kernelfactors.jl")
 using .KernelFactors: TriggsSdika, IIRFilter, ReshapedVector, iterdims
+
+typealias ArrayLike{T} Union{AbstractArray{T}, IIRFilter{T}, ReshapedVector{T}}
+typealias ReshapedTriggsSdika{T,N,Npre,V<:TriggsSdika} ReshapedVector{T,N,Npre,V}
+typealias AnyTriggs Union{TriggsSdika, ReshapedTriggsSdika}
+
 include("kernel.jl")
 using .Kernel
 using .Kernel: Laplacian
 
-typealias ArrayLike{T} Union{AbstractArray{T}, IIRFilter{T}, ReshapedVector{T}}
+typealias NDimKernel{N,K} Union{AbstractArray{K,N},ReshapedVector{K,N},Laplacian{N}}
 
 include("border.jl")
+
+typealias BorderSpec{Style,T} Union{Pad{Style,0}, Fill{T,0}, Inner{0}}
+typealias BorderSpecRF{T} Union{Pad{:replicate,0}, Fill{T,0}}
+typealias BorderSpecNoNa{T} Union{Pad{:replicate,0}, Pad{:circular,0}, Pad{:symmetric,0},
+                                  Pad{:reflect,0}, Fill{T,0}, Inner{0}}
+typealias BorderSpecAny Union{BorderSpec,NoPad}
+
 include("deprecated.jl")
+
+typealias ProcessedKernel Tuple
+
 include("imfilter.jl")
 include("specialty.jl")
 
