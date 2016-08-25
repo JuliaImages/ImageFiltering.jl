@@ -4,9 +4,16 @@ using Colors, FixedPointNumbers, ImagesCore, MappedArrays, FFTViews, OffsetArray
 using ColorVectorSpace  # in case someone filters RGB arrays
 using Base: Indices, tail, fill_to_length, @pure
 
-export Kernel, KernelFactors, Pad, Fill, Inner, NoPad, Algorithm, imfilter, imfilter!, padarray, centered
+export Kernel, KernelFactors, Pad, Fill, Inner, NoPad, Algorithm, imfilter, imfilter!, imgradients, padarray, centered
 
 typealias FixedColorant{T<:UFixed} Colorant{T}
+typealias StaticOffsetArray{T,N,A<:StaticArray} OffsetArray{T,N,A}
+
+# Needed for type-stability
+function Base.transpose{T}(A::StaticOffsetArray{T,2})
+    inds1, inds2 = indices(A)
+    OffsetArray(transpose(parent(A)), inds2, inds1)
+end
 
 module Algorithm
     # deliberately don't export these, but it's expected that they

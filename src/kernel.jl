@@ -20,6 +20,8 @@ See also: KernelFactors.sobel, Kernel.prewitt, Kernel.ando.
 """
 sobel() = product2d(KernelFactors.sobel())
 
+sobel{N}(::Type{Val{N}},d,extent=trues(N)) = broadcast(*, KernelFactors.sobel(Val{N},d,extent)...)
+
 """
     diff1, diff2 = prewitt()
 
@@ -31,6 +33,8 @@ dimension.
 See also: KernelFactors.prewitt, Kernel.sobel, Kernel.ando.
 """
 prewitt() = product2d(KernelFactors.prewitt())
+
+prewitt{N}(::Type{Val{N}},d,extent=trues(N)) = broadcast(*, KernelFactors.prewitt(Val{N},d,extent)...)
 
 """
     diff1, diff2 = ando3()
@@ -47,6 +51,8 @@ Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
 See also: KernelFactors.ando3, Kernel.ando4, Kernel.ando5.
 """
 ando3() = product2d(KernelFactors.ando3())
+
+ando3{N}(::Type{Val{N}},d,extent=trues(N)) = broadcast(*, KernelFactors.ando3(Val{N},d,extent)...)
 
 """
     diff1, diff2 = ando4()
@@ -68,6 +74,14 @@ function ando4()
                             -0.098381 -0.112984  0.112984  0.098381
                             -0.022116 -0.025526  0.025526  0.022116 ])
     return f', f
+end
+
+function ando4{N}(::Type{Val{N}}, d, extent=trues(N))
+    if N == 2 && all(extent)
+        return ando4()[d]
+    else
+        error("dimensions other than 2 are not yet supported")
+    end
 end
 
 """
@@ -93,6 +107,14 @@ function ando5()
     return f', f
 end
 
+function ando5{N}(::Type{Val{N}}, d, extent)
+    if N == 2 && all(extent)
+        return ando5()[d]
+    else
+        error("dimensions other than 2 are not yet supported")
+    end
+end
+
 """
     gaussian((σ1, σ2, ...), [(l1, l2, ...]) -> g
     gaussian(σ)                  -> g
@@ -107,13 +129,13 @@ constructed.
 See also: KernelFactors.gaussian.
 """
 @inline gaussian{N}(σs::NTuple{N,Real}, ls::NTuple{N,Integer}) =
-    broadcast(.*, KernelFactors.gaussian(σs, ls)...)
+    broadcast(*, KernelFactors.gaussian(σs, ls)...)
 gaussian(σ::Tuple{Real}, l::Tuple{Integer}) = KernelFactors.gaussian(σ[1], l[1])
 gaussian(σ::Tuple{}, l::Tuple{}) = reshape([1])  # 0d
 gaussian{T<:Real,I<:Integer}(σs::AbstractVector{T}, ls::AbstractVector{I}) =
     gaussian((σs...,), (ls...,))
 
-@inline gaussian{N}(σs::NTuple{N,Real}) = broadcast(.*, KernelFactors.gaussian(σs)...)
+@inline gaussian{N}(σs::NTuple{N,Real}) = broadcast(*, KernelFactors.gaussian(σs)...)
 gaussian{T<:Real}(σs::AbstractVector{T}) = gaussian((σs...,))
 gaussian(σ::Tuple{Real}) = KernelFactors.gaussian(σ[1])
 gaussian(σ::Tuple{}) = reshape([1])

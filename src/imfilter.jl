@@ -689,7 +689,7 @@ function factorstridedkernel(inds, kernel::StridedMatrix)
 end
 
 prod_kernel(kern::AbstractArray) = kern
-prod_kernel(kern::AbstractArray, kern1, kerns...) = broadcast(.*, kern, kern1, kerns...) #prod_kernel(kern.*kern1, kerns...)
+prod_kernel(kern::AbstractArray, kern1, kerns...) = broadcast(*, kern, kern1, kerns...) #prod_kernel(kern.*kern1, kerns...)
 prod_kernel{N}(::Type{Val{N}}, args...) = prod_kernel(Val{N}, prod_kernel(args...))
 prod_kernel{_,N}(::Type{Val{N}}, kernel::AbstractArray{_,N}) = kernel
 function prod_kernel{N}(::Type{Val{N}}, kernel::AbstractArray)

@@ -81,18 +81,41 @@ end
 
 ## gradients
 
-"`kern1, kern2 = sobel()` returns factored Sobel filters for dimensions 1 and 2 of your image"
+"""
+    kern1, kern2 = sobel()
+
+Factored Sobel filters for dimensions 1 and 2 of a two-dimensional
+image. Each is a 2-tuple of one-dimensional filters.
+"""
 function sobel()
-    f1 = centered(SVector( 1.0, 2.0, 1.0))
-    f2 = centered(SVector(-1.0, 0.0, 1.0))
+    f1 = centered(SVector( 1.0, 2.0, 1.0)/4)
+    f2 = centered(SVector(-1.0, 0.0, 1.0)/2)
     return kernelfactors((f2, f1)), kernelfactors((f1, f2))
+end
+
+"""
+    kern = sobel(N, d)
+
+Return a factored Sobel filter for computing the gradient in N dimensions along axis d.
+"""
+function sobel{N}(::Type{Val{N}}, d, extended=trues(N))
+    gradfactors(Val{N}, d, [-1, 0, 1]/2, [1, 2, 1]/4, extended)
 end
 
 "`kern1, kern2 = prewitt()` returns factored Prewitt filters for dimensions 1 and 2 of your image"
 function prewitt()
-    f1 = centered(SVector( 1.0, 1.0, 1.0))
-    f2 = centered(SVector(-1.0, 0.0, 1.0))
+    f1 = centered(SVector( 1.0, 1.0, 1.0)/3)
+    f2 = centered(SVector(-1.0, 0.0, 1.0)/2)
     return kernelfactors((f2, f1)), kernelfactors((f1, f2))
+end
+
+"""
+    kern = prewitt(N, d)
+
+Return a factored Prewitt filter for computing the gradient in N dimensions along axis d.
+"""
+function prewitt{N}(::Type{Val{N}}, d, extended=trues(N))
+    gradfactors(Val{N}, d, [-1, 0, 1]/2, [1, 1, 1]/3, extended)
 end
 
 # Consistent Gradient Operators
@@ -111,9 +134,13 @@ Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.
 See also: `ando4`, `ando5`.
 """
 function ando3()
-    f1 = centered(SVector(0.112737, 0.274526, 0.112737))
-    f2 = centered(SVector(-1.0, 0.0, 1.0))
+    f1 = centered(2*SVector(0.112737, 0.274526, 0.112737))
+    f2 = centered(SVector(-1.0, 0.0, 1.0)/2)
     return kernelfactors((f2, f1)), kernelfactors((f1, f2))
+end
+
+function ando3{N}(::Type{Val{N}},d,extended=trues(N))
+    gradfactors(Val{N}, d, [-1.0, 0.0, 1.0]/2, 2*[0.112737, 0.274526, 0.112737], extended)
 end
 
 """
@@ -125,9 +152,17 @@ March 2000.
 See also: `Kernel.ando4`.
 """
 function ando4()
-    f1 = centered(SVector(0.025473821998749126, 0.11299599504060115, 0.11299599504060115, 0.025473821998749126))
-    f2 = centered(SVector(-0.2254400431590164, -1.0, 1.0, 0.2254400431590164))
+    f1 = centered(SVector( 0.0919833,  0.408017, 0.408017, 0.0919833))
+    f2 = centered(1.46205884*SVector(-0.0919833, -0.408017, 0.408017, 0.0919833))
     return kernelfactors((f2, f1)), kernelfactors((f1, f2))
+end
+
+function ando4{N}(::Type{Val{N}}, d, extended=trues(N))
+    if N == 2 && all(extended)
+        return ando4()[d]
+    else
+        error("dimensions other than 2 are not yet supported")
+    end
 end
 
 """
@@ -139,9 +174,17 @@ March 2000.
 See also: `Kernel.ando5`.
 """
 function ando5()
-    f1 = centered(SVector(0.03136697678461958, 0.21844976784066258, 0.37816313370270255, 0.21844976784066258, 0.03136697678461958))
-    f2 = centered(SVector(-0.12288050911244743, -0.3242040200682835, 0.0, 0.3242040200682835, 0.12288050911244743))
+    f1 = centered(SVector( 0.0357338, 0.248861, 0.43081, 0.248861, 0.0357338))
+    f2 = centered(0.784406*SVector(-0.137424, -0.362576, 0.0,     0.362576, 0.137424))
     return kernelfactors((f2, f1)), kernelfactors((f1, f2))
+end
+
+function ando5{N}(::Type{Val{N}}, d, extended=trues(N))
+    if N == 2 && all(extended)
+        return ando5()[d]
+    else
+        error("dimensions other than 2 are not yet supported")
+    end
 end
 
 ## Gaussian
@@ -312,5 +355,11 @@ end
 
 # A variant in which we just need to fill out to N dimensions
 kernelfactors{N}(factors::NTuple{N,AbstractArray}) = map(f->_reshape(f, Val{N}), factors)
+
+function gradfactors{N}(::Type{Val{N}}, d::Int, k1, k2, extended=trues(N))
+    kernelfactors(ntuple(i -> kdim(extended[i], i==d ? k1 : k2), Val{N}))
+end
+
+kdim(keep::Bool, k) = keep ? centered(k) : OffsetArray([one(eltype(k))], 0:0)
 
 end

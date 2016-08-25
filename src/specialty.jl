@@ -63,29 +63,21 @@ function imgradients{T,N}(img::AbstractArray{T,N}, points::AbstractVector;
     G
 end
 
-function imgradients{T,N}(img::AbstractArray{T,N}; method::AbstractString="ando3", border::AbstractString="replicate")
-    extent = size(img)
-    ndirs = length(extent)
+function imgradients{T,N}(img::AbstractArray{T,N}, kernelfun::Function, border=Pad{:replicate}())
+    extent = map(length, indices(img))
+    kern1 = kernelfun(Val{N}, 1, map(x->x>1, extent))
+    S = filter_type(img, kern1)
+    bord = border(kern1)
+    imgpad = padarray(S, img, bord)
+    _imgradients((), imgpad, kernelfun, extent, Inner())
+end
 
-    # pad input image only on appropriate directions
-    imgpad = _gradientpad(img, border)
+# When all N gradients have been calculated, return the result
+_imgradients{T,N}(G::NTuple{N}, imgpad::AbstractArray{T,N}, kernelfun::Function, extent, border::Inner) = G
 
-    # gradient tuple
-    Tret = typeof(zero(T)*zero(Float64))
-    G = Array(Array{Tret,N}, ndirs)
-
-    for dir in 1:ndirs
-        # kernel = centered difference + perpendicular smoothing
-        if extent[dir] > 1
-            kern = _directional_kernel(dir, extent, method)
-            G[dir] = imfilter(imgpad, kern, "inner")
-        end
-    end
-
-    result = (G...,)
-    if ndims(img) == 2 && spatialorder(img) == yx
-      result = (result[2], result[1])
-    end
-
-    result
+# Add the next dimension to G
+function _imgradients{T,M,N}(G::NTuple{M}, imgpad::AbstractArray{T,N}, kernelfun::Function, extent, border::Inner)
+    d = M+1  # the dimension we're working on now
+    kern = kernelfun(Val{N}, d, map(x->x>1, extent))
+    _imgradients((G..., imfilter(imgpad, kern, border)), imgpad, kernelfun, extent, border)
 end
