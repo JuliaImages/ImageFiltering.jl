@@ -3,7 +3,7 @@ module KernelFactors
 using StaticArrays, OffsetArrays
 using ..ImagesFiltering: centered, dummyind
 import ..ImagesFiltering: _reshape, _vec, nextendeddims
-using Base: tail, Indices
+using Base: tail, Indices, @pure, checkbounds_indices, throw_boundserror
 
 abstract IIRFilter{T}
 
@@ -23,7 +23,7 @@ AbstractArray.
 ReshapedVectors allow one to specify a "filtering dimension" for a
 1-dimensional filter.
 """
-immutable ReshapedVector{T,N,Npre,V}  # note not <: AbstractArray{T,N} (more general)
+immutable ReshapedVector{T,N,Npre,V}  # not <: AbstractArray{T,N} (more general, incl. IIR)
     data::V
 
     function ReshapedVector(data::V)
@@ -41,14 +41,44 @@ end
 end
 _reshapedvector{N,Npre}(::NTuple{N,Bool}, ::NTuple{Npre,Bool}, data) = ReshapedVector{eltype(data),N,Npre,typeof(data)}(data)
 
+# Give ReshapedVector many of the characteristics of AbstractArray
 Base.eltype{T}(A::ReshapedVector{T}) = T
 Base.ndims{_,N}(A::ReshapedVector{_,N}) = N
 Base.isempty(A::ReshapedVector) = isempty(A.data)
 
-@inline Base.indices{_,N,Npre}(A::ReshapedVector{_,N,Npre}) = Base.fill_to_length((Base.ntuple(d->0:0, Val{Npre})..., Base.indices1(A.data)), 0:0, Val{N})
+@inline Base.indices{_,N,Npre}(A::ReshapedVector{_,N,Npre}) = Base.fill_to_length((Base.ntuple(d->0:0, Val{Npre})..., UnitRange(Base.indices1(A.data))), 0:0, Val{N})
+
+Base.start(A::ReshapedVector) = start(A.data)
+Base.next(A::ReshapedVector, state) = next(A.data, state)
+Base.done(A::ReshapedVector, state) = done(A.data, state)
+
+@inline function Base.getindex(A::ReshapedVector, i::Int)
+    @boundscheck checkbounds(A.data, i)
+    @inbounds ret = A.data[i]
+    ret
+end
+@inline function Base.getindex{T,N,Npre}(A::ReshapedVector{T,N,Npre}, I::Vararg{Int,N})
+    @boundscheck checkbounds_indices(Bool, indices(A), I) || throw_boundserror(A, I)
+    @inbounds ret = A.data[I[Npre+1]]
+    ret
+end
+@inline function Base.getindex(A::ReshapedVector, I::Union{CartesianIndex,Int}...)
+    A[Base.IteratorsMD.flatten(I)...]
+end
+
+Base.convert{AA<:AbstractArray}(::Type{AA}, A::ReshapedVector) = convert(AA, reshape(A.data, indices(A)))
+
+import Base: ==
+==(A::ReshapedVector, B::ReshapedVector) = convert(AbstractArray, A) == convert(AbstractArray, B)
+==(A::ReshapedVector, B::AbstractArray) = convert(AbstractArray, A) == B
+==(A::AbstractArray, B::ReshapedVector) = A == convert(AbstractArray, B)
+
+# for broadcasting
+@pure Base.promote_eltype_op{S,T}(op, ::ReshapedVector{S}, ::ReshapedVector{T}) = Base.promote_op(op, S, T)
 
 _reshape{T,N}(A::ReshapedVector{T,N}, ::Type{Val{N}}) = A
 _vec(A::ReshapedVector) = A.data
+Base.vec(A::ReshapedVector) = A.data  # is this OK? (note indices won't nec. start with 1)
 nextendeddims(a::ReshapedVector) = 1
 
 """
