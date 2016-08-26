@@ -371,16 +371,15 @@ If passed a tuple of general arrays, it is assumed that each is shaped
 appropriately along its "leading" dimensions; the dimensionality of each is
 "extended" to `N = length(factors)`, appending 1s to the size as needed.
 """
-kernelfactors{N}(factors::NTuple{N,AbstractVector}) = _kernelfactors((), factors)
+kernelfactors{N}(factors::NTuple{N,AbstractVector}) = _kernelfactors((), ntuple(d->true,Val{N}), (), factors)
 
-_kernelfactors(out::NTuple, ::Tuple{}) = out
-@inline function _kernelfactors{L,M}(out::NTuple{L}, factors::NTuple{M,AbstractVector})
+_kernelfactors(pre, post, out::NTuple, ::Tuple{}) = out
+@inline function _kernelfactors(pre, post, out, factors)
     # L+M=N
     f = factors[1]
-    ind1 = indices(f,1)
-    ind = dummyind(ind1)
-    newf = reshape(f, ntuple(d->ind, Val{L})..., ind1, tail(ntuple(d->ind, Val{M}))...)
-    _kernelfactors((out..., newf), tail(factors))
+    newpost = tail(post)
+    rv = ReshapedVector(pre, f, newpost)
+    _kernelfactors((pre..., true), newpost, (out..., rv), tail(factors))
 end
 
 # A variant in which we just need to fill out to N dimensions

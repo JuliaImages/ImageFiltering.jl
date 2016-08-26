@@ -5,7 +5,7 @@ using ImagesFiltering, OffsetArrays, Base.Test
     @test eltype(KernelFactors.IIRGaussian(Float32, 3)) == Float32
     @test isa(KernelFactors.IIRGaussian([1,2.0f0]), Tuple{KernelFactors.ReshapedVector,KernelFactors.ReshapedVector})
 
-    @test KernelFactors.kernelfactors(([0,3], [1,7]))  == (reshape([0,3], 2, 1), reshape([1,7], 1, 2))
+    @test KernelFactors.kernelfactors(([0,3], [1,7]))  == (reshape([0,3], 1:2, 0:0), reshape([1,7], 0:0, 1:2))
     @test KernelFactors.kernelfactors(([0,3], [1,7]')) == (reshape([0,3], 2, 1), reshape([1,7], 1, 2))
 
     # Warnings
@@ -30,3 +30,5 @@ using ImagesFiltering, OffsetArrays, Base.Test
     end
     @test contains(readstring(fname), "too small for accuracy")
 end
+
+nothing

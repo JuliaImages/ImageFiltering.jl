@@ -155,8 +155,8 @@ using Base.Test
         end
         @test_approx_eq KernelFactors.gaussian(2, 9) gaussiancmp(2, -4:4)
         k = KernelFactors.gaussian((2,3), (9,7))
-        @test_approx_eq k[1] gaussiancmp(2, -4:4)
-        @test_approx_eq k[2] gaussiancmp(3, -3:3)
+        @test_approx_eq vec(k[1]) gaussiancmp(2, -4:4)
+        @test_approx_eq vec(k[2]) gaussiancmp(3, -3:3)
         @test_approx_eq sum(KernelFactors.gaussian(5)) 1
         for k = (KernelFactors.gaussian((2,3)), KernelFactors.gaussian([2,3]), KernelFactors.gaussian([2,3], [9,7]))
             @test_approx_eq sum(k[1]) 1

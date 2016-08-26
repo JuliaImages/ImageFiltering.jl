@@ -16,12 +16,8 @@ function imfilter{T}(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, arg
 end
 
 # Step 4: if necessary, allocate the ouput
-@inline function imfilter{T}(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::Inner{0}, args...)
-    inds = interior(img, kernel)
-    imfilter!(similar(img, T, inds), img, kernel, border, args...)
-end
 @inline function imfilter{T}(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny, args...)
-    imfilter!(similar(img, T), img, kernel, border, args...)
+    imfilter!(allocate_output(T, img, kernel, border), img, kernel, border, args...)
 end
 
 # Now do the same steps for the case where the user supplies a Resource
@@ -38,12 +34,9 @@ end
 function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel)
     imfilter(r, T, img, kernel, Pad{:replicate}())  # supply the default border
 end
-function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::Inner{0})
-    inds = interior(img, kernel)
-    imfilter!(r, similar(img, T, inds), img, kernel, border)
-end
+
 function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny)
-    imfilter!(r, similar(img, T), img, kernel, border)
+    imfilter!(r, allocate_output(T, img, kernel, border), img, kernel, border)
 end
 
 """
@@ -343,6 +336,56 @@ function _imfilter_inbounds!(r, out, A::AbstractArray, kern, border::NoPad, inds
             tmp += A[I+J]*kern[J]
         end
         @unsafe out[I] = tmp
+    end
+    out
+end
+
+function _imfilter_inbounds!(r, out, A::AbstractArray, kern::ReshapedVector, border::NoPad, inds)
+    Rpre, ind, Rpost = iterdims(inds, kern)
+    k = kern.data
+    R, Rk = CartesianRange(inds), CartesianRange(indices(kern))
+    p = A[first(R)+first(Rk)] * first(k)
+    TT = typeof(p+p)
+    _imfilter_inbounds(r, TT, out, A, k, Rpre, ind, Rpost)
+end
+
+function _imfilter_inbounds{TT}(r, ::Type{TT}, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange, ind, Rpost::CartesianRange)
+    indsk = indices(k, 1)
+    if length(indsk) <= 5
+        ks, jo = to_static(k)
+        return @time _imfilter_inbounds(r, TT, out, A, (ks, jo), Rpre, ind, Rpost)
+    end
+    for Ipost in Rpost
+        for Ipre in Rpre
+            for i in ind
+                tmp = zero(TT)
+                @unsafe for j in indsk
+                    tmp += A[Ipre,i+j,Ipost]*k[j]
+                end
+                @unsafe out[Ipre,i,Ipost] = tmp
+            end
+        end
+    end
+    out
+end
+
+to_static(a::OffsetArray) = _to_static(parent(a), a.offsets[1])
+to_static(a) = _to_static(a, first(indices(a,1))-1)
+_to_static(a, o) = convert(SVector{length(a)}, a), o
+
+function _imfilter_inbounds{TT,L}(r, ::Type{TT}, out, A::AbstractArray, ko::Tuple{SVector{L},Int}, Rpre::CartesianRange, ind, Rpost::CartesianRange)
+    k, jo = ko
+    for Ipost in Rpost
+        for Ipre in Rpre
+            for i in ind
+                io = i+jo
+                tmp = zero(TT)
+                @unsafe for j = 1:L
+                    tmp += A[Ipre,io+j,Ipost]*k[j]
+                end
+                @unsafe out[Ipre,i,Ipost] = tmp
+            end
+        end
     end
     out
 end

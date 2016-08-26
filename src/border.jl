@@ -318,4 +318,11 @@ function next_interior(inds::Indices, kernel::Tuple)
     _interior(inds, indices(kern))
 end
 
+allocate_output{T}(::Type{T}, img, kernel, border) = similar(img, T)
+function allocate_output{T}(::Type{T}, img, kernel, ::Inner{0})
+    inds = interior(img, kernel)
+    similar(img, T, inds)
+end
+allocate_output(img, kernel, border) = allocate_output(filter_type(img, kernel), img, kernel, border)
+
 # end

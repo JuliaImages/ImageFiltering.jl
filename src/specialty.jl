@@ -63,7 +63,7 @@ function imgradients{T,N}(img::AbstractArray{T,N}, points::AbstractVector;
     G
 end
 
-function imgradients{T,N}(img::AbstractArray{T,N}, kernelfun::Function, border=Pad{:replicate}())
+function imgradients{T,N}(img::AbstractArray{T,N}, kernelfun::Function=KernelFactors.ando3, border=Pad{:replicate}())
     extent = map(length, indices(img))
     kern1 = kernelfun(Val{N}, 1, map(x->x>1, extent))
     S = filter_type(img, kern1)
@@ -73,11 +73,12 @@ function imgradients{T,N}(img::AbstractArray{T,N}, kernelfun::Function, border=P
 end
 
 # When all N gradients have been calculated, return the result
-_imgradients{T,N}(G::NTuple{N}, imgpad::AbstractArray{T,N}, kernelfun::Function, extent, border::Inner) = G
+_imgradients{T,N}(G::NTuple{N}, imgpad::AbstractArray{T,N}, kernelfun::Function, extent, border) = G
 
 # Add the next dimension to G
-function _imgradients{T,M,N}(G::NTuple{M}, imgpad::AbstractArray{T,N}, kernelfun::Function, extent, border::Inner)
+function _imgradients{T,M,N}(G::NTuple{M}, imgpad::AbstractArray{T,N}, kernelfun::Function, extent, border)
     d = M+1  # the dimension we're working on now
     kern = kernelfun(Val{N}, d, map(x->x>1, extent))
-    _imgradients((G..., imfilter(imgpad, kern, border)), imgpad, kernelfun, extent, border)
+    out = allocate_output(imgpad, kern, border)
+    _imgradients((G..., imfilter!(out, imgpad, kern, NoPad(border))), imgpad, kernelfun, extent, border)
 end
