@@ -351,37 +351,12 @@ end
 
 function _imfilter_inbounds{TT}(r, ::Type{TT}, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange, ind, Rpost::CartesianRange)
     indsk = indices(k, 1)
-    if length(indsk) <= 5
-        ks, jo = to_static(k)
-        return @time _imfilter_inbounds(r, TT, out, A, (ks, jo), Rpre, ind, Rpost)
-    end
     for Ipost in Rpost
         for Ipre in Rpre
             for i in ind
                 tmp = zero(TT)
                 @unsafe for j in indsk
                     tmp += A[Ipre,i+j,Ipost]*k[j]
-                end
-                @unsafe out[Ipre,i,Ipost] = tmp
-            end
-        end
-    end
-    out
-end
-
-to_static(a::OffsetArray) = _to_static(parent(a), a.offsets[1])
-to_static(a) = _to_static(a, first(indices(a,1))-1)
-_to_static(a, o) = convert(SVector{length(a)}, a), o
-
-function _imfilter_inbounds{TT,L}(r, ::Type{TT}, out, A::AbstractArray, ko::Tuple{SVector{L},Int}, Rpre::CartesianRange, ind, Rpost::CartesianRange)
-    k, jo = ko
-    for Ipost in Rpost
-        for Ipre in Rpre
-            for i in ind
-                io = i+jo
-                tmp = zero(TT)
-                @unsafe for j = 1:L
-                    tmp += A[Ipre,io+j,Ipost]*k[j]
                 end
                 @unsafe out[Ipre,i,Ipost] = tmp
             end
