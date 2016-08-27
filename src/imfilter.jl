@@ -223,7 +223,7 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
     if fillbuf_nan[]
         fill!(A2, NaN)  # for testing purposes
     end
-    inds = interior(r, A, kern)
+    inds = shrink(indices(A), kern)
     _imfilter!(r, out, A, A2, kernel, border, inds)
     return out
 end
@@ -258,7 +258,7 @@ function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any,Any,Vararg{
     kernN = samedims(A2, kern)
     imfilter!(r, A2, A1, kernN, border, inds)  # store result in A2
     kernelt = tail(kernel)
-    newinds = next_interior(inds, kernelt)
+    newinds = next_shrink(inds, kernelt)
     _imfilter!(r, out, A2, A1, tail(kernel), border, newinds)          # swap the buffers
 end
 

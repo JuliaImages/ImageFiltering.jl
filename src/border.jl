@@ -248,16 +248,11 @@ function extend(lo::Integer, inds::AbstractUnitRange, hi::Integer)
     OffsetArray(newind, newind)
 end
 
-# @inline flatten(t::Tuple) = _flatten(t...)
-# @inline _flatten(t1::Tuple, t...) = (flatten(t1)..., flatten(t)...)
-# @inline _flatten(t1,        t...) = (t1, flatten(t)...)
-# _flatten() = ()
-
 calculate_padding(kernel) = indices(kernel)
 @inline function calculate_padding(kernel::Tuple{Any, Vararg{Any}})
     inds = accumulate_padding(indices(kernel[1]), tail(kernel)...)
     if hasiir(kernel) && hasfir(kernel)
-        return map(doublepadding, inds)
+        inds = map(doublepadding, inds)
     end
     inds
 end
@@ -280,15 +275,8 @@ function doublepadding(ind::AbstractUnitRange)
 end
 
 accumulate_padding(inds::Indices, kernel1, kernels...) =
-    accumulate_padding(_accumulate_padding(inds, indices(kernel1)), kernels...)
-accumulate_padding(inds::Indices, kernel1::TriggsSdika, kernels...) =
-    accumulate_padding(inds, kernels...)
-accumulate_padding(inds) = inds
-_accumulate_padding(inds1, inds2) = (__accumulate_padding(inds1[1], inds2[1]), _accumulate_padding(tail(inds1), tail(inds2))...)
-_accumulate_padding(::Tuple{}, ::Tuple{}) = ()
-_accumulate_padding(::Tuple{}, inds2) = inds2
-_accumulate_padding(inds1, ::Tuple{}) = inds1
-__accumulate_padding(ind1, ind2) = first(ind1)+min(0,first(ind2)):last(ind1)+max(0,last(ind2))
+    accumulate_padding(expand(inds, indices(kernel1)), kernels...)
+accumulate_padding(inds::Indices) = inds
 
 modrange(x, r::AbstractUnitRange) = mod(x-first(r), length(r))+first(r)
 modrange(A::AbstractArray, r::AbstractUnitRange) = map(x->modrange(x, r), A)
@@ -296,21 +284,41 @@ modrange(A::AbstractArray, r::AbstractUnitRange) = map(x->modrange(x, r), A)
 arraytype{T}(A::AbstractArray, ::Type{T}) = Array{T}  # fallback
 arraytype(A::BitArray, ::Type{Bool}) = BitArray
 
-interior(r::AbstractResource, A::AbstractArray, kernel) = interior(A, kernel)
-
 interior(A, kernel) = _interior(indices(A), indices(kernel))
 interior(A, factkernel::Tuple) = _interior(indices(A), accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 function _interior{N}(indsA::NTuple{N}, indsk)
     indskN = fill_to_length(indsk, 0:0, Val{N})
-    map((ia,ik)->first(ia) + lo(ik) : last(ia) - hi(ik), indsA, indskN)
+    map(intersect, indsA, shrink(indsA, indsk))
 end
 
-next_interior(inds::Indices, ::Tuple{}) = inds
-function next_interior(inds::Indices, kernel::Tuple)
+next_shrink(inds::Indices, ::Tuple{}) = inds
+function next_shrink(inds::Indices, kernel::Tuple)
     kern = first(kernel)
-    iscopy(kern) && return next_interior(inds, tail(kernel))
-    _interior(inds, indices(kern))
+    iscopy(kern) && return next_shrink(inds, tail(kernel))
+    shrink(inds, kern)
 end
+
+"""
+    expand(inds::Indices, kernel)
+    expand(inds::Indices, indskernel::Indices)
+
+Expand an image region `inds` to account for necessary padding by `kernel`.
+"""
+expand(inds::Indices, A) = expand(inds, indices(A))
+expand(inds::Indices, pad::Indices) = firsttype(map_copytail(expand, inds, pad))
+expand(ind::AbstractUnitRange, pad::AbstractUnitRange) = oftype(ind, first(ind)+first(pad):last(ind)+last(pad))
+expand(ind::Base.OneTo, pad::AbstractUnitRange) = expand(UnitRange(ind), pad)
+
+"""
+    shrink(inds::Indices, kernel)
+    shrink(inds::Indices, indskernel)
+
+Remove edges from an image region `inds` that correspond to padding needed for `kernel`.
+"""
+shrink(inds::Indices, A) = shrink(inds, indices(A))
+shrink(inds::Indices, pad::Indices) = firsttype(map_copytail(shrink, inds, pad))
+shrink(ind::AbstractUnitRange, pad::AbstractUnitRange) = oftype(ind, first(ind)-first(pad):last(ind)-last(pad))
+shrink(ind::Base.OneTo, pad::AbstractUnitRange) = shrink(UnitRange(ind), pad)
 
 allocate_output{T}(::Type{T}, img, kernel, border) = similar(img, T)
 function allocate_output{T}(::Type{T}, img, kernel, ::Inner{0})
@@ -318,5 +326,22 @@ function allocate_output{T}(::Type{T}, img, kernel, ::Inner{0})
     similar(img, T, inds)
 end
 allocate_output(img, kernel, border) = allocate_output(filter_type(img, kernel), img, kernel, border)
+
+"""
+    map_copytail(f, a::Tuple, b::Tuple)
+
+Apply `f` to paired elements of `a` and `b`, copying any tail elements
+when the lengths of `a` and `b` are not equal.
+"""
+@inline map_copytail(f, a::Tuple, b::Tuple) = (f(a[1], b[1]), map_copytail(f, tail(a), tail(b))...)
+map_copytail(f, a::Tuple{}, b::Tuple{}) = ()
+map_copytail(f, a::Tuple, b::Tuple{}) = a
+map_copytail(f, a::Tuple{}, b::Tuple) = b
+
+function firsttype(t::Tuple)
+    T = typeof(t[1])
+    map(T, t)
+end
+firsttype(::Tuple{}) = ()
 
 # end
