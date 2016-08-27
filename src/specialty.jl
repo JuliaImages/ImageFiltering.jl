@@ -1,6 +1,6 @@
 ## Laplacian
 
-function _imfilter_inbounds!(r, out, A::AbstractArray, L::Laplacian, border::NoPad, inds)
+function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, L::Laplacian, border::NoPad, inds)
     TT = eltype(out) # accumtype(eltype(out), eltype(A))
     n = 2*length(L.offsets)
     R = CartesianRange(inds)

@@ -22,8 +22,9 @@ module Algorithm
     immutable FFT <: Alg end
     immutable FIR <: Alg end
     immutable IIR <: Alg end
+    immutable Mixed <: Alg end
 end
-using .Algorithm: Alg, FFT, FIR, IIR
+using .Algorithm: Alg, FFT, FIR, IIR, Mixed
 
 Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
 
@@ -32,8 +33,8 @@ include("kernelfactors.jl")
 using .KernelFactors: TriggsSdika, IIRFilter, ReshapedVector, iterdims
 
 typealias ArrayLike{T} Union{AbstractArray{T}, IIRFilter{T}, ReshapedVector{T}}
-typealias ReshapedTriggsSdika{T,N,Npre,V<:TriggsSdika} ReshapedVector{T,N,Npre,V}
-typealias AnyTriggs Union{TriggsSdika, ReshapedTriggsSdika}
+typealias ReshapedIIR{T,N,Npre,V<:IIRFilter} ReshapedVector{T,N,Npre,V}
+typealias AnyIIR Union{IIRFilter, ReshapedIIR}
 
 include("kernel.jl")
 using .Kernel

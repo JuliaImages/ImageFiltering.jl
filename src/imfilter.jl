@@ -211,7 +211,7 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
     imfilter!(r, out, A, samedims(out, kern), border)
 end
 
-const fillbuf_nan = Ref(false)
+const fillbuf_nan = Ref(false)  # used only for testing purposes
 
 function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad)
     kern = kernel[1]
@@ -243,7 +243,7 @@ end
 
 # However, here it's important to filter over the whole passed-in
 # range, and then copy! to out
-function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{AnyTriggs}, border::NoPad, inds::Indices)
+function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{AnyIIR}, border::NoPad, inds::Indices)
     if inds != indices(out)
         imfilter!(r, A2, A1, kernel[1], border, inds)
         R = CartesianRange(indices(out))
@@ -265,30 +265,30 @@ end
 ## FIR filtering
 
 """
-    imfilter!(::AbstractResource{FIR}, imgfilt, img, kernel, NoPad(), [inds=indices(imgfilt)])
+    imfilter!(::AbstractResource, imgfilt, img, kernel, NoPad(), [inds=indices(imgfilt)])
 
 Filter an array `img` with kernel `kernel` by computing their
-correlation, storing the result in `imgfilt`, using a finite-impulse
+correlation, storing the result in `imgfilt`, defaulting to a finite-impulse
 response (FIR) algorithm. Any necessary padding must have already been
 supplied to `img`. If you want padding applied, instead call
 
-    imfilter!(::AbstractResource{FIR}, imgfilt, img, kernel, border)
+    imfilter!([r::AbstractResource,] imgfilt, img, kernel, border)
 
 with a specific `border`, or use
 
-    imfilter!(imgfilt, img, kernel, Algorithm.FIR())
+    imfilter!(imgfilt, img, kernel, [Algorithm.FIR()])
 
 for default padding.
 
 If `inds` is supplied, only the elements of `imgfilt` with indices in
 the domain of `inds` will be calculated. This can be particularly
-useful for "cascaded filters" where you pad over a larger area and
-then calculate the result over just the necessary region at each
-stage.
+useful for "cascaded FIR filters" where you pad over a larger area and
+then calculate the result over just the necessary/well-defined region
+at each successive stage.
 
 See also: imfilter.
 """
-function imfilter!{S,T,N}(r::CPU1{FIR},
+function imfilter!{S,T,N}(r::AbstractResource,
                           out::AbstractArray{S,N},
                           A::AbstractArray{T,N},
                           kern::NDimKernel{N},
@@ -315,17 +315,12 @@ function imfilter!{S,T,N}(r::CPU1{FIR},
     _imfilter_inbounds!(r, out, A, kern, border, inds)
 end
 
-function _imfilter_inbounds!{T,N,Npre,V<:TriggsSdika}(r::AbstractResource, out, A::AbstractArray, kern::ReshapedVector{T,N,Npre,V}, border::NoPad, inds)
+function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::ReshapedIIR, border::NoPad, inds)
     indspre, ind, indspost = iterdims(inds, kern)
     _imfilter_dim!(r, out, A, kern.data, CartesianRange(indspre), ind, CartesianRange(indspost), border[])
 end
 
-function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractVector, kern::TriggsSdika, border::NoPad, inds)
-    indspre, ind, indspost = iterdims(inds, kern)
-    _imfilter_dim!(r, out, A, kern.data, CartesianRange(indspre), ind, CartesianRange(indspost), border[])
-end
-
-function _imfilter_inbounds!(r, out, A::AbstractArray, kern, border::NoPad, inds)
+function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern, border::NoPad, inds)
     indsk = indices(kern)
     R, Rk = CartesianRange(inds), CartesianRange(indsk)
     p = A[first(R)+first(Rk)] * first(kern)
@@ -340,7 +335,7 @@ function _imfilter_inbounds!(r, out, A::AbstractArray, kern, border::NoPad, inds
     out
 end
 
-function _imfilter_inbounds!(r, out, A::AbstractArray, kern::ReshapedVector, border::NoPad, inds)
+function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::ReshapedVector, border::NoPad, inds)
     Rpre, ind, Rpost = iterdims(inds, kern)
     k = kern.data
     R, Rk = CartesianRange(inds), CartesianRange(indices(kern))
@@ -349,7 +344,7 @@ function _imfilter_inbounds!(r, out, A::AbstractArray, kern::ReshapedVector, bor
     _imfilter_inbounds(r, TT, out, A, k, Rpre, ind, Rpost)
 end
 
-function _imfilter_inbounds{TT}(r, ::Type{TT}, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange, ind, Rpost::CartesianRange)
+function _imfilter_inbounds{TT}(r::AbstractResource, ::Type{TT}, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange, ind, Rpost::CartesianRange)
     indsk = indices(k, 1)
     for Ipost in Rpost
         for Ipre in Rpre
@@ -650,6 +645,43 @@ function rightΔu{T,l}(img, uplus, Ibegin, i, Iend, kernel::TriggsSdika{T,3,l})
     ret
 end
 
+### Pad{:na}() boundary conditions
+
+function imfilter_na_inseparable!{T}(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple{Vararg{TriggsSdika}})
+    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
+    copy!(out, img)
+    out[nanflag] = zero(T)
+    validpixels = copy!(similar(Array{eltype(T)}, indices(img)), mappedarray(x->!x, nanflag))
+    # TriggsSdika is safe for inplace operations
+    imfilter!(r, out, out, kernel, fc)
+    imfilter!(r, validpixels, validpixels, kernel, fn)
+    for I in eachindex(out)
+        out[I] /= validpixels[I]
+    end
+    out[nanflag] = nan(T)
+    out
+end
+
+function imfilter_na_inseparable!{T}(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple)
+    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
+    imgtmp = copy!(similar(out, indices(img)), img)
+    imgtmp[nanflag] = zero(T)
+    validpixels = copy!(similar(Array{eltype(T)}, indices(img)), mappedarray(x->!x, nanflag))
+    imfilter!(r, out, imgtmp, kernel, fc)
+    vp = imfilter(r, validpixels, kernel, fn)
+    for I in eachindex(out)
+        out[I] /= vp[I]
+    end
+    out[nanflag] = nan(T)
+    out
+end
+
+function imfilter_na_separable!{T}(r, out::AbstractArray{T}, img, kernel::Tuple)
+    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
+    imfilter!(r, out, img, kernel, fc)
+    normalize_separable!(r, out, kernel, fn)
+end
+
 ### Utilities
 
 filter_type{S}(img::AbstractArray{S}, kernel) = filter_type(S, kernel)
@@ -733,43 +765,8 @@ end
 filter_algorithm(out, img, kernel) = FIR()
 filter_algorithm(out, img, kernel::Tuple{IIRFilter,Vararg{IIRFilter}}) = IIR()
 
-isseparable(kernels::Tuple{Vararg{TriggsSdika}}) = true
+isseparable(kernels::Tuple{Vararg{AnyIIR}}) = true
 isseparable(kernels::Tuple) = all(x->nextendeddims(x)==1, kernels)
-
-function imfilter_na_inseparable!{T}(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple{Vararg{TriggsSdika}})
-    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
-    copy!(out, img)
-    out[nanflag] = zero(T)
-    validpixels = copy!(similar(Array{eltype(T)}, indices(img)), mappedarray(x->!x, nanflag))
-    # TriggsSdika is safe for inplace operations
-    imfilter!(r, out, out, kernel, fc)
-    imfilter!(r, validpixels, validpixels, kernel, fn)
-    for I in eachindex(out)
-        out[I] /= validpixels[I]
-    end
-    out[nanflag] = nan(T)
-    out
-end
-
-function imfilter_na_inseparable!{T}(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple)
-    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
-    imgtmp = copy!(similar(out, indices(img)), img)
-    imgtmp[nanflag] = zero(T)
-    validpixels = copy!(similar(Array{eltype(T)}, indices(img)), mappedarray(x->!x, nanflag))
-    imfilter!(r, out, imgtmp, kernel, fc)
-    vp = imfilter(r, validpixels, kernel, fn)
-    for I in eachindex(out)
-        out[I] /= vp[I]
-    end
-    out[nanflag] = nan(T)
-    out
-end
-
-function imfilter_na_separable!{T}(r, out::AbstractArray{T}, img, kernel::Tuple)
-    fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
-    imfilter!(r, out, img, kernel, fc)
-    normalize_separable!(r, out, kernel, fn)
-end
 
 normalize_separable!(r::AbstractResource, A, ::Tuple{}, border) = error("this shouldn't happen")
 function normalize_separable!{N}(r::AbstractResource, A, kernels::NTuple{N,TriggsSdika}, border)
@@ -780,7 +777,7 @@ function normalize_separable!{N}(r::AbstractResource, A, kernels::NTuple{N,Trigg
     filtdims = ntuple(d->imfilter_inplace!(r, similar(dims->ones(dims), inds[d]), kernels[d], border), Val{N})
     normalize_dims!(A, filtdims)
 end
-function normalize_separable!{N}(r::AbstractResource, A, kernels::NTuple{N,ReshapedTriggsSdika}, border)
+function normalize_separable!{N}(r::AbstractResource, A, kernels::NTuple{N,ReshapedIIR}, border)
     normalize_separable!(r, A, map(_vec, kernels), border)
 end
 
