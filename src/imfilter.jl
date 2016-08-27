@@ -762,8 +762,24 @@ function kernelshift(inds::Indices, A)
     A
 end
 
-filter_algorithm(out, img, kernel) = FIR()
-filter_algorithm(out, img, kernel::Tuple{IIRFilter,Vararg{IIRFilter}}) = IIR()
+# Note this is not type-stable. Fortunately, all the outputs are
+# allocated by the time this gets called.
+function filter_algorithm(out, img, kernel::Union{AbstractArray,Tuple{Vararg{AbstractArray}}})
+    L = maxlen(kernel)
+    if L > 30
+        return FFT()
+    end
+    FIR()
+end
+filter_algorithm(out, img, kernel::Tuple{AnyIIR,Vararg{AnyIIR}}) = IIR()
+filter_algorithm(out, img, kernel) = Mixed()
+
+maxlen(A::AbstractArray) = _length(A)
+@inline maxlen(kernel::Tuple) = _maxlen(0, kernel...)
+_maxlen(len, kernel1, kernel...) = _maxlen(max(len, _length(kernel1)), kernel...)
+_maxlen(len) = len
+
+_length(A::AbstractArray) = length(linearindices(A))
 
 isseparable(kernels::Tuple{Vararg{AnyIIR}}) = true
 isseparable(kernels::Tuple) = all(x->nextendeddims(x)==1, kernels)
