@@ -73,6 +73,14 @@ import Base: ==
 ==(A::ReshapedVector, B::AbstractArray) = convert(AbstractArray, A) == B
 ==(A::AbstractArray, B::ReshapedVector) = A == convert(AbstractArray, B)
 
+import Base: .+, .-, .*, ./
+for op in (:+, :-, :*, :/)
+    opdot = Symbol(:., op)
+    @eval begin
+        ($opdot)(A::ReshapedVector, B::ReshapedVector) = broadcast($op, A, B)
+        @inline ($opdot)(As::ReshapedVector...) = broadcast($op, As...)
+    end
+end
 # for broadcasting
 @pure Base.promote_eltype_op{S,T}(op, ::ReshapedVector{S}, ::ReshapedVector{T}) = Base.promote_op(op, S, T)
 

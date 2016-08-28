@@ -262,7 +262,114 @@ function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any,Any,Vararg{
     _imfilter!(r, out, A2, A1, tail(kernel), border, newinds)          # swap the buffers
 end
 
-## FIR filtering
+### When everything is FIR, we can use a tiled algorithm
+function imfilter!(r::AbstractCPU{FIR}, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad)
+    kern = kernel[1]
+    iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border)
+    tmp = tile_allocate(filter_type(A, kernel), kernel)
+    _imfilter_tiled!(r, out, A, kernel, border, tmp)
+    out
+end
+
+# Single-threaded, pair of kernels (with only one temporary buffer required)
+function _imfilter_tiled!{AA<:AbstractArray}(r::CPU1, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA})
+    k1, k2 = kernel
+    tile = tiles[1]
+    indsk1, indstile = indices(k1), indices(tile)
+    sz = map(length, indstile)
+    chunksz = map(length, shrink(indstile, indsk1))
+    inds = expand(indices(out), k2)
+    for tileinds in TileIterator(inds, chunksz)
+        tileb = TileBuffer(tile, tileinds)
+        imfilter!(r, tileb, A, samedims(tileb, k1), border, tileinds)
+        imfilter!(r, out, tileb, samedims(out, k2), border, shrink(tileinds, k2))
+    end
+    out
+end
+
+# Multithreaded, pair of kernels
+function _imfilter_tiled!{AA<:AbstractArray}(r::CPUThreads, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA})
+    k1, k2 = kernel
+    tile = tiles[1]
+    indsk1, indstile = indices(k1), indices(tile)
+    sz = map(length, indstile)
+    chunksz = map(length, shrink(indstile, indsk1))
+    tileinds_all = collect(TileIterator(expand(indices(out), k2), chunksz))
+    _imfilter_tiled_threads!(CPU1(r), out, A, samedims(out, k1), samedims(out, k2), border, tileinds_all, tiles)
+end
+# This must be in a separate function due to #15276
+@noinline function _imfilter_tiled_threads!{AA<:AbstractArray}(r1, out, A, k1, k2, border, tileinds_all, tile::Vector{AA})
+    Threads.@threads for i = 1:length(tileinds_all)
+        id = Threads.threadid()
+        tileinds = tileinds_all[i]
+        tileb = TileBuffer(tile[id], tileinds)
+        imfilter!(r1, tileb, A, k1, border, tileinds)
+        imfilter!(r1, out, tileb, k2, border, shrink(tileinds, k2))
+    end
+    out
+end
+
+# Single-threaded, multiple kernels (requires two tile buffers, swapping on each iteration)
+function _imfilter_tiled!{AA<:AbstractArray}(r::CPU1, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}})
+    k1, kt = kernel[1], tail(kernel)
+    tilepair = tiles[1]
+    indsk1, indstile = indices(k1), indices(tilepair[1])
+    sz = map(length, indstile)
+    chunksz = map(length, shrink(indstile, indsk1))
+    inds = expand(indices(out), kt)
+    for tileinds in TileIterator(inds, chunksz)
+        tileb1 = TileBuffer(tilepair[1], tileinds)
+        imfilter!(r, tileb1, A, samedims(tileb1, k1), border, tileinds)
+        _imfilter_tiled_swap!(r, out, kt, border, (tileb1, tilepair[2]))
+    end
+end
+
+# Multithreaded, multiple kernels
+function _imfilter_tiled!{AA<:AbstractArray}(r::CPUThreads, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}})
+    k1, kt = kernel[1], tail(kernel)
+    tilepair = tiles[1]
+    indsk1, indstile = indices(k1), indices(tilepair[1])
+    sz = map(length, indstile)
+    chunksz = map(length, shrink(indstile, indsk1))
+    tileinds_all = collect(TileIterator(expand(indices(out), kt), chunksz))
+    _imfilter_tiled_threads!(CPU1(r), out, A, samedims(out, k1), kt, border, tileinds_all, tiles)
+end
+# This must be in a separate function due to #15276
+@noinline function _imfilter_tiled_threads!{AA<:AbstractArray}(r1, out, A, k1, kt, border, tileinds_all, tiles::Vector{Tuple{AA,AA}})
+    Threads.@threads for i = 1:length(tileinds_all)
+        tileinds = tileinds_all[i]
+        id = Threads.threadid()
+        tile1, tile2 = tiles[id]
+        tileb1 = TileBuffer(tile1, tileinds)
+        imfilter!(r1, tileb1, A, k1, border, tileinds)
+        _imfilter_tiled_swap!(r1, out, kt, border, (tileb1, tile2))
+    end
+    out
+end
+
+# The first of the pair in `tmp` has the current data. We also make
+# the second a plain array so there's no doubt about who's holding the
+# proper indices.
+function _imfilter_tiled_swap!(r, out, kernel::Tuple{Any,Any,Vararg{Any}}, border, tmp::Tuple{TileBuffer,Array})
+    tileb1, tile2 = tmp
+    k1, kt = kernel[1], tail(kernel)
+    parentinds = indices(tileb1)
+    tileinds = shrink(parentinds, k1)
+    tileb2 = TileBuffer(tile2, tileinds)
+    imfilter!(r, tileb2, tileb1, samedims(tileb2, k1), border, tileinds)
+    _imfilter_tiled_swap!(r, out, kt, border, (tileb2, parent(tileb1)))
+end
+
+# on the last call we write to `out` instead of one of the buffers
+function _imfilter_tiled_swap!(r, out, kernel::Tuple{Any}, border, tmp::Tuple{TileBuffer,Array})
+    tileb1 = tmp[1]
+    k1 = kernel[1]
+    parentinds = indices(tileb1)
+    tileinds = shrink(parentinds, k1)
+    imfilter!(r, out, tileb1, samedims(out, k1), border, tileinds)
+end
+
+### FIR filtering
 
 """
     imfilter!(::AbstractResource, imgfilt, img, kernel, NoPad(), [inds=indices(imgfilt)])
@@ -818,3 +925,18 @@ iscopy(kernel::AbstractArray) = all(x->x==0:0, indices(kernel)) && first(kernel)
 iscopy(kernel::Laplacian) = false
 iscopy(kernel::TriggsSdika) = all(x->x==0, kernel.a) && all(x->x==0, kernel.b) && kernel.scale == 1
 iscopy(kernel::ReshapedVector) = iscopy(kernel.data)
+
+## Tiling utilities
+
+function tile_allocate{T}(::Type{T}, kernel::Tuple{Any,Any})
+    sz = map(length, calculate_padding(kernel))
+    tsz = padded_tilesize(T, sz)
+    [Array{T}(tsz) for i = 1:Threads.nthreads()]
+end
+
+function tile_allocate{T}(::Type{T}, kernel::Tuple{Any,Any,Vararg{Any}})
+    # Allocate a pair of tiles and swap buffers at each stage
+    sz = map(length, calculate_padding(kernel))
+    tsz = padded_tilesize(T, sz)
+    [(Array{T}(tsz), Array{T}(tsz)) for i = 1:Threads.nthreads()]
+end

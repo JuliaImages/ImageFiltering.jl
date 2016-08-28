@@ -237,7 +237,7 @@ end
 Base.indices(L::Laplacian) = map(f->f ? (-1:1) : (0:0), L.flags)
 Base.isempty(L::Laplacian) = false
 function Base.convert{N}(::Type{AbstractArray}, L::Laplacian{N})
-    A = zeros(Int, indices(L)...)
+    A = fill!(OffsetArray{Int}(indices(L)), 0)
     for I in L.offsets
         A[I] = A[-I] = 1
     end

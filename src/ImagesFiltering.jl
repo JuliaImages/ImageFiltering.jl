@@ -1,6 +1,6 @@
 module ImagesFiltering
 
-using Colors, FixedPointNumbers, ImagesCore, MappedArrays, FFTViews, OffsetArrays, StaticArrays, ComputationalResources
+using Colors, FixedPointNumbers, ImagesCore, MappedArrays, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
 using ColorVectorSpace  # in case someone filters RGB arrays
 using Base: Indices, tail, fill_to_length, @pure
 

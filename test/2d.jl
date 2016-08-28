@@ -55,6 +55,7 @@ using Base.Test
     for img in (imgf, imgi, imgg, imgc)
         targetimg = zeros(typeof(img[1]*kern[1]), size(img))
         targetimg[3:4,2:3] = rot180(kern)*img[3,4]
+        ret = similar(targetimg)
         @test @inferred(imfilter(img, kernel)) ≈ targetimg
         @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32(targetimg)
         for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(img))))
