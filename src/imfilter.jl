@@ -134,14 +134,23 @@ end
 
 """
     imfilter!(imgfilt, img, kernel, [border=Pad{:replicate}()], [alg])
-    imfilter!(r, imgfilt, img, kernel, border)
+    imfilter!(r, imgfilt, img, kernel, border, [inds])
+    imfilter!(r, imgfilt, img, kernel, border::NoPad, [inds=indices(imgfilt)])
 
 Filter an array `img` with kernel `kernel` by computing their
 correlation, storing the result in `imgfilt`.
 
 The indices of `imgfilt` determine the region over which the filtered
-image is computed---you can use this fact to select just a specific region
-of interest.
+image is computed---you can use this fact to select just a specific
+region of interest, although be aware that the input `img` might still
+get padded.  Alteratively, explicitly provide the indices `inds` of
+`imgfilt` that you want to calculate, and use `NoPad` boundary
+conditions. In such cases, you are responsible for supplying
+appropriate padding: `img` must be indexable for all of the locations
+needed for calculating the output. This syntax is best-supported for
+FIR filtering; in particular, that that IIR filtering can lead to
+results that are inconsistent with respect to filtering the entire
+array.
 
 See also: imfilter.
 """
@@ -200,22 +209,47 @@ function imfilter!{S,T,N}(r::AbstractResource,
     imfilter!(r, out, A, kernel, NoPad(border))
 end
 
+# An optimized case that performs only "virtual padding"
+function imfilter!{S,T,N}(r::AbstractCPU{FIR},
+                          out::AbstractArray{S,N},
+                          img::AbstractArray{T,N},
+                          kernel::ProcessedKernel,
+                          border::PadNoNa)
+    # The fast path: handle the points that don't need padding
+    iinds = map(intersect, interior(img, kernel), indices(out))
+    imfilter!(r, out, img, kernel, NoPad(border), iinds)
+    # The not-so-fast path: handle the edges
+    padded = view(img, padindices(img, border(kernel))...)
+    pkernel = kernelconv(kernel...)
+    _imfilter_iter!(r, out, padded, pkernel, EdgeIterator(indices(out), iinds))
+end
+
+### "Scheduler" methods (all with NoPad)
+
+# These methods handle much of what Halide calls "the schedule."
+# Together they handle the order-of-operations for separable and/or
+# cascaded kernels, and even implement multithreadable tiling for FIR
+# filtering.
+
+# Trivial kernel (a copy operation)
 function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{}, ::NoPad, inds::Indices=indices(out))
     R = CartesianRange(inds)
     copy!(out, R, A, R)
 end
 
-function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any}, border::NoPad)
+# A single kernel
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any}, border::NoPad, inds::Indices=indices(out))
     kern = kernel[1]
-    iscopy(kern) && return imfilter!(r, out, A, (), border)
-    imfilter!(r, out, A, samedims(out, kern), border)
+    iscopy(kern) && return imfilter!(r, out, A, (), border, inds)
+    imfilter!(r, out, A, samedims(out, kern), border, inds)
 end
 
 const fillbuf_nan = Ref(false)  # used only for testing purposes
 
-function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad)
+# A filter cascade (2 or more filters)
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=indices(out))
     kern = kernel[1]
-    iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border)
+    iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border, inds)
     # For multiple stages of filtering, we introduce a second buffer
     # and swap them at each stage. The first of the two is the one
     # that holds the most recent result.
@@ -223,62 +257,70 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
     if fillbuf_nan[]
         fill!(A2, NaN)  # for testing purposes
     end
-    inds = shrink(indices(A), kern)
-    _imfilter!(r, out, A, A2, kernel, border, inds)
+    indsstep = shrink(expand(inds, calculate_padding(kernel)), kern)
+    _imfilter!(r, out, A, A2, kernel, border, indsstep)
     return out
 end
 
-# We deliberately drop `inds` in the next methods: when `kernel` is a tuple
-# that has both TriggsSdika and FIR filters, the overall padding
-# gets doubled, yet we only trim off the minimum at each
-# stage. Consequently, `inds` might be optimistic about the range
-# available in `out`.
-function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{}, border::NoPad, inds::Indices)
-    imfilter!(r, out, A1, kernel, border)
-end
-
-function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any}, border::NoPad, inds::Indices)
-    imfilter!(r, out, A1, kernel[1], border)
-end
-
-# However, here it's important to filter over the whole passed-in
-# range, and then copy! to out
-function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{AnyIIR}, border::NoPad, inds::Indices)
-    if inds != indices(out)
-        imfilter!(r, A2, A1, kernel[1], border, inds)
-        R = CartesianRange(indices(out))
-        return copy!(out, R, A2, R)
-    end
-    imfilter!(r, out, A1, kernel[1], border)
-end
-
-function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds::Indices)
+### When everything is FIR, we can instead use a tiled algorithm for the cascaded case
+function imfilter!{S,T,N}(r::AbstractCPU{FIR}, out::AbstractArray{S,N}, A::AbstractArray{T,N}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=indices(out))
     kern = kernel[1]
-    iscopy(kern) && return _imfilter!(r, out, A1, A2, tail(kernel), border, inds)
-    kernN = samedims(A2, kern)
-    imfilter!(r, A2, A1, kernN, border, inds)  # store result in A2
-    kernelt = tail(kernel)
-    newinds = next_shrink(inds, kernelt)
-    _imfilter!(r, out, A2, A1, tail(kernel), border, newinds)          # swap the buffers
-end
-
-### When everything is FIR, we can use a tiled algorithm
-function imfilter!(r::AbstractCPU{FIR}, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad)
-    kern = kernel[1]
-    iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border)
+    iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border, inds)
     tmp = tile_allocate(filter_type(A, kernel), kernel)
-    _imfilter_tiled!(r, out, A, kernel, border, tmp)
+    _imfilter_tiled!(r, out, A, kernel, border, tmp, inds)
     out
 end
 
+### Scheduler support methods
+
+## No tiling, filter cascade
+
+# For these (internal) methods, `indsstep` refers to `inds` for this
+# step of filtering, not the indices of `out` that we want to finally
+# target.
+
+# When `kernel` is (originally) a tuple that has both TriggsSdika and
+# FIR filters, the overall padding gets doubled, yet we only trim off
+# the minimum at each stage. Consequently, `indsstep` might be
+# optimistic about the range available in `out`; therefore we use
+# `intersect`.
+function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{}, border::NoPad, indsstep::Indices)
+    imfilter!(r, out, A1, kernel, border, map(intersect, indsstep, indices(out)))
+end
+
+function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any}, border::NoPad, indsstep::Indices)
+    imfilter!(r, out, A1, kernel[1], border, map(intersect, indsstep, indices(out)))
+end
+
+# For IIR, it's important to filter over the whole passed-in range,
+# and then copy! to out
+function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{AnyIIR}, border::NoPad, indsstep::Indices)
+    if indsstep != indices(out)
+        imfilter!(r, A2, A1, kernel[1], border, indsstep)
+        R = CartesianRange(map(intersect, indsstep, indices(out)))
+        return copy!(out, R, A2, R)
+    end
+    imfilter!(r, out, A1, kernel[1], border, indsstep)
+end
+
+function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, indsstep::Indices)
+    kern = kernel[1]
+    iscopy(kern) && return _imfilter!(r, out, A1, A2, tail(kernel), border, indsstep)
+    kernN = samedims(A2, kern)
+    imfilter!(r, A2, A1, kernN, border, indsstep)  # store result in A2
+    kernelt = tail(kernel)
+    newinds = next_shrink(indsstep, kernelt)
+    _imfilter!(r, out, A2, A1, tail(kernel), border, newinds)          # swap the buffers
+end
+
 # Single-threaded, pair of kernels (with only one temporary buffer required)
-function _imfilter_tiled!{AA<:AbstractArray}(r::CPU1, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA})
+function _imfilter_tiled!{AA<:AbstractArray}(r::CPU1, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA}, indsout)
     k1, k2 = kernel
     tile = tiles[1]
     indsk1, indstile = indices(k1), indices(tile)
     sz = map(length, indstile)
     chunksz = map(length, shrink(indstile, indsk1))
-    inds = expand(indices(out), k2)
+    inds = expand(indsout, k2)
     for tileinds in TileIterator(inds, chunksz)
         tileb = TileBuffer(tile, tileinds)
         imfilter!(r, tileb, A, samedims(tileb, k1), border, tileinds)
@@ -288,13 +330,13 @@ function _imfilter_tiled!{AA<:AbstractArray}(r::CPU1, out, A, kernel::Tuple{Any,
 end
 
 # Multithreaded, pair of kernels
-function _imfilter_tiled!{AA<:AbstractArray}(r::CPUThreads, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA})
+function _imfilter_tiled!{AA<:AbstractArray}(r::CPUThreads, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA}, indsout)
     k1, k2 = kernel
     tile = tiles[1]
     indsk1, indstile = indices(k1), indices(tile)
     sz = map(length, indstile)
     chunksz = map(length, shrink(indstile, indsk1))
-    tileinds_all = collect(TileIterator(expand(indices(out), k2), chunksz))
+    tileinds_all = collect(TileIterator(expand(indsout, k2), chunksz))
     _imfilter_tiled_threads!(CPU1(r), out, A, samedims(out, k1), samedims(out, k2), border, tileinds_all, tiles)
 end
 # This must be in a separate function due to #15276
@@ -310,13 +352,13 @@ end
 end
 
 # Single-threaded, multiple kernels (requires two tile buffers, swapping on each iteration)
-function _imfilter_tiled!{AA<:AbstractArray}(r::CPU1, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}})
+function _imfilter_tiled!{AA<:AbstractArray}(r::CPU1, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}}, indsout)
     k1, kt = kernel[1], tail(kernel)
     tilepair = tiles[1]
     indsk1, indstile = indices(k1), indices(tilepair[1])
     sz = map(length, indstile)
     chunksz = map(length, shrink(indstile, indsk1))
-    inds = expand(indices(out), kt)
+    inds = expand(indsout, kt)
     for tileinds in TileIterator(inds, chunksz)
         tileb1 = TileBuffer(tilepair[1], tileinds)
         imfilter!(r, tileb1, A, samedims(tileb1, k1), border, tileinds)
@@ -325,13 +367,13 @@ function _imfilter_tiled!{AA<:AbstractArray}(r::CPU1, out, A, kernel::Tuple{Any,
 end
 
 # Multithreaded, multiple kernels
-function _imfilter_tiled!{AA<:AbstractArray}(r::CPUThreads, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}})
+function _imfilter_tiled!{AA<:AbstractArray}(r::CPUThreads, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}}, indsout)
     k1, kt = kernel[1], tail(kernel)
     tilepair = tiles[1]
     indsk1, indstile = indices(k1), indices(tilepair[1])
     sz = map(length, indstile)
     chunksz = map(length, shrink(indstile, indsk1))
-    tileinds_all = collect(TileIterator(expand(indices(out), kt), chunksz))
+    tileinds_all = collect(TileIterator(expand(indsout, kt), chunksz))
     _imfilter_tiled_threads!(CPU1(r), out, A, samedims(out, k1), kt, border, tileinds_all, tiles)
 end
 # This must be in a separate function due to #15276
@@ -467,6 +509,20 @@ function _imfilter_inbounds{TT}(r::AbstractResource, ::Type{TT}, out, A::Abstrac
     out
 end
 
+function _imfilter_iter!(r::AbstractResource, out, padded, kernel::AbstractArray, iter)
+    p = first(padded) * first(kernel)
+    TT = typeof(p+p)
+    Rk = CartesianRange(indices(kernel))
+    for I in iter
+        tmp = zero(TT)
+        for J in Rk
+            tmp += padded[I+J]*kernel[J]
+        end
+        out[I] = tmp
+    end
+    out
+end
+
 ### FFT filtering
 
 """
@@ -515,7 +571,7 @@ function _imfilter_fft!{S,T,N}(r::AbstractCPU{FFT},
                           A::AbstractArray{T,N},
                           kernel::Tuple{AbstractArray,Vararg{AbstractArray}},
                           border::NoPad)
-    kern = prod_kernel(Val{N}, kernel...)
+    kern = samedims(A, kernelconv(kernel...))
     krn = FFTView(zeros(eltype(kern), map(length, indices(A))))
     for I in CartesianRange(indices(kern))
         krn[I] = kern[I]
@@ -560,7 +616,7 @@ end
 
 # Note this is safe for inplace use, i.e., out === img
 
-function imfilter!{S,T,N}(r::AbstractResource,
+function imfilter!{S,T,N}(r::AbstractResource{IIR},
                           out::AbstractArray{S,N},
                           img::AbstractArray{T,N},
                           kernel::Tuple{TriggsSdika, Vararg{TriggsSdika}},
@@ -925,6 +981,20 @@ iscopy(kernel::AbstractArray) = all(x->x==0:0, indices(kernel)) && first(kernel)
 iscopy(kernel::Laplacian) = false
 iscopy(kernel::TriggsSdika) = all(x->x==0, kernel.a) && all(x->x==0, kernel.b) && kernel.scale == 1
 iscopy(kernel::ReshapedVector) = iscopy(kernel.data)
+
+kernelconv(kernel) = kernel
+function kernelconv(k1, k2, kernels...)
+    out = similar(Array{filter_type(eltype(k1), k2)}, calculate_padding((k1, k2)))
+    fill!(out, zero(eltype(out)))
+    k1N, k2N = samedims(out, k1), samedims(out, k2)
+    R1, R2 = CartesianRange(indices(k1N)), CartesianRange(indices(k2N))
+    for I1 in R1
+        for I2 in R2
+            out[I1+I2] += k1N[I1]*k2N[I2]
+        end
+    end
+    kernelconv(out, kernels...)
+end
 
 ## Tiling utilities
 

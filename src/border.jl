@@ -304,7 +304,7 @@ end
 
 Expand an image region `inds` to account for necessary padding by `kernel`.
 """
-expand(inds::Indices, A) = expand(inds, calculate_padding(A))
+expand(inds::Indices, kernel) = expand(inds, calculate_padding(kernel))
 expand(inds::Indices, pad::Indices) = firsttype(map_copytail(expand, inds, pad))
 expand(ind::AbstractUnitRange, pad::AbstractUnitRange) = oftype(ind, first(ind)+first(pad):last(ind)+last(pad))
 expand(ind::Base.OneTo, pad::AbstractUnitRange) = expand(UnitRange(ind), pad)
@@ -315,7 +315,7 @@ expand(ind::Base.OneTo, pad::AbstractUnitRange) = expand(UnitRange(ind), pad)
 
 Remove edges from an image region `inds` that correspond to padding needed for `kernel`.
 """
-shrink(inds::Indices, A) = shrink(inds, calculate_padding(A))
+shrink(inds::Indices, kernel) = shrink(inds, calculate_padding(kernel))
 shrink(inds::Indices, pad::Indices) = firsttype(map_copytail(shrink, inds, pad))
 shrink(ind::AbstractUnitRange, pad::AbstractUnitRange) = oftype(ind, first(ind)-first(pad):last(ind)-last(pad))
 shrink(ind::Base.OneTo, pad::AbstractUnitRange) = shrink(UnitRange(ind), pad)
