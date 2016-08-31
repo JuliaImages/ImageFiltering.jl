@@ -17,15 +17,28 @@ end
 
 ## imgradients
 """
-    imgradients(img, [points], [method], [border]) -> g1, g2, ...
+```
+imgradients(img, [points], [method], [border])
+```
 
-Performs edge detection filtering of the N-dimensional array `img`.
+Performs edge detection filtering in the N-dimensional array `img`.
 Gradients are computed at specified `points` (or indexes) in the
-array or everywhere. Available methods: `"sobel"` and `"ando3"`.
+array or everywhere.
+
+Available methods for 2D images: `"sobel"`, `"prewitt"`, `"ando3"`, `"ando4"`,
+                                 `"ando5"`, `"ando4_sep"`, `"ando5_sep"`.
+
+Available methods for ND images: `"sobel"`, `"prewitt"`, `"ando3"`, `"ando4"`.
+
 Border options:`"replicate"`, `"circular"`, `"reflect"`, `"symmetric"`.
-Returns a 2D array `G` with the gradients as rows. The number of rows
-is the number of points at which the gradient was computed and the
-number of columns is the dimensionality of the array.
+
+If `points` is specified, returns a 2D array `G` with the
+gradients as rows. The number of rows is the number of
+points at which the gradient was computed and the number
+of columns is the dimensionality of the array.
+
+If `points` is ommitted, returns a tuple of arrays, each
+of the same size of the input image: (gradx, grady, ...)
 """
 function imgradients{T,N}(img::AbstractArray{T,N}, points::AbstractVector;
                           method::AbstractString="ando3", border::AbstractString="replicate")
