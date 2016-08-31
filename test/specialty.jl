@@ -3,6 +3,21 @@ using Base.Test
 
 @testset "specialty" begin
     @testset "Laplacian" begin
+        L1 = OffsetArray([1,-2,1],-1:1)
+        L2 = OffsetArray([0 1 0; 1 -4 1; 0 1 0], -1:1, -1:1)
+        kern = Kernel.Laplacian((true,))
+        @test !isempty(kern)
+        @test convert(AbstractArray, kern) == L1
+        kern = Kernel.Laplacian()
+        @test convert(AbstractArray, kern) == L2
+        kern = Kernel.Laplacian((true,false))
+        @test convert(AbstractArray, kern) == reshape(L1, -1:1, 0:0)
+        kern = Kernel.Laplacian((false,true))
+        @test convert(AbstractArray, kern) == reshape(L1, 0:0, -1:1)
+        kern = Kernel.Laplacian([1], 2)
+        @test convert(AbstractArray, kern) == reshape(L1, -1:1, 0:0)
+        kern = Kernel.Laplacian([2], 2)
+        @test convert(AbstractArray, kern) == reshape(L1, 0:0, -1:1)
         function makeimpulse(T, sz, x)
             A = zeros(T, sz)
             A[x] = one(T)
@@ -10,12 +25,19 @@ using Base.Test
         end
         # 1d
         kern = Kernel.Laplacian((true,))
-        @test convert(AbstractArray, kern) == OffsetArray([1,-2,1],-1:1)
         for a in (makeimpulse(Float64, (5,), 3),
+                  makeimpulse(Int, (5,), 3),
+                  makeimpulse(UInt32, (5,), 3),
+                  makeimpulse(UInt16, (5,), 3),
+                  makeimpulse(UInt8, (5,), 3),
+                  makeimpulse(Bool, (5,), 3),
                   makeimpulse(Gray{U8}, (5,), 3),
-                  makeimpulse(RGB{Float32}, (5,), 3))
+                  makeimpulse(RGB{Float32}, (5,), 3),
+                  makeimpulse(RGB{U8}, (5,), 3))
             af = imfilter(a, kern)
             T = eltype(a)
+            @test af == [zero(T),a[3],-2a[3],a[3],zero(T)]
+            af = imfilter(a, (kern,))
             @test af == [zero(T),a[3],-2a[3],a[3],zero(T)]
         end
         for a in (makeimpulse(Float64, (5,), 1),
@@ -124,6 +146,59 @@ using Base.Test
                              z z z z edgecoef*c]
             end
         end
+    end
+
+    @testset "gaussian" begin
+        function gaussiancmp(σ, xr)
+            cmp = [exp(-x^2/(2σ^2)) for x in xr]
+            OffsetArray(cmp/sum(cmp), xr)
+        end
+        @test_approx_eq KernelFactors.gaussian(2, 9) gaussiancmp(2, -4:4)
+        k = KernelFactors.gaussian((2,3), (9,7))
+        @test_approx_eq vec(k[1]) gaussiancmp(2, -4:4)
+        @test_approx_eq vec(k[2]) gaussiancmp(3, -3:3)
+        @test_approx_eq sum(KernelFactors.gaussian(5)) 1
+        for k = (KernelFactors.gaussian((2,3)), KernelFactors.gaussian([2,3]), KernelFactors.gaussian([2,3], [9,7]))
+            @test_approx_eq sum(k[1]) 1
+            @test_approx_eq sum(k[2]) 1
+        end
+        @test_approx_eq Kernel.gaussian((2,), (9,)) gaussiancmp(2, -4:4)
+        @test_approx_eq Kernel.gaussian((2,3), (9,7)) gaussiancmp(2, -4:4).*gaussiancmp(3, -3:3)'
+        @test_approx_eq sum(Kernel.gaussian(5)) 1
+        for k = (Kernel.gaussian((2,3)), Kernel.gaussian([2,3]), Kernel.gaussian([2,3], [9,7]))
+            @test_approx_eq sum(k) 1
+        end
+    end
+
+    @testset "DoG" begin
+        function gaussiancmp(σ, xr)
+            cmp = [exp(-x^2/(2σ^2)) for x in xr]
+            OffsetArray(cmp/sum(cmp), xr)
+        end
+        @test_approx_eq Kernel.DoG((2,), (3,), (9,)) gaussiancmp(2, -4:4) - gaussiancmp(3, -4:4)
+        k = Kernel.DoG((2,3), (4,3.5), (9,7))
+        k1 = gaussiancmp(2, -4:4) .* gaussiancmp(3, -3:3)'
+        k2 = gaussiancmp(4, -4:4) .* gaussiancmp(3.5, -3:3)'
+        @test_approx_eq k k1-k2
+        @test abs(sum(Kernel.DoG(5))) < 1e-8
+        @test Kernel.DoG(5) == Kernel.DoG((5,5))
+        @test abs(sum(Kernel.DoG((5,), (7,), (21,)))) < 1e-8
+        @test indices(Kernel.DoG((5,), (7,), (21,))) == (-10:10,)
+    end
+
+    @testset "LoG" begin
+        img = rand(20,21)
+        σs = (2.5, 3.2)
+        kernel1 = Kernel.LoG(σs)
+        kernel2 = (KernelFactors.IIRGaussian(σs)..., Kernel.Laplacian())
+        imgf1 = imfilter(img, kernel1)
+        imgf2 = imfilter(img, kernel2)
+        @test cor(vec(imgf1), vec(imgf2)) > 0.8
+        # Ensure that edge-trimming under successive stages of filtering works correctly
+        ImagesFiltering.fillbuf_nan[] = true
+        kernel3 = (Kernel.Laplacian(), KernelFactors.IIRGaussian(σs)...)
+        @test !any(isnan, imfilter(img, kernel3))
+        ImagesFiltering.fillbuf_nan[] = false
     end
 end
 

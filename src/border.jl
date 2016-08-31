@@ -4,14 +4,20 @@ using OffsetArrays, CatIndices
 
 abstract AbstractBorder
 
-immutable NoPad <: AbstractBorder end
+immutable NoPad{T} <: AbstractBorder
+    border::T
+end
+NoPad() = NoPad(nothing)
 
 """
     NoPad()
+    NoPad(border)
 
-Indicates that no padding should be applied to the input array.
+Indicates that no padding should be applied to the input array. Passing a `border` object allows you to preserve "memory" of a border choice; it can be retrieved by indexing with `[]`.
 """
 NoPad
+
+Base.getindex(np::NoPad) = np.border
 
 """
 `Pad{Style,N}` is a type that stores choices about padding. `Style` is a
@@ -47,6 +53,7 @@ Pad the input image symmetrically, `m` pixels at the lower and upper edge of dim
 
 Pad the input image symmetrically, `m` pixels at the lower and upper edge of dimension 1, `n` pixels for dimension 2.
 """
+(::Type{Pad{Style}}){Style}(::Tuple{}) = Pad{Style}()
 (::Type{Pad{Style}}){Style,N}(both::Dims{N}) = Pad{Style,N}(both, both)
 
 (::Type{Pad{Style}}){Style  }(lo::Tuple{}, hi::Tuple{}) = Pad{Style,0}(lo, hi)
@@ -71,15 +78,12 @@ Pad the input image by `lo` pixels at the lower edge, and `hi` pixels at the upp
 
 Given a filter array `kernel`, determine the amount of padding from the `indices` of `kernel`.
 """
-(p::Pad{Style,0}){Style}(kernel::AbstractArray) = Pad{Style}(indices(kernel))
-(p::Pad{Style,0}){Style}(kernel::Laplacian) = Pad{Style}(indices(kernel))
-(p::Pad{Style,0}){Style}(factkernel::Tuple) = Pad{Style}(accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
-(p::Pad{Style,0}){Style}(factkernel::Tuple, img, ::FIR) = p(factkernel)
-(p::Pad{Style,0}){Style}(kernel::Laplacian, img, ::FIR) = p(kernel)
+(p::Pad{Style,0}){Style}(kernel) = Pad{Style}(calculate_padding(kernel))
+(p::Pad{Style,0}){Style}(kernel, img, ::Alg) = p(kernel)
 
 # Padding for FFT: round up to next size expressible as 2^m*3^n
-function (p::Pad{Style,0}){Style}(factkernel::Tuple, img, ::FFT)
-    inds = accumulate_padding(indices(factkernel[1]), tail(factkernel)...)
+function (p::Pad{Style,0}){Style}(kernel, img, ::FFT)
+    inds = calculate_padding(kernel)
     newinds = map(padfft, inds, map(length, indices(img)))
     Pad{Style}(newinds)
 end
@@ -124,8 +128,12 @@ padarray(img::AbstractArray, border::Pad)  = padarray(eltype(img), img, border)
 function padarray{T}(::Type{T}, img::AbstractArray, border::Pad)
     inds = padindices(img, border)
     # like img[inds...] except that we can control the element type
-    dest = similar(img, T, map(Base.indices1, inds))
-    Base._unsafe_getindex!(dest, img, inds...)
+    newinds = map(Base.indices1, inds)
+    dest = similar(img, T, newinds)
+    @unsafe for I in CartesianRange(newinds)
+        J = CartesianIndex(map((i,x)->x[i], I.I, inds))
+        dest[I] = img[J]
+    end
     dest
 end
 padarray{P}(img, ::Type{P}) = img[padindices(img, P)...]      # just to throw the nice error
@@ -147,14 +155,12 @@ end
 (::Type{Inner{N}}){N}(lo::AbstractVector, hi::AbstractVector) = Inner{N}((lo...,), (hi...,))
 (::Type{Inner})(lo::AbstractVector, hi::AbstractVector) = Inner((lo...,), (hi...,)) # not inferrable
 
-(p::Inner{0})(factkernel::Tuple, img, ::FIR) = p(factkernel)
-(p::Inner{0})(factkernel::Tuple, img, ::FFT) = p(factkernel)
-(p::Inner{0})(factkernel::Tuple) = Inner(accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
-(p::Inner{0})(kernel::AbstractArray) = Inner(indices(kernel))
+(p::Inner{0})(kernel, img, ::Alg) = p(kernel)
+(p::Inner{0})(kernel) = Inner(calculate_padding(kernel))
 
 padarray(img, border::Inner) = padarray(eltype(img), img, border)
 padarray{T}(::Type{T}, img::AbstractArray{T}, border::Inner) = copy(img)
-padarray{T}(::Type{T}, img::AbstractArray, border::Inner) = convert(Array{T}, img)
+padarray{T}(::Type{T}, img::AbstractArray, border::Inner) = copy!(similar(Array{T}, indices(img)), img)
 
 """
     Fill(val)
@@ -177,13 +183,12 @@ Fill{T}(value::T) = Fill{T,0}(value)
 Fill{T,N}(value::T, lo::Dims{N}, hi::Dims{N}) = Fill{T,N}(value, lo, hi)
 Fill(value, lo::AbstractVector, hi::AbstractVector) = Fill(value, (lo...,), (hi...,))
 Fill{T,N}(value::T, inds::Base.Indices{N}) = Fill{T,N}(value, map(lo,inds), map(hi,inds))
-Fill(value, kernel::AbstractArray) = Fill(value, indices(kernel))
-Fill(value, factkernel::Tuple) = Fill(value, accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
+Fill(value, kernel) = Fill(value, calculate_padding(kernel))
 
-(p::Fill)(kernel::AbstractArray, img, ::FIR) = Fill(p.value, kernel)
-(p::Fill)(factkernel::Tuple, img, ::FIR) = Fill(p.value, factkernel)
-function (p::Fill)(factkernel::Tuple, img, ::FFT)
-    inds = accumulate_padding(indices(factkernel[1]), tail(factkernel)...)
+(p::Fill)(kernel) = Fill(p.value, kernel)
+(p::Fill)(kernel, img, ::Alg) = Fill(p.value, kernel)
+function (p::Fill)(kernel, img, ::FFT)
+    inds = calculate_padding(kernel)
     newinds = map(padfft, inds, map(length, indices(img)))
     Fill(p.value, newinds)
 end
@@ -243,19 +248,35 @@ function extend(lo::Integer, inds::AbstractUnitRange, hi::Integer)
     OffsetArray(newind, newind)
 end
 
-# @inline flatten(t::Tuple) = _flatten(t...)
-# @inline _flatten(t1::Tuple, t...) = (flatten(t1)..., flatten(t)...)
-# @inline _flatten(t1,        t...) = (t1, flatten(t)...)
-# _flatten() = ()
+calculate_padding(kernel) = indices(kernel)
+@inline function calculate_padding(kernel::Tuple{Any, Vararg{Any}})
+    inds = accumulate_padding(indices(kernel[1]), tail(kernel)...)
+    if hasiir(kernel) && hasfir(kernel)
+        inds = map(doublepadding, inds)
+    end
+    inds
+end
 
-accumulate_padding(inds::Indices, kernel1::AbstractArray, kernels...) =
-    accumulate_padding(_accumulate_padding(inds, indices(kernel1)), kernels...)
-accumulate_padding(inds) = inds
-_accumulate_padding(inds1, inds2) = (__accumulate_padding(inds1[1], inds2[1]), _accumulate_padding(tail(inds1), tail(inds2))...)
-_accumulate_padding(::Tuple{}, ::Tuple{}) = ()
-_accumulate_padding(::Tuple{}, inds2) = inds2
-_accumulate_padding(inds1, ::Tuple{}) = inds1
-__accumulate_padding(ind1, ind2) = first(ind1)+min(0,first(ind2)):last(ind1)+max(0,last(ind2))
+hasiir(kernel) = _hasiir(false, kernel...)
+_hasiir(ret) = ret
+_hasiir(ret, kern, kernel...) = _hasiir(ret, kernel...)
+_hasiir(ret, kern::AnyIIR, kernel...) = true
+
+hasfir(kernel) = _hasfir(false, kernel...)
+_hasfir(ret) = ret
+_hasfir(ret, kern, kernel...) = true
+_hasfir(ret, kern::AnyIIR, kernel...) = _hasfir(ret, kernel...)
+
+function doublepadding(ind::AbstractUnitRange)
+    f, l = first(ind), last(ind)
+    f = f < 0 ? 2f : f
+    l = l > 0 ? 2l : l
+    f:l
+end
+
+accumulate_padding(inds::Indices, kernel1, kernels...) =
+    accumulate_padding(expand(inds, indices(kernel1)), kernels...)
+accumulate_padding(inds::Indices) = inds
 
 modrange(x, r::AbstractUnitRange) = mod(x-first(r), length(r))+first(r)
 modrange(A::AbstractArray, r::AbstractUnitRange) = map(x->modrange(x, r), A)
@@ -263,15 +284,64 @@ modrange(A::AbstractArray, r::AbstractUnitRange) = map(x->modrange(x, r), A)
 arraytype{T}(A::AbstractArray, ::Type{T}) = Array{T}  # fallback
 arraytype(A::BitArray, ::Type{Bool}) = BitArray
 
-interior(r::AbstractResource{FFT}, A::AbstractArray, kernel) = indices(A)  # periodic boundary conditions
-interior(r::AbstractResource, A::AbstractArray, kernel) = interior(A, kernel)
-
-interior(A::AbstractArray, kernel::Union{AbstractArray,Laplacian}) = _interior(indices(A), indices(kernel))
+interior(A, kernel) = _interior(indices(A), indices(kernel))
 interior(A, factkernel::Tuple) = _interior(indices(A), accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 function _interior{N}(indsA::NTuple{N}, indsk)
     indskN = fill_to_length(indsk, 0:0, Val{N})
-    CartesianRange(CartesianIndex(map((ia,ik)->first(ia) + lo(ik), indsA, indskN)),
-                   CartesianIndex(map((ia,ik)->last(ia)  - hi(ik), indsA, indskN)))
+    map(intersect, indsA, shrink(indsA, indsk))
 end
+
+next_shrink(inds::Indices, ::Tuple{}) = inds
+function next_shrink(inds::Indices, kernel::Tuple)
+    kern = first(kernel)
+    iscopy(kern) && return next_shrink(inds, tail(kernel))
+    shrink(inds, kern)
+end
+
+"""
+    expand(inds::Indices, kernel)
+    expand(inds::Indices, indskernel::Indices)
+
+Expand an image region `inds` to account for necessary padding by `kernel`.
+"""
+expand(inds::Indices, kernel) = expand(inds, calculate_padding(kernel))
+expand(inds::Indices, pad::Indices) = firsttype(map_copytail(expand, inds, pad))
+expand(ind::AbstractUnitRange, pad::AbstractUnitRange) = oftype(ind, first(ind)+first(pad):last(ind)+last(pad))
+expand(ind::Base.OneTo, pad::AbstractUnitRange) = expand(UnitRange(ind), pad)
+
+"""
+    shrink(inds::Indices, kernel)
+    shrink(inds::Indices, indskernel)
+
+Remove edges from an image region `inds` that correspond to padding needed for `kernel`.
+"""
+shrink(inds::Indices, kernel) = shrink(inds, calculate_padding(kernel))
+shrink(inds::Indices, pad::Indices) = firsttype(map_copytail(shrink, inds, pad))
+shrink(ind::AbstractUnitRange, pad::AbstractUnitRange) = oftype(ind, first(ind)-first(pad):last(ind)-last(pad))
+shrink(ind::Base.OneTo, pad::AbstractUnitRange) = shrink(UnitRange(ind), pad)
+
+allocate_output{T}(::Type{T}, img, kernel, border) = similar(img, T)
+function allocate_output{T}(::Type{T}, img, kernel, ::Inner{0})
+    inds = interior(img, kernel)
+    similar(img, T, inds)
+end
+allocate_output(img, kernel, border) = allocate_output(filter_type(img, kernel), img, kernel, border)
+
+"""
+    map_copytail(f, a::Tuple, b::Tuple)
+
+Apply `f` to paired elements of `a` and `b`, copying any tail elements
+when the lengths of `a` and `b` are not equal.
+"""
+@inline map_copytail(f, a::Tuple, b::Tuple) = (f(a[1], b[1]), map_copytail(f, tail(a), tail(b))...)
+map_copytail(f, a::Tuple{}, b::Tuple{}) = ()
+map_copytail(f, a::Tuple, b::Tuple{}) = a
+map_copytail(f, a::Tuple{}, b::Tuple) = b
+
+function firsttype(t::Tuple)
+    T = typeof(t[1])
+    map(T, t)
+end
+firsttype(::Tuple{}) = ()
 
 # end

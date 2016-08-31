@@ -4,22 +4,69 @@ using StaticArrays, OffsetArrays
 using ..ImagesFiltering: centered, KernelFactors
 import ..ImagesFiltering: _reshape
 
-"""
-`kern1, kern2 = ando3()` returns optimal 3x3 gradient filters for dimensions 1 and 2 of your image, as defined in
-Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.
-
-See also: KernelFactors.ando3, Kernel.ando4, Kernel.ando5.
-"""
-function ando3()
-    k1, k2 = KernelFactors.ando3()
+function product2d(kf)
+    k1, k2 = kf
     k1[1].*k1[2], k2[1].*k2[2]
 end
 
 """
-`kern1, kern2 = ando4()` returns optimal 4x4 gradient filters for dimensions 1 and 2 of your image, as defined in
-Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.
+    diff1, diff2 = sobel()
 
-See also: `KernelFactors.ando4`, `Kernel.ando3`, `Kernel.ando5`.
+Return kernels for two-dimensional gradient compution using the Sobel
+operator. `diff1` computes the gradient along the first (y) dimension,
+and `diff2` computes the gradient along the second (x) dimension.
+
+See also: KernelFactors.sobel, Kernel.prewitt, Kernel.ando.
+"""
+sobel() = product2d(KernelFactors.sobel())
+
+sobel{N}(::Type{Val{N}},d,extent=trues(N)) = (broadcast(*, KernelFactors.sobel(Val{N},d,extent)...),)
+
+"""
+    diff1, diff2 = prewitt()
+
+Return kernels for two-dimensional gradient compution using the
+Prewitt operator.  `diff1` computes the gradient along the first (y)
+dimension, and `diff2` computes the gradient along the second (x)
+dimension.
+
+See also: KernelFactors.prewitt, Kernel.sobel, Kernel.ando.
+"""
+prewitt() = product2d(KernelFactors.prewitt())
+
+prewitt{N}(::Type{Val{N}},d,extent=trues(N)) = (broadcast(*, KernelFactors.prewitt(Val{N},d,extent)...),)
+
+"""
+    diff1, diff2 = ando3()
+
+Return 3x3 kernels for two-dimensional gradient compution using the
+optimal "Ando" filters.  `diff1` computes the gradient along the
+y-axis (first dimension), and `diff2` computes the gradient along the
+x-axis (second dimension).
+
+# Citation
+Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
+2000
+
+See also: KernelFactors.ando3, Kernel.ando4, Kernel.ando5.
+"""
+ando3() = product2d(KernelFactors.ando3())
+
+ando3{N}(::Type{Val{N}},d,extent=trues(N)) = (broadcast(*, KernelFactors.ando3(Val{N},d,extent)...),)
+
+"""
+    diff1, diff2 = ando4()
+
+Return 4x4 kernels for two-dimensional gradient compution using the
+optimal "Ando" filters.  `diff1` computes the gradient along the
+y-axis (first dimension), and `diff2` computes the gradient along the
+x-axis (second dimension).
+
+# Citation
+Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
+2000
+
+See also: KernelFactors.ando4, Kernel.ando3, Kernel.ando5.
 """
 function ando4()
     f = centered(@SMatrix [ -0.022116 -0.025526  0.025526  0.022116
@@ -29,9 +76,25 @@ function ando4()
     return f', f
 end
 
+function ando4{N}(::Type{Val{N}}, d, extent=trues(N))
+    if N == 2 && all(extent)
+        return (ando4()[d],)
+    else
+        error("dimensions other than 2 are not yet supported")
+    end
+end
+
 """
-`kern1, kern2 = ando5()` returns optimal 5x5 gradient filters for dimensions 1 and 2 of your image, as defined in
-Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.
+    diff1, diff2 = ando5()
+
+Return 5x5 kernels for two-dimensional gradient compution using the
+optimal "Ando" filters.  `diff1` computes the gradient along the
+y-axis (first dimension), and `diff2` computes the gradient along the
+x-axis (second dimension).
+
+# Citation
+Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
+2000
 
 See also: `KernelFactors.ando5`, `Kernel.ando3`, `Kernel.ando4`.
 """
@@ -42,6 +105,14 @@ function ando5()
                             -0.026786 -0.070844  0.0  0.070844  0.026786
                             -0.003776 -0.010199  0.0  0.010199  0.003776 ])
     return f', f
+end
+
+function ando5{N}(::Type{Val{N}}, d, extent)
+    if N == 2 && all(extent)
+        return (ando5()[d],)
+    else
+        error("dimensions other than 2 are not yet supported")
+    end
 end
 
 """
@@ -58,20 +129,23 @@ constructed.
 See also: KernelFactors.gaussian.
 """
 @inline gaussian{N}(σs::NTuple{N,Real}, ls::NTuple{N,Integer}) =
-    broadcast(.*, KernelFactors.gaussian(σs, ls)...)
+    broadcast(*, KernelFactors.gaussian(σs, ls)...)
 gaussian(σ::Tuple{Real}, l::Tuple{Integer}) = KernelFactors.gaussian(σ[1], l[1])
 gaussian(σ::Tuple{}, l::Tuple{}) = reshape([1])  # 0d
+gaussian{T<:Real,I<:Integer}(σs::AbstractVector{T}, ls::AbstractVector{I}) =
+    gaussian((σs...,), (ls...,))
 
-@inline gaussian{N}(σs::NTuple{N,Real}) = broadcast(.*, KernelFactors.gaussian(σs)...)
+@inline gaussian{N}(σs::NTuple{N,Real}) = broadcast(*, KernelFactors.gaussian(σs)...)
+gaussian{T<:Real}(σs::AbstractVector{T}) = gaussian((σs...,))
 gaussian(σ::Tuple{Real}) = KernelFactors.gaussian(σ[1])
 gaussian(σ::Tuple{}) = reshape([1])
 
 gaussian(σ::Real) = gaussian((σ, σ))
 
 """
-    DoG((σp1, σp2, ...), (σm1, σm2, ...), [l]) -> k
-    DoG((σ1, σ2, ...))                         -> k
-    DoG(σ::Real)                               -> k
+    DoG((σp1, σp2, ...), (σm1, σm2, ...), [l1, l2, ...]) -> k
+    DoG((σ1, σ2, ...))                                   -> k
+    DoG(σ::Real)                                         -> k
 
 Construct a multidimensional difference-of-gaussian kernel `k`, equal
 to `gaussian(σp, l)-gaussian(σm, l)`.  When only a single `σ` is
@@ -110,13 +184,13 @@ function LoG{N}(σs::NTuple{N})
     σ = SVector(σs)
     C = 1/(prod(σ)*(2π)^(N/2))
     σ2 = σ.^2
-    iσ4 = sum(1./σ2.^2)
-    function df(I::CartesianIndex, σ2, iσ4)
+    σ2i = sum(1./σ2)
+    function df(I::CartesianIndex, σ2, σ2i)
         x = SVector(I.I)
-        xσ = sum(x.^2./σ2)
-        (xσ - iσ4) * exp(-xσ/2)
+        xσ = x.^2./σ2
+        (sum(xσ./σ2) - σ2i) * exp(-sum(xσ)/2)
     end
-    centered([C*df(I, σ2, iσ4) for I in R])
+    centered([C*df(I, σ2, σ2i) for I in R])
 end
 LoG(σ::Real) = LoG((σ,σ))
 
@@ -163,7 +237,7 @@ end
 Base.indices(L::Laplacian) = map(f->f ? (-1:1) : (0:0), L.flags)
 Base.isempty(L::Laplacian) = false
 function Base.convert{N}(::Type{AbstractArray}, L::Laplacian{N})
-    A = zeros(Int, indices(L)...)
+    A = fill!(OffsetArray{Int}(indices(L)), 0)
     for I in L.offsets
         A[I] = A[-I] = 1
     end

@@ -6,9 +6,12 @@ asa = detect_ambiguities(StaticArrays, Base)
 @test isempty(setdiff(aif, asa))
 
 include("border.jl")
+include("nd.jl")
 include("2d.jl")
+include("triggs.jl")
 include("cascade.jl")
 include("specialty.jl")
+include("basic.jl")
 include("deprecated.jl")
 
 nothing
