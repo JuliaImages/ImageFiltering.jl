@@ -20,7 +20,7 @@ See also: KernelFactors.sobel, Kernel.prewitt, Kernel.ando.
 """
 sobel() = product2d(KernelFactors.sobel())
 
-sobel{N}(::Type{Val{N}},d,extent=trues(N)) = (broadcast(*, KernelFactors.sobel(Val{N},d,extent)...),)
+sobel(extended, d) = (broadcast(*, KernelFactors.sobel(extended, d)...),)
 
 """
     diff1, diff2 = prewitt()
@@ -34,7 +34,7 @@ See also: KernelFactors.prewitt, Kernel.sobel, Kernel.ando.
 """
 prewitt() = product2d(KernelFactors.prewitt())
 
-prewitt{N}(::Type{Val{N}},d,extent=trues(N)) = (broadcast(*, KernelFactors.prewitt(Val{N},d,extent)...),)
+prewitt(extended, d) = (broadcast(*, KernelFactors.prewitt(extended, d)...),)
 
 """
     diff1, diff2 = ando3()
@@ -52,7 +52,7 @@ See also: KernelFactors.ando3, Kernel.ando4, Kernel.ando5.
 """
 ando3() = product2d(KernelFactors.ando3())
 
-ando3{N}(::Type{Val{N}},d,extent=trues(N)) = (broadcast(*, KernelFactors.ando3(Val{N},d,extent)...),)
+ando3(extended, d) = (broadcast(*, KernelFactors.ando3(extended, d)...),)
 
 """
     diff1, diff2 = ando4()
@@ -76,12 +76,9 @@ function ando4()
     return f', f
 end
 
-function ando4{N}(::Type{Val{N}}, d, extent=trues(N))
-    if N == 2 && all(extent)
-        return (ando4()[d],)
-    else
-        error("dimensions other than 2 are not yet supported")
-    end
+function ando4(extended::Tuple{Bool,Bool}, d)
+    all(extended) || error("all dimensions must be extended")
+    (ando4()[d],)
 end
 
 """
@@ -107,12 +104,9 @@ function ando5()
     return f', f
 end
 
-function ando5{N}(::Type{Val{N}}, d, extent)
-    if N == 2 && all(extent)
-        return (ando5()[d],)
-    else
-        error("dimensions other than 2 are not yet supported")
-    end
+function ando5(extended::Tuple{Bool,Bool}, d)
+    all(extended) || error("all dimensions must be extended")
+    (ando5()[d],)
 end
 
 """

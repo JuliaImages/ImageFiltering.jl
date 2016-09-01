@@ -129,7 +129,7 @@ function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKern
 end
 
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny, alg::Alg)
-    imfilter!(CPU1(alg), out, img, kernel, border)
+    imfilter!(default_resource(alg), out, img, kernel, border)
 end
 
 """
@@ -484,7 +484,7 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern, b
     out
 end
 
-function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::ReshapedVector, border::NoPad, inds)
+function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::ReshapedOneD, border::NoPad, inds)
     Rpre, ind, Rpost = iterdims(inds, kern)
     k = kern.data
     R, Rk = CartesianRange(inds), CartesianRange(indices(kern))
@@ -927,7 +927,7 @@ end
 
 # Note this is not type-stable. Fortunately, all the outputs are
 # allocated by the time this gets called.
-function filter_algorithm(out, img, kernel::Union{AbstractArray,Tuple{Vararg{AbstractArray}}})
+function filter_algorithm(out, img, kernel::Union{ArrayType,Tuple{Vararg{ArrayType}}})
     L = maxlen(kernel)
     if L > 30
         return FFT()
@@ -943,6 +943,7 @@ _maxlen(len, kernel1, kernel...) = _maxlen(max(len, _length(kernel1)), kernel...
 _maxlen(len) = len
 
 _length(A::AbstractArray) = length(linearindices(A))
+_length(A::ReshapedVector) = _length(A.data)
 
 isseparable(kernels::Tuple{Vararg{AnyIIR}}) = true
 isseparable(kernels::Tuple) = all(x->nextendeddims(x)==1, kernels)
@@ -980,7 +981,7 @@ end
 iscopy(kernel::AbstractArray) = all(x->x==0:0, indices(kernel)) && first(kernel) == 1
 iscopy(kernel::Laplacian) = false
 iscopy(kernel::TriggsSdika) = all(x->x==0, kernel.a) && all(x->x==0, kernel.b) && kernel.scale == 1
-iscopy(kernel::ReshapedVector) = iscopy(kernel.data)
+iscopy(kernel::ReshapedOneD) = iscopy(kernel.data)
 
 kernelconv(kernel) = kernel
 function kernelconv(k1, k2, kernels...)
@@ -995,6 +996,9 @@ function kernelconv(k1, k2, kernels...)
     end
     kernelconv(out, kernels...)
 end
+
+default_resource(alg::FIR) = Threads.nthreads() > 1 ? CPUThreads(alg) : CPU1(alg)
+default_resource(alg) = CPU1(alg)
 
 ## Tiling utilities
 

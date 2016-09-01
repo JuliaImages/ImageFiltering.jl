@@ -30,17 +30,19 @@ Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
 
 include("utils.jl")
 include("kernelfactors.jl")
-using .KernelFactors: TriggsSdika, IIRFilter, ReshapedVector, iterdims
+using .KernelFactors: TriggsSdika, IIRFilter, ReshapedOneD, iterdims
 
-typealias ArrayLike{T} Union{AbstractArray{T}, IIRFilter{T}, ReshapedVector{T}}
-typealias ReshapedIIR{T,N,Npre,V<:IIRFilter} ReshapedVector{T,N,Npre,V}
-typealias AnyIIR Union{IIRFilter, ReshapedIIR}
+typealias ReshapedVector{T,N,Npre,V<:AbstractVector} ReshapedOneD{T,N,Npre,V}
+typealias ArrayType{T} Union{AbstractArray{T}, ReshapedVector{T}}
+typealias ReshapedIIR{T,N,Npre,V<:IIRFilter} ReshapedOneD{T,N,Npre,V}
+typealias AnyIIR{T} Union{IIRFilter{T}, ReshapedIIR{T}}
+typealias ArrayLike{T} Union{ArrayType{T}, AnyIIR{T}}
 
 include("kernel.jl")
 using .Kernel
 using .Kernel: Laplacian
 
-typealias NDimKernel{N,K} Union{AbstractArray{K,N},ReshapedVector{K,N},Laplacian{N}}
+typealias NDimKernel{N,K} Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N}}
 
 include("border.jl")
 

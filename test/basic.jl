@@ -4,7 +4,7 @@ using ImagesFiltering, OffsetArrays, Base.Test
     @test eltype(KernelFactors.IIRGaussian(3)) == Float64
     @test eltype(KernelFactors.IIRGaussian(Float32, 3)) == Float32
     kern = KernelFactors.IIRGaussian([1,2.0f0])
-    @test isa(kern, Tuple{KernelFactors.ReshapedVector,KernelFactors.ReshapedVector})
+    @test isa(kern, Tuple{KernelFactors.ReshapedOneD,KernelFactors.ReshapedOneD})
     @test isa(ImagesFiltering.filter_algorithm([1],[1],kern), Algorithm.IIR)
     @test isa(ImagesFiltering.filter_algorithm([1],[1],(kern...,Kernel.Laplacian())), Algorithm.Mixed)
 

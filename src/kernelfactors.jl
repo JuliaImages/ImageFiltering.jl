@@ -10,7 +10,7 @@ abstract IIRFilter{T}
 Base.eltype{T}(kernel::IIRFilter{T}) = T
 
 """
-    ReshapedVector{N,Npre}(data)
+    ReshapedOneD{N,Npre}(data)
 
 Return an object of dimensionality `N`, where `data` must have
 dimensionality 1. The indices are `0:0` for the first `Npre`
@@ -20,77 +20,78 @@ dimensions, have the indices of `data` for dimension `Npre+1`, and are
 `data` must support `eltype` and `ndims`, but does not have to be an
 AbstractArray.
 
-ReshapedVectors allow one to specify a "filtering dimension" for a
+ReshapedOneDs allow one to specify a "filtering dimension" for a
 1-dimensional filter.
 """
-immutable ReshapedVector{T,N,Npre,V}  # not <: AbstractArray{T,N} (more general, incl. IIR)
+immutable ReshapedOneD{T,N,Npre,V}  # not <: AbstractArray{T,N} (more general, incl. IIR)
     data::V
 
-    function ReshapedVector(data::V)
+    function ReshapedOneD(data::V)
         ndims(V) == 1 || throw(DimensionMismatch("must be one dimensional, got $(ndims(V))"))
         new(data)
     end
 end
 
-(::Type{ReshapedVector{N,Npre}}){N,Npre,V}(data::V) = ReshapedVector{eltype(data),N,Npre,V}(data)
+(::Type{ReshapedOneD{N,Npre}}){N,Npre,V}(data::V) = ReshapedOneD{eltype(data),N,Npre,V}(data)
 # Convenient loop constructor that uses dummy NTuple{N,Bool} to keep
 # track of dimensions for type-stability
-@inline function ReshapedVector{Npre,Npost}(pre::NTuple{Npre,Bool}, data, post::NTuple{Npost,Bool})
+@inline function ReshapedOneD{Npre,Npost}(pre::NTuple{Npre,Bool}, data, post::NTuple{Npost,Bool})
     total = (pre..., true, post...)
     _reshapedvector(total, pre, data)
 end
-_reshapedvector{N,Npre}(::NTuple{N,Bool}, ::NTuple{Npre,Bool}, data) = ReshapedVector{eltype(data),N,Npre,typeof(data)}(data)
+_reshapedvector{N,Npre}(::NTuple{N,Bool}, ::NTuple{Npre,Bool}, data) = ReshapedOneD{eltype(data),N,Npre,typeof(data)}(data)
 
-# Give ReshapedVector many of the characteristics of AbstractArray
-Base.eltype{T}(A::ReshapedVector{T}) = T
-Base.ndims{_,N}(A::ReshapedVector{_,N}) = N
-Base.isempty(A::ReshapedVector) = isempty(A.data)
+# Give ReshapedOneD many of the characteristics of AbstractArray
+Base.eltype{T}(A::ReshapedOneD{T}) = T
+Base.ndims{_,N}(A::ReshapedOneD{_,N}) = N
+Base.isempty(A::ReshapedOneD) = isempty(A.data)
 
-@inline Base.indices{_,N,Npre}(A::ReshapedVector{_,N,Npre}) = Base.fill_to_length((Base.ntuple(d->0:0, Val{Npre})..., UnitRange(Base.indices1(A.data))), 0:0, Val{N})
+@inline Base.indices{_,N,Npre}(A::ReshapedOneD{_,N,Npre}) = Base.fill_to_length((Base.ntuple(d->0:0, Val{Npre})..., UnitRange(Base.indices1(A.data))), 0:0, Val{N})
 
-Base.start(A::ReshapedVector) = start(A.data)
-Base.next(A::ReshapedVector, state) = next(A.data, state)
-Base.done(A::ReshapedVector, state) = done(A.data, state)
+Base.start(A::ReshapedOneD) = start(A.data)
+Base.next(A::ReshapedOneD, state) = next(A.data, state)
+Base.done(A::ReshapedOneD, state) = done(A.data, state)
 
-@inline function Base.getindex(A::ReshapedVector, i::Int)
+@inline function Base.getindex(A::ReshapedOneD, i::Int)
     @boundscheck checkbounds(A.data, i)
     @inbounds ret = A.data[i]
     ret
 end
-@inline function Base.getindex{T,N,Npre}(A::ReshapedVector{T,N,Npre}, I::Vararg{Int,N})
+@inline function Base.getindex{T,N,Npre}(A::ReshapedOneD{T,N,Npre}, I::Vararg{Int,N})
     @boundscheck checkbounds_indices(Bool, indices(A), I) || throw_boundserror(A, I)
     @inbounds ret = A.data[I[Npre+1]]
     ret
 end
-@inline function Base.getindex(A::ReshapedVector, I::Union{CartesianIndex,Int}...)
+@inline function Base.getindex(A::ReshapedOneD, I::Union{CartesianIndex,Int}...)
     A[Base.IteratorsMD.flatten(I)...]
 end
 
-Base.convert{AA<:AbstractArray}(::Type{AA}, A::ReshapedVector) = convert(AA, reshape(A.data, indices(A)))
+Base.convert{AA<:AbstractArray}(::Type{AA}, A::ReshapedOneD) = convert(AA, reshape(A.data, indices(A)))
 
 import Base: ==
-==(A::ReshapedVector, B::ReshapedVector) = convert(AbstractArray, A) == convert(AbstractArray, B)
-==(A::ReshapedVector, B::AbstractArray) = convert(AbstractArray, A) == B
-==(A::AbstractArray, B::ReshapedVector) = A == convert(AbstractArray, B)
+==(A::ReshapedOneD, B::ReshapedOneD) = convert(AbstractArray, A) == convert(AbstractArray, B)
+==(A::ReshapedOneD, B::AbstractArray) = convert(AbstractArray, A) == B
+==(A::AbstractArray, B::ReshapedOneD) = A == convert(AbstractArray, B)
 
 import Base: .+, .-, .*, ./
 for op in (:+, :-, :*, :/)
     opdot = Symbol(:., op)
     @eval begin
-        ($opdot)(A::ReshapedVector, B::ReshapedVector) = broadcast($op, A, B)
-        @inline ($opdot)(As::ReshapedVector...) = broadcast($op, As...)
+        ($opdot)(A::ReshapedOneD, B::ReshapedOneD) = broadcast($op, A, B)
+        @inline ($opdot)(As::ReshapedOneD...) = broadcast($op, As...)
     end
 end
 # for broadcasting
-@pure Base.promote_eltype_op{S,T}(op, ::ReshapedVector{S}, ::ReshapedVector{T}) = Base.promote_op(op, S, T)
+@pure Base.promote_eltype_op{S,T}(op, ::ReshapedOneD{S}, ::ReshapedOneD{T}) = Base.promote_op(op, S, T)
+@pure Base.promote_eltype_op{S,T}(op, ::Type{S}, ::ReshapedOneD{T}) = Base.promote_op(op, S, T)
 
-_reshape{T,N}(A::ReshapedVector{T,N}, ::Type{Val{N}}) = A
-_vec(A::ReshapedVector) = A.data
-Base.vec(A::ReshapedVector) = A.data  # is this OK? (note indices won't nec. start with 1)
-nextendeddims(a::ReshapedVector) = 1
+_reshape{T,N}(A::ReshapedOneD{T,N}, ::Type{Val{N}}) = A
+_vec(A::ReshapedOneD) = A.data
+Base.vec(A::ReshapedOneD) = A.data  # is this OK? (note indices won't nec. start with 1)
+nextendeddims(a::ReshapedOneD) = 1
 
 """
-    iterdims(inds, v::ReshapedVector{T,N,Npre}) -> Rpre, ind, Rpost
+    iterdims(inds, v::ReshapedOneD{T,N,Npre}) -> Rpre, ind, Rpost
 
 Return a pair `Rpre`, `Rpost` of CartesianRanges that correspond to
 pre- and post- dimensions for iterating over an array with indices
@@ -104,14 +105,14 @@ to the trailing dimensions (not including the vector object wrapped in
 
 although the implementation differs for reason of type-stability.
 """
-function iterdims{_,N,Npre}(inds::Indices{N}, v::ReshapedVector{_,N,Npre})
+function iterdims{_,N,Npre}(inds::Indices{N}, v::ReshapedOneD{_,N,Npre})
     indspre, ind, indspost = _iterdims((), (), inds, v)
     CartesianRange(indspre), ind, CartesianRange(indspost)
 end
 @inline function _iterdims(indspre, ::Tuple{}, inds, v)
     _iterdims((indspre..., inds[1]), (), tail(inds), v)  # consume inds and push to indspre
 end
-@inline function _iterdims{_,N,Npre}(indspre::NTuple{Npre}, ::Tuple{}, inds, v::ReshapedVector{_,N,Npre})
+@inline function _iterdims{_,N,Npre}(indspre::NTuple{Npre}, ::Tuple{}, inds, v::ReshapedOneD{_,N,Npre})
     indspre, inds[1], tail(inds)   # return the "central" and trailing dimensions
 end
 
@@ -136,8 +137,8 @@ end
 
 Return a factored Sobel filter for computing the gradient in N dimensions along axis d.
 """
-function sobel{N}(::Type{Val{N}}, d, extended=trues(N))
-    gradfactors(Val{N}, d, [-1, 0, 1]/2, [1, 2, 1]/4, extended)
+function sobel{N}(extended::NTuple{N,Bool}, d)
+    gradfactors(extended, d, [-1, 0, 1]/2, [1, 2, 1]/4)
 end
 
 "`kern1, kern2 = prewitt()` returns factored Prewitt filters for dimensions 1 and 2 of your image"
@@ -152,8 +153,8 @@ end
 
 Return a factored Prewitt filter for computing the gradient in N dimensions along axis d.
 """
-function prewitt{N}(::Type{Val{N}}, d, extended=trues(N))
-    gradfactors(Val{N}, d, [-1, 0, 1]/2, [1, 1, 1]/3, extended)
+function prewitt{N}(extended::NTuple{N,Bool}, d)
+    gradfactors(extended, d, [-1, 0, 1]/2, [1, 1, 1]/3)
 end
 
 # Consistent Gradient Operators
@@ -177,8 +178,8 @@ function ando3()
     return kernelfactors((f2, f1)), kernelfactors((f1, f2))
 end
 
-function ando3{N}(::Type{Val{N}},d,extended=trues(N))
-    gradfactors(Val{N}, d, [-1.0, 0.0, 1.0]/2, 2*[0.112737, 0.274526, 0.112737], extended)
+function ando3{N}(extended::NTuple{N,Bool}, d)
+    gradfactors(extended, d, [-1.0, 0.0, 1.0]/2, 2*[0.112737, 0.274526, 0.112737])
 end
 
 """
@@ -195,7 +196,7 @@ function ando4()
     return kernelfactors((f2, f1)), kernelfactors((f1, f2))
 end
 
-function ando4{N}(::Type{Val{N}}, d, extended=trues(N))
+function ando4{N}(extended::NTuple{N,Bool}, d)
     if N == 2 && all(extended)
         return ando4()[d]
     else
@@ -217,7 +218,7 @@ function ando5()
     return kernelfactors((f2, f1)), kernelfactors((f1, f2))
 end
 
-function ando5{N}(::Type{Val{N}}, d, extended=trues(N))
+function ando5{N}(extended::NTuple{N,Bool}, d)
     if N == 2 && all(extended)
         return ando5()[d]
     else
@@ -359,11 +360,11 @@ iirgt(σ::Real) = Float64
 iirgt(σs::Tuple) = promote_type(map(iirgt, σs)...)
 
 @inline function iirg{T}(::Type{T}, pre, σs, post, emit_warning)
-    kern = ReshapedVector(pre, IIRGaussian(T, σs[1]; emit_warning=emit_warning), post)
+    kern = ReshapedOneD(pre, IIRGaussian(T, σs[1]; emit_warning=emit_warning), post)
     (kern, iirg(T, (pre..., post[1]), tail(σs), tail(post), emit_warning)...)
 end
 iirg{T}(::Type{T}, pre, σs::Tuple{Real}, ::Tuple{}, emit_warning) =
-    (ReshapedVector(pre, IIRGaussian(T, σs[1]; emit_warning=emit_warning), ()),)
+    (ReshapedOneD(pre, IIRGaussian(T, σs[1]; emit_warning=emit_warning), ()),)
 
 ###### Utilities
 
@@ -386,14 +387,14 @@ _kernelfactors(pre, post, out::NTuple, ::Tuple{}) = out
     # L+M=N
     f = factors[1]
     newpost = tail(post)
-    rv = ReshapedVector(pre, f, newpost)
+    rv = ReshapedOneD(pre, f, newpost)
     _kernelfactors((pre..., true), newpost, (out..., rv), tail(factors))
 end
 
 # A variant in which we just need to fill out to N dimensions
 kernelfactors{N}(factors::NTuple{N,AbstractArray}) = map(f->_reshape(f, Val{N}), factors)
 
-function gradfactors{N}(::Type{Val{N}}, d::Int, k1, k2, extended=trues(N))
+function gradfactors{N}(extended::NTuple{N,Bool}, d::Int, k1, k2)
     kernelfactors(ntuple(i -> kdim(extended[i], i==d ? k1 : k2), Val{N}))
 end
 
