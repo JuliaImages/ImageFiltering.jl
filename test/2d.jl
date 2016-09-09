@@ -26,7 +26,7 @@ using Base.Test
         @test @inferred(imfilter!(ret, img, kernel)) ≈ targetimg
         fill!(ret, zero(eltype(ret)))
         @test @inferred(imfilter!(CPU1(Algorithm.FIR()), ret, img, kernel)) ≈ targetimg
-        for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(img))))
+        for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(img))))
             @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
             @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
             fill!(ret, zero(eltype(ret)))
@@ -58,7 +58,7 @@ using Base.Test
         ret = similar(targetimg)
         @test @inferred(imfilter(img, kernel)) ≈ targetimg
         @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32(targetimg)
-        for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(img))))
+        for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(img))))
             @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
             @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
             for alg in (Algorithm.FIR(), Algorithm.FFT())
@@ -83,7 +83,7 @@ using Base.Test
         targetimg[2:4,3:5] = img[3,4]*(1//9)
         @test @inferred(imfilter(img, kernel)) ≈ targetimg
         @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32(targetimg)
-        for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(img))))
+        for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(img))))
             @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
             @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
             for alg in (Algorithm.FIR(), Algorithm.FFT())
@@ -115,27 +115,27 @@ using Base.Test
     # Dense kernel
     kern = [0.1 0.2; 0.4 0.5]
     kernel = OffsetArray(kern, -1:0, 1:2)
-    function target1{T}(img::AbstractArray{T}, kern, ::Union{Pad{:replicate},Pad{:symmetric}})
-        ret = float64(zero(img))
-        x = img[1,2]
-        ret[1,1] = (kern[1,1]+kern[2,1])*x
-        ret[2,1] = kern[1,1]*x
-        ret
+    function target1{T}(img::AbstractArray{T}, kern, border)
+        if border ∈ ("replicate", "symmetric")
+            ret = float64(zero(img))
+            x = img[1,2]
+            ret[1,1] = (kern[1,1]+kern[2,1])*x
+            ret[2,1] = kern[1,1]*x
+            ret
+        elseif border == "circular"
+            a = FFTView(float64(zero(img)))
+            x = img[1,2]
+            a[0:1, -1:0] = rot180(kern).*x
+            parent(a)
+        elseif border == "reflect" || isa(border, Fill)
+            ret = float64(zero(img))
+            x = img[1,2]
+            ret[1,1] = kern[2,1]*x
+            ret[2,1] = kern[1,1]*x
+            ret
+        end
     end
-    function target1{T}(img::AbstractArray{T}, kern, ::Pad{:circular})
-        a = FFTView(float64(zero(img)))
-        x = img[1,2]
-        a[0:1, -1:0] = rot180(kern).*x
-        parent(a)
-    end
-    function target1{T}(img::AbstractArray{T}, kern, ::Union{Pad{:reflect}, Fill})
-        ret = float64(zero(img))
-        x = img[1,2]
-        ret[1,1] = kern[2,1]*x
-        ret[2,1] = kern[1,1]*x
-        ret
-    end
-    function target1{T}(img::AbstractArray{T}, kern, ::Pad{:na})
+    function target1{T}(img::AbstractArray{T}, kern, ::NA)
         ret = float64(zero(img))
         x = img[1,2]
         ret[1,1] = kern[2,1]*x/(kern[2,1]+kern[2,2])
@@ -144,7 +144,7 @@ using Base.Test
         ret
     end
     for img in (imgf, imgi, imgg, imgc)
-        for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(img))))
+        for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(img))))
             targetimg = target1(img, kern, border)
             @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
             @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
@@ -153,7 +153,7 @@ using Base.Test
                 @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
             end
         end
-        border = Pad{:na}()
+        border = NA()
         targetimg0 = target1(img, kern, border)
         nanflag = isnan.(targetimg0)
         targetimg = zerona!(copy(targetimg0))
@@ -168,7 +168,7 @@ using Base.Test
     kernel = (OffsetArray([0.2,0.8], -1:0), OffsetArray([0.3 0.6], 0:0, 1:2))
     kern = parent(kernel[1]).*parent(kernel[2])
     for img in (imgf, imgi, imgg, imgc)
-        for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(img))))
+        for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(img))))
             targetimg = target1(img, kern, border)
             @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
             @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
@@ -177,7 +177,7 @@ using Base.Test
                 @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
             end
         end
-        border = Pad{:na}()
+        border = NA()
         targetimg0 = target1(img, kern, border)
         nanflag = isnan.(targetimg0)
         targetimg = zerona!(copy(targetimg0))

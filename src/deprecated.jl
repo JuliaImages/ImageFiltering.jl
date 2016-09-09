@@ -1,5 +1,3 @@
-using Base.depwarn
-
 function padarray(img::AbstractArray, prepad::Union{Vector{Int},Dims}, postpad::Union{Vector{Int},Dims}, border::AbstractString, value)
     if border == "value"
         depwarn("string-valued borders are deprecated, use `padarray(img, Fill(value, prepad, postpad))` instead, where the padding entries are Dims-tuples", :padarray)
@@ -10,8 +8,8 @@ end
 
 function padarray(img::AbstractArray, prepad::Union{Vector{Int},Dims}, postpad::Union{Vector{Int},Dims}, border::AbstractString)
     if border ∈ ["replicate", "circular", "reflect", "symmetric"]
-        depwarn("string-valued borders are deprecated, use `padarray(img, Pad{:$border})(prepad, postpad)` instead, where the padding entries are Dims-tuples", :padarray)
-        return padarray(img, Pad{Symbol(border)}((prepad...,), (postpad...,)))
+        depwarn("string-valued borders are deprecated, use `padarray(img, Pad(:$border, prepad, postpad)` instead, where the padding entries are Dims-tuples", :padarray)
+        return padarray(img, Pad(Symbol(border), (prepad...,), (postpad...,)))
     elseif border == "inner"
         depwarn("string-valued borders are deprecated, use `padarray(img, Inner)` instead", :padarray)
         return padarray(img, Inner())
@@ -51,28 +49,15 @@ function imfilter(img::AbstractArray, kern, border::AbstractString, value)
     imfilter(img, kern, border)
 end
 
-function imfilter(img::AbstractArray, kern, border::AbstractString)
-    if border ∈ ["replicate", "circular", "reflect", "symmetric"]
-        depwarn("string-valued borders are deprecated, use `imfilter(img, kern, Pad{:$border}())` instead", :imfilter)
-        return imfilter(img, kern, Pad{Symbol(border)}())
-    elseif border == "inner"
-        depwarn("string-valued borders are deprecated, use `imfilter(img, kern, Inner())` instead", :imfilter)
-        return imfilter(img, kern, Inner())
-    else
-        throw(ArgumentError("$border not a recognized border"))
-    end
-end
-
 export imfilter_fft
 function imfilter_fft(img, kern, border::AbstractString, value)
     if border == "value"
-        depwarn("string-valued borders are deprecated, use `imfilter(img, kern, Fill(value), Algorithm.FFT())` instead", :imfilter_fft)
+        depwarn("string-valued 'fill' borders are deprecated, use `imfilter(img, kern, Fill(value), Algorithm.FFT())` instead", :imfilter_fft)
         return imfilter(img, kern, Fill(value), Algorithm.FFT())
     elseif border ∈ ["replicate", "circular", "reflect", "symmetric"]
-        depwarn("string-valued borders are deprecated, use `imfilter(img, kern, Pad{:$border}(), Algorithm.FFT())` instead", :imfilter_fft)
-        return imfilter(img, kern, Pad{Symbol(border)}(), Algorithm.FFT())
+        return imfilter(img, kern, border, Algorithm.FFT())
     elseif border == "inner"
-        depwarn("string-valued borders are deprecated, use `imfilter(img, kern, Inner, Algorithm.FFT())` instead", :imfilter_fft)
+        depwarn("specifying \"inner\" as a string is deprecated, use `imfilter(img, kern, Inner(), Algorithm.FFT())` instead", :imfilter_fft)
         return imfilter(img, kern, Inner(), Algorithm.FFT())
     else
         throw(ArgumentError("$border not a recognized border"))
@@ -85,13 +70,13 @@ imfilter_fft(img, filter, border) = imfilter_fft(img, filter, border, 0)
 export imfilter_gaussian
 function imfilter_gaussian(img, sigma; emit_warning=true, astype=nothing)
     if astype != nothing
-        depwarn("imfilter_gaussian(img, sigma; astype=$astype, kwargs...) is deprecated; use `imfilter($astype, img, IIRGaussian(sigma; kwargs...))` instead, possibly with `Pad{:na}()`", :imfilter_gaussian)
+        depwarn("imfilter_gaussian(img, sigma; astype=$astype, kwargs...) is deprecated; use `imfilter($astype, img, IIRGaussian(sigma; kwargs...))` instead, possibly with `NA()`", :imfilter_gaussian)
         factkernel = KernelFactors.IIRGaussian(astype, sigma; emit_warning=emit_warning)
-        return imfilter(astype, img, factkernel, Pad{:na}())
+        return imfilter(astype, img, factkernel, NA())
     end
-    depwarn("imfilter_gaussian(img, sigma; kwargs...) is deprecated; use `imfilter(img, IIRGaussian(sigma; kwargs...))` instead, possibly with `Pad{:na}()`", :imfilter_gaussian)
+    depwarn("imfilter_gaussian(img, sigma; kwargs...) is deprecated; use `imfilter(img, IIRGaussian(sigma; kwargs...))` instead, possibly with `NA()`", :imfilter_gaussian)
     factkernel = KernelFactors.IIRGaussian(sigma; emit_warning=emit_warning)
-    imfilter(_eltype(Float64, eltype(img)), img, factkernel, Pad{:na}())
+    imfilter(_eltype(Float64, eltype(img)), img, factkernel, NA())
 end
 
 _eltype{T,C<:Colorant}(::Type{T}, ::Type{C}) = base_colorant_type(C){T}

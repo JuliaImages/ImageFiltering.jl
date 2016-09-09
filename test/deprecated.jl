@@ -84,14 +84,14 @@ isapprox_const(A::AbstractArray, n::Number) = isapprox(A, fill(n, size(A)))
 
         A = zeros(5,5); A[3,3] = 1
         kern = rand(3,3)
-        Af = imfilter(A, kern, "inner")
+        Af = imfilter(A, kern, Inner())
         @test Af == OffsetArray(rot180(kern), (1,1))
         Afft = imfilter_fft(A, kern, "inner")
         @test_approx_eq Af Afft
         h = [0.24,0.87]
         hfft = imfilter_fft(eye(3), h, "inner")
         hfft[abs(hfft) .< 3eps()] = 0
-        @test_approx_eq imfilter(eye(3), h, "inner") hfft  # issue #204
+        @test_approx_eq imfilter(eye(3), h, Inner()) hfft  # issue #204
 
         # circular
         A = zeros(3, 3)

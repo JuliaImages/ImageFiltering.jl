@@ -20,89 +20,77 @@ NoPad
 Base.getindex(np::NoPad) = np.border
 
 """
-`Pad{Style,N}` is a type that stores choices about padding. `Style` is a
+`Pad` is a type that stores choices about padding. Instances must set `style`, a
 Symbol specifying the boundary conditions of the image, one of:
 
 - `:replicate` (repeat edge values to infinity)
 - `:circular` (image edges "wrap around")
 - `:symmetric` (the image reflects relative to a position between pixels)
 - `:reflect` (the image reflects relative to the edge itself)
-- `:na` (edges handled with Fill(0) but then normalized by the number of available neighbors)
 
-The default value is `:replicate`. `:na` filtering is a good choice
-for handling arrays with `NaN` entries, which are treated as missing
-values (and results are normalized by the number of values that are
-available).
-
-You can implement custom boundary conditions by adding additional
-methods for `padindex`.
+The default value is `:replicate`.
 """
-immutable Pad{Style,N} <: AbstractBorder
+immutable Pad{N} <: AbstractBorder
+    style::Symbol
     lo::Dims{N}    # number to extend by on the lower edge for each dimension
     hi::Dims{N}    # number to extend by on the upper edge for each dimension
 end
 
+const valid_borders = ("replicate", "circular", "reflect", "symmetric")
+
 """
-    Pad{Style}(m, n, ...)
+    Pad(style::Symbol, m, n, ...)
 
 Pad the input image symmetrically, `m` pixels at the lower and upper edge of dimension 1, `n` pixels for dimension 2, and so forth.
 """
-(::Type{Pad{Style}}){Style}(both::Int...) = Pad{Style}(both, both)
+Pad(style::Symbol, both::Int...) = Pad(style, both, both)
+Pad(both::Int...) = Pad(:replicate, both, both)
+
 """
-    Pad{Style}((m,n))
+    Pad(style::Symbol, (m,n))
 
 Pad the input image symmetrically, `m` pixels at the lower and upper edge of dimension 1, `n` pixels for dimension 2.
 """
-(::Type{Pad{Style}}){Style}(::Tuple{}) = Pad{Style}()
-(::Type{Pad{Style}}){Style,N}(both::Dims{N}) = Pad{Style,N}(both, both)
-
-(::Type{Pad{Style}}){Style  }(lo::Tuple{}, hi::Tuple{}) = Pad{Style,0}(lo, hi)
-(::Type{Pad})(args...) = Pad{:replicate}(args...)
+Pad(style::Symbol, both::Dims) = Pad(style, both, both)
+Pad(both::Dims) = Pad(:replicate, both, both)
 
 """
-    Pad{Style}(lo::Dims, hi::Dims)
+    Pad(style::Symbol, lo::Dims, hi::Dims)
 
 Pad the input image by `lo` pixels at the lower edge, and `hi` pixels at the upper edge.
 """
-(::Type{Pad{Style}}){Style,N}(lo::Dims{N}, hi::Dims{N}) = Pad{Style,N}(lo, hi)
-(::Type{Pad{Style}}){Style,N}(lo::Dims{N}, hi::Tuple{}) = Pad{Style,N}(lo, ntuple(d->0,Val{N}))
-(::Type{Pad{Style}}){Style,N}(lo::Tuple{}, hi::Dims{N}) = Pad{Style,N}(ntuple(d->0,Val{N}), hi)
-(::Type{Pad{Style}}){Style,N}(inds::Indices{N}) = Pad{Style,N}(map(lo,inds), map(hi,inds))
+Pad(lo::Dims, hi::Dims) = Pad(:replicate, lo, hi)
+Pad(style::Symbol, lo::Tuple{}, hi::Tuple{}) = Pad{0}(style, lo, hi)
+Pad{N}(style::Symbol, lo::Dims{N}, hi::Tuple{}) = Pad(style, lo, ntuple(d->0,Val{N}))
+Pad{N}(style::Symbol, lo::Tuple{}, hi::Dims{N}) = Pad(style, ntuple(d->0,Val{N}), hi)
+Pad(style::Symbol, lo::AbstractVector{Int}, hi::AbstractVector{Int}) = Pad(style, (lo...,), (hi...,))
 
-(::Type{Pad{Style,N}}){Style,N}(lo::AbstractVector, hi::AbstractVector) = Pad{Style,N}((lo...,), (hi...,))
-(::Type{Pad{Style}}){Style}(lo::AbstractVector, hi::AbstractVector) = Pad{Style}((lo...,), (hi...,))  # not inferrable
-
+Pad(style::Symbol, inds::Indices) = Pad(style, map(lo,inds), map(hi,inds))
 
 """
-    Pad{Style}()(kernel)
+    Pad(style, kernel)
+    Pad(style)(kernel)
 
 Given a filter array `kernel`, determine the amount of padding from the `indices` of `kernel`.
 """
-(p::Pad{Style,0}){Style}(kernel) = Pad{Style}(calculate_padding(kernel))
-(p::Pad{Style,0}){Style}(kernel, img, ::Alg) = p(kernel)
+(p::Pad{0})(kernel) = Pad(p.style, calculate_padding(kernel))
+(p::Pad{0})(kernel, img, ::Alg) = p(kernel)
 
 # Padding for FFT: round up to next size expressible as 2^m*3^n
-function (p::Pad{Style,0}){Style}(kernel, img, ::FFT)
+function (p::Pad{0})(kernel, img, ::FFT)
     inds = calculate_padding(kernel)
     newinds = map(padfft, inds, map(length, indices(img)))
-    Pad{Style}(newinds)
+    Pad(p.style, newinds)
 end
 function padfft(indk::AbstractUnitRange, l::Integer)
     lk = length(indk)
     range(first(indk), nextprod([2,3], l+lk)-l+1)
 end
 
-function padindices{_,Style,N}(img::AbstractArray{_,N}, border::Pad{Style})
-    str = "$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"
-    if ndims(border) > N
-        throw(ArgumentError(str))
-    else
-        warn(str)
-    end
-    padindices(img, Pad{Style}(fill_to_length(border.lo, 0, Val{N}),
-                               fill_to_length(border.hi, 0, Val{N})))
+function padindices{_,N}(img::AbstractArray{_,N}, border::Pad)
+    throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"))
 end
-function padindices{_,Style,N}(img::AbstractArray{_,N}, border::Pad{Style,N})
+function padindices{_,N}(img::AbstractArray{_,N}, border::Pad{N})
     _padindices(border, border.lo, indices(img), border.hi)
 end
 function padindices{P<:Pad}(img::AbstractArray, ::Type{P})
@@ -138,25 +126,34 @@ function padarray{T}(::Type{T}, img::AbstractArray, border::Pad)
 end
 padarray{P}(img, ::Type{P}) = img[padindices(img, P)...]      # just to throw the nice error
 
-Base.ndims{Style,N}(::Pad{Style,N}) = N
+Base.ndims{N}(::Pad{N}) = N
 
-# Make this a separate type because the dispatch almost surely needs to be different
+# Make these separate types because the dispatch almost surely needs to be different
 immutable Inner{N} <: AbstractBorder
     lo::Dims{N}
     hi::Dims{N}
 end
 
-(::Type{Inner})(both::Int...) = Inner(both, both)
-(::Type{Inner}){N}(both::Dims{N}) = Inner(both, both)
-(::Type{Inner})(lo::Tuple{}, hi::Tuple{}) = Inner{0}(lo, hi)
-(::Type{Inner}){N}(lo::Dims{N}, hi::Tuple{}) = Inner{N}(lo, ntuple(d->0,Val{N}))
-(::Type{Inner}){N}(lo::Tuple{}, hi::Dims{N}) = Inner{N}(ntuple(d->0,Val{N}), hi)
-(::Type{Inner}){N}(inds::Indices{N}) = Inner{N}(map(lo,inds), map(hi,inds))
-(::Type{Inner{N}}){N}(lo::AbstractVector, hi::AbstractVector) = Inner{N}((lo...,), (hi...,))
-(::Type{Inner})(lo::AbstractVector, hi::AbstractVector) = Inner((lo...,), (hi...,)) # not inferrable
+immutable NA{N} <: AbstractBorder
+    lo::Dims{N}
+    hi::Dims{N}
+end
 
-(p::Inner{0})(kernel, img, ::Alg) = p(kernel)
-(p::Inner{0})(kernel) = Inner(calculate_padding(kernel))
+for T in (:Inner, :NA)
+    @eval begin
+        (::Type{$T})(both::Int...) = $T(both, both)
+        (::Type{$T}){N}(both::Dims{N}) = $T(both, both)
+        (::Type{$T})(lo::Tuple{}, hi::Tuple{}) = $T{0}(lo, hi)
+        (::Type{$T}){N}(lo::Dims{N}, hi::Tuple{}) = $T{N}(lo, ntuple(d->0,Val{N}))
+        (::Type{$T}){N}(lo::Tuple{}, hi::Dims{N}) = $T{N}(ntuple(d->0,Val{N}), hi)
+        (::Type{$T}){N}(inds::Indices{N}) = $T{N}(map(lo,inds), map(hi,inds))
+        (::Type{$T{N}}){N}(lo::AbstractVector, hi::AbstractVector) = $T{N}((lo...,), (hi...,))
+        (::Type{$T})(lo::AbstractVector, hi::AbstractVector) = $T((lo...,), (hi...,)) # not inferrable
+
+        (p::$T{0})(kernel, img, ::Alg) = p(kernel)
+        (p::$T{0})(kernel) = $T(calculate_padding(kernel))
+    end
+end
 
 padarray(img, border::Inner) = padarray(eltype(img), img, border)
 padarray{T}(::Type{T}, img::AbstractArray{T}, border::Inner) = copy(img)
@@ -210,18 +207,6 @@ padarray(img::AbstractArray, f::Fill) = padarray(eltype(img), img, f)
 
 # There are other ways to define these, but using `mod` makes it safe
 # for cases where the padding is bigger than length(inds)
-padindex(border::Pad{:replicate}, lo::Integer, inds::AbstractUnitRange, hi::Integer) =
-    vcat(fill(first(inds), lo), PinIndices(inds), fill(last(inds), hi))
-padindex(border::Pad{:circular}, lo::Integer, inds::AbstractUnitRange, hi::Integer) =
-    modrange(extend(lo, inds, hi), inds)
-function padindex(border::Pad{:symmetric}, lo::Integer, inds::AbstractUnitRange, hi::Integer)
-    I = [inds; reverse(inds)]
-    I[modrange(extend(lo, inds, hi), 1:2*length(inds))]
-end
-function padindex(border::Pad{:reflect}, lo::Integer, inds::AbstractUnitRange, hi::Integer)
-    I = [inds; last(inds)-1:-1:first(inds)+1]
-    I[modrange(extend(lo, inds, hi), 1:2*length(inds)-2)]
-end
 """
     padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer)
 
@@ -230,7 +215,22 @@ Generate an index-vector to be used for padding. `inds` specifies the image indi
 You can specialize this for custom `Pad{:name}` types to generate
 arbitrary (cartesian) padding types.
 """
-padindex
+function padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer)
+    if border.style == :replicate
+        return vcat(fill(first(inds), lo), PinIndices(inds), fill(last(inds), hi))
+    elseif border.style == :circular
+        return modrange(extend(lo, inds, hi), inds)
+    elseif border.style == :symmetric
+        I = [inds; reverse(inds)]
+        r = modrange(extend(lo, inds, hi), 1:2*length(inds))
+        return I[r]
+    elseif border.style == :reflect
+        I = [inds; last(inds)-1:-1:first(inds)+1]
+        return I[modrange(extend(lo, inds, hi), 1:2*length(inds)-2)]
+    else
+        error("border style $(border.style) unrecognized")
+    end
+end
 
 function inner(lo::Integer, inds::AbstractUnitRange, hi::Integer)
     first(inds)+lo:last(inds)-hi

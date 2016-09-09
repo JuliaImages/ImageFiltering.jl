@@ -1,10 +1,10 @@
 module ImagesFiltering
 
 using Colors, FixedPointNumbers, ImagesCore, MappedArrays, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
-using ColorVectorSpace  # in case someone filters RGB arrays
-using Base: Indices, tail, fill_to_length, @pure
+using ColorVectorSpace  # for filtering RGB arrays
+using Base: Indices, tail, fill_to_length, @pure, depwarn
 
-export Kernel, KernelFactors, Pad, Fill, Inner, NoPad, Algorithm, imfilter, imfilter!, imgradients, padarray, centered
+export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, imgradients, padarray, centered
 
 typealias FixedColorant{T<:UFixed} Colorant{T}
 typealias StaticOffsetArray{T,N,A<:StaticArray} OffsetArray{T,N,A}
@@ -46,12 +46,9 @@ typealias NDimKernel{N,K} Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N
 
 include("border.jl")
 
-typealias BorderSpec{Style,T} Union{Pad{Style,0}, Fill{T,0}, Inner{0}}
-typealias BorderSpecRF{T} Union{Pad{:replicate,0}, Fill{T,0}}
-typealias PadNoNa Union{Pad{:replicate,0}, Pad{:circular,0}, Pad{:symmetric,0},
-                        Pad{:reflect, 0}}
-typealias BorderSpecNoNa{T} Union{PadNoNa, Fill{T,0}, Inner{0}}
-typealias BorderSpecAny Union{BorderSpec,NoPad}
+typealias BorderSpec{T} Union{Pad{0}, Fill{T,0}, Inner{0}}
+typealias BorderSpecNoNa{T} Union{Pad{0}, Fill{T,0}, Inner{0}}
+typealias BorderSpecAny Union{BorderSpec,NA,NoPad}
 
 include("deprecated.jl")
 

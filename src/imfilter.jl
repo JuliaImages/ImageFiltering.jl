@@ -12,7 +12,17 @@ end
 
 # Step 3: if necessary, fill in the default border
 function imfilter{T}(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, args...)
-    imfilter(T, img, kernel, Pad{:replicate}(), args...)
+    imfilter(T, img, kernel, "replicate", args...)
+end
+
+function imfilter{T}(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractString, args...)
+    if border ∈ valid_borders
+        return imfilter(T, img, kernel, Pad(Symbol(border)), args...)
+    elseif border == "inner"
+        error("specifying Inner as a string is deprecated, use `imfilter(img, kern, Inner())` instead")
+    else
+        throw(ArgumentError("$border not a recognized border"))
+    end
 end
 
 # Step 4: if necessary, allocate the ouput
@@ -32,7 +42,7 @@ end
 # For steps 3 & 4, we make args... explicit as a means to prevent
 # specifying both r and an algorithm
 function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel)
-    imfilter(r, T, img, kernel, Pad{:replicate}())  # supply the default border
+    imfilter(r, T, img, kernel, Pad(:replicate))  # supply the default border
 end
 
 function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny)
@@ -40,9 +50,9 @@ function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel:
 end
 
 """
-    imfilter([T], img, kernel, [border=Pad{:replicate}()], [alg]) --> imgfilt
-    imfilter([r], img, kernel, [border=Pad{:replicate}()], [alg]) --> imgfilt
-    imfilter(r, T, img, kernel, [border=Pad{:replicate}()], [alg]) --> imgfilt
+    imfilter([T], img, kernel, [border="replicate"], [alg]) --> imgfilt
+    imfilter([r], img, kernel, [border="replicate"], [alg]) --> imgfilt
+    imfilter(r, T, img, kernel, [border="replicate"], [alg]) --> imgfilt
 
 Filter an array `img` with kernel `kernel` by computing their
 correlation.
@@ -68,11 +78,10 @@ checked for separability; if you want to eliminate that check, pass
 the kernel as a single-element tuple, `(kernel,)`.
 
 Optionally specify the `border`, as one of `Fill(value)`,
-`Pad{:replicate}()`, `Pad{:circular}()`, `Pad{:symmetric}()`,
-`Pad{:reflect}()`, `Pad{:na}()`, or `Inner()`. The default is
-`Pad{:replicate}()`. These choices specify the boundary conditions,
-and therefore affect the result at the edges of the image. See
-`padarray` for more information.
+`"replicate"`, `"circular"`, `"symmetric"`, `"reflect"`, `NA()`, or
+`Inner()`. The default is `"replicate"`. These choices specify the
+boundary conditions, and therefore affect the result at the edges of
+the image. See `padarray` for more information.
 
 `alg` allows you to choose the particular algorithm: `FIR()` (finite
 impulse response, aka traditional digital filtering) or `FFT()`
@@ -111,19 +120,31 @@ function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, 
     imfilter!(r, out, img, factorkernel(kernel))
 end
 
+function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::Union{ArrayLike,Laplacian}, border::AbstractString)
+    imfilter!(r, out, img, kernel, Pad(Symbol(border)))
+end
+
 function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::Union{ArrayLike,Laplacian}, border::BorderSpec)
     imfilter!(r, out, img, factorkernel(kernel), border)
 end
 
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel)
-    imfilter!(out, img, kernel, Pad{:replicate}())
+    imfilter!(out, img, kernel, Pad(:replicate))
 end
 
 function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel)
-    imfilter!(r, out, img, kernel, Pad{:replicate}())
+    imfilter!(r, out, img, kernel, Pad(:replicate))
+end
+
+function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::AbstractString)
+    imfilter!(r, out, img, kernel, Pad(Symbol(border)))
 end
 
 # Step 5: if necessary, pick an algorithm
+function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::AbstractString)
+    imfilter!(out, img, kernel, Pad(Symbol(border)))
+end
+
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny)
     imfilter!(out, img, kernel, border, filter_algorithm(out, img, kernel))
 end
@@ -133,7 +154,7 @@ function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKern
 end
 
 """
-    imfilter!(imgfilt, img, kernel, [border=Pad{:replicate}()], [alg])
+    imfilter!(imgfilt, img, kernel, [border="replicate"], [alg])
     imfilter!(r, imgfilt, img, kernel, border, [inds])
     imfilter!(r, imgfilt, img, kernel, border::NoPad, [inds=indices(imgfilt)])
 
@@ -162,7 +183,7 @@ function imfilter!{T,S,N}(r::AbstractResource,
                           out::AbstractArray{S,N},
                           img::AbstractArray{T,N},
                           kernel::ProcessedKernel,
-                          border::Pad{:na,0})
+                          border::NA{0})
     _imfilter_na!(r, out, img, kernel, border)
 end
 
@@ -170,7 +191,7 @@ function _imfilter_na!{T,S,N}(r::AbstractResource,
                               out::AbstractArray{S,N},
                               img::AbstractArray{T,N},
                               kernel::ProcessedKernel,
-                              border::Pad{:na,0})
+                              border::NA{0})
     nanflag = isnan.(img)
     hasnans = any(nanflag)
     if hasnans || !isseparable(kernel)
@@ -186,7 +207,7 @@ function _imfilter_na!{S,T<:Union{Integer,FixedColorant},N}(r::AbstractResource,
                                                             out::AbstractArray{S,N},
                                                             img::AbstractArray{T,N},
                                                             kernel::ProcessedKernel,
-                                                            border::Pad{:na,0})
+                                                            border::NA{0})
     if isseparable(kernel)
         imfilter_na_separable!(r, out, img, kernel)
     else
@@ -214,7 +235,7 @@ function imfilter!{S,T,N}(r::AbstractCPU{FIR},
                           out::AbstractArray{S,N},
                           img::AbstractArray{T,N},
                           kernel::ProcessedKernel,
-                          border::PadNoNa)
+                          border::Pad{0})
     # The fast path: handle the points that don't need padding
     iinds = map(intersect, interior(img, kernel), indices(out))
     imfilter!(r, out, img, kernel, NoPad(border), iinds)
@@ -620,7 +641,8 @@ function imfilter!{S,T,N}(r::AbstractResource{IIR},
                           out::AbstractArray{S,N},
                           img::AbstractArray{T,N},
                           kernel::Tuple{TriggsSdika, Vararg{TriggsSdika}},
-                          border::BorderSpecRF)
+                          border::BorderSpec)
+    isa(border, Pad) && border.symbol != :replicate && throw(ArgumentError("only \"replicate\" is supported"))
     length(kernel) <= N || throw(DimensionMismatch("cannot have more kernels than dimensions"))
     inds = indices(img)
     _imfilter_inplace_tuple!(r, out, img, kernel, CartesianRange(()), inds, CartesianRange(tail(inds)), border)
@@ -640,8 +662,8 @@ dimension `dim` along which to filter. If you exhaust `kernel`s before
 you run out of array dimensions, the remaining dimension(s) will not
 be filtered.
 
-With Triggs-Sdika filtering, the only border options are `Pad{:na}()`,
-`Pad{:replicate}()`, or `Fill(value)`.
+With Triggs-Sdika filtering, the only border options are `NA()`,
+`"replicate"`, or `Fill(value)`.
 
 See also: imfilter, TriggsSdika, IIRGaussian.
 """
@@ -653,6 +675,10 @@ function imfilter!(r::AbstractResource, out, img, kernel::TriggsSdika, dim::Inte
     Rend   = CartesianRange(inds[dim+1:end])
     _imfilter_dim!(r, out, img, kernel, Rbegin, inds[dim], Rend, border)
 end
+function imfilter!(r::AbstractResource, out, img, kernel::TriggsSdika, dim::Integer, border::AbstractString)
+    imfilter!(r, out, img, kernel, dim, Pad(Symbol(border)))
+end
+
 
 function imfilter!(r::AbstractResource, out, A::AbstractVector, kern::TriggsSdika, border::NoPad, inds::Indices=indices(out))
     indspre, ind, indspost = iterdims(inds, kern)
@@ -704,7 +730,7 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
             leftborder!(out, img, kernel, Ibegin, indleft, Iend, border)
         end
         # Propagate forwards. We omit the final point in case border
-        # is Pad{:replicate}, so that the original value is still
+        # is "replicate", so that the original value is still
         # available. rightborder! will handle that point.
         for i = ind[k]+1:ind[end-1]
             @unsafe for Ibegin in Rbegin
@@ -744,7 +770,7 @@ end
 function leftborder!(out, img, kernel, Ibegin, indleft, Iend, border::Fill)
     _leftborder!(out, img, kernel, Ibegin, indleft, Iend, convert(eltype(img), border.value))
 end
-function leftborder!(out, img, kernel, Ibegin, indleft, Iend, border::Pad{:replicate})
+function leftborder!(out, img, kernel, Ibegin, indleft, Iend, border::Pad)
     _leftborder!(out, img, kernel, Ibegin, indleft, Iend, img[Ibegin, indleft[1], Iend])
 end
 function _leftborder!{T,k,l}(out, img, kernel::TriggsSdika{T,k,l}, Ibegin, indleft, Iend, iminus)
@@ -768,7 +794,7 @@ end
 function rightborder!(out, img, kernel, Ibegin, indright, Iend, border::Fill)
     _rightborder!(out, img, kernel, Ibegin, indright, Iend, convert(eltype(img), border.value))
 end
-function rightborder!(out, img, kernel, Ibegin, indright, Iend, border::Pad{:replicate})
+function rightborder!(out, img, kernel, Ibegin, indright, Iend, border::Pad)
     _rightborder!(out, img, kernel, Ibegin, indright, Iend, img[Ibegin, indright[end], Iend])
 end
 function _rightborder!{T,k,l}(out, img, kernel::TriggsSdika{T,k,l}, Ibegin, indright, Iend, iplus)
@@ -808,7 +834,7 @@ function rightΔu{T,l}(img, uplus, Ibegin, i, Iend, kernel::TriggsSdika{T,3,l})
     ret
 end
 
-### Pad{:na}() boundary conditions
+### NA boundary conditions
 
 function imfilter_na_inseparable!{T}(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple{Vararg{TriggsSdika}})
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
