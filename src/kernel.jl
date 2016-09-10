@@ -10,6 +10,22 @@ function product2d(kf)
 end
 
 """
+`Kernel` is a module implementing filtering kernels of full
+dimensionality. The following kernels are supported:
+
+  - `sobel`
+  - `prewitt`
+  - `ando3`, `ando4`, and `ando5`
+  - `gaussian`
+  - `DoG` (Difference-of-Gaussian)
+  - `LoG` (Laplacian-of-Gaussian)
+  - `Laplacian`
+
+See also: KernelFactors.
+"""
+Kernel
+
+"""
     diff1, diff2 = sobel()
 
 Return kernels for two-dimensional gradient compution using the Sobel
@@ -239,5 +255,21 @@ function Base.convert{N}(::Type{AbstractArray}, L::Laplacian{N})
     A
 end
 _reshape{N}(L::Laplacian{N}, ::Type{Val{N}}) = L
+
+"""
+    reflect(kernel) --> reflectedkernel
+
+Compute the pointwise reflection around 0, 0, ... of the kernel
+`kernel`.  Using `imfilter` with a `reflectedkernel` performs convolution,
+rather than correlation, with respect to the original `kernel`.
+"""
+function reflect(kernel::AbstractArray)
+    inds = map(-, indices(kernel))
+    out = similar(kernel, inds)
+    for I in CartesianRange(indices(kernel))
+        out[-I] = kernel[I]
+    end
+    out
+end
 
 end

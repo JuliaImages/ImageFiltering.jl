@@ -13,7 +13,16 @@ NoPad() = NoPad(nothing)
     NoPad()
     NoPad(border)
 
-Indicates that no padding should be applied to the input array. Passing a `border` object allows you to preserve "memory" of a border choice; it can be retrieved by indexing with `[]`.
+Indicates that no padding should be applied to the input array, or that you have already pre-padded the input image. Passing a `border` object allows you to preserve "memory" of a border choice; it can be retrieved by indexing with `[]`.
+
+# Example
+
+    np = NoPad(Pad(:replicate))
+    imfilter!(out, img, kernel, np)
+
+runs filtering directly, skipping any padding steps.  Every entry of
+`out` must be computable using in-bounds operations on `img` and
+`kernel`.
 """
 NoPad
 
@@ -29,6 +38,14 @@ Symbol specifying the boundary conditions of the image, one of:
 - `:reflect` (the image reflects relative to the edge itself)
 
 The default value is `:replicate`.
+
+It's worth emphasizing that padding is most straightforwardly specified as a string,
+
+    imfilter(img, kernel, "replicate")
+
+rather than
+
+    imfilter(img, kernel, Pad(:replicate))
 """
 immutable Pad{N} <: AbstractBorder
     style::Symbol
@@ -129,11 +146,38 @@ padarray{P}(img, ::Type{P}) = img[padindices(img, P)...]      # just to throw th
 Base.ndims{N}(::Pad{N}) = N
 
 # Make these separate types because the dispatch almost surely needs to be different
+"""
+    Inner()
+    Inner(lo, hi)
+
+Indicate that edges are to be discarded in filtering, only the interior of the result it to be returned.
+
+# Example:
+
+    imfilter(img, kernel, Inner())
+"""
 immutable Inner{N} <: AbstractBorder
     lo::Dims{N}
     hi::Dims{N}
 end
 
+"""
+    NA()
+    NA(lo, hi)
+
+Choose filtering using "NA" (Not Available) boundary conditions. This
+is most appropriate for filters that have only positive weights, such
+as blurring filters. Effectively, the output pixel value is normalized
+in the following way:
+
+              filtered img with Fill(0) boundary conditions
+    output =  ---------------------------------------------
+              filtered 1   with Fill(0) boundary conditions
+
+As a consequence, filtering has the same behavior as
+`nanmean`. Indeed, invalid pixels in `img` can be marked as `NaN` and
+then they are effectively omitted from the filtered result.
+"""
 immutable NA{N} <: AbstractBorder
     lo::Dims{N}
     hi::Dims{N}
@@ -166,6 +210,10 @@ padarray{T}(::Type{T}, img::AbstractArray, border::Inner) = copy!(similar(Array{
 Pad the edges of the image with a constant value, `val`.
 
 Optionally supply the extent of the padding, see `Pad`.
+
+# Example:
+
+    imfilter(img, kernel, Fill(zero(eltype(img))))
 """
 immutable Fill{T,N} <: AbstractBorder
     value::T

@@ -4,7 +4,7 @@ using Colors, FixedPointNumbers, ImagesCore, MappedArrays, FFTViews, OffsetArray
 using ColorVectorSpace  # for filtering RGB arrays
 using Base: Indices, tail, fill_to_length, @pure, depwarn
 
-export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, extrema_filter, imgradients, padarray, centered
+export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, extrema_filter, imgradients, padarray, centered, kernelfactors, reflect
 
 typealias FixedColorant{T<:UFixed} Colorant{T}
 typealias StaticOffsetArray{T,N,A<:StaticArray} OffsetArray{T,N,A}
@@ -19,10 +19,10 @@ module Algorithm
     # deliberately don't export these, but it's expected that they
     # will be used as Algorithm.FFT(), etc.
     abstract Alg
-    immutable FFT <: Alg end
-    immutable FIR <: Alg end
-    immutable IIR <: Alg end
-    immutable Mixed <: Alg end
+    "Filter using the Fast Fourier Transform" immutable FFT <: Alg end
+    "Filter using a direct algorithm" immutable FIR <: Alg end
+    "Filter with an Infinite Impulse Response filter" immutable IIR <: Alg end
+    "Filter with a cascade of mixed types (IIR, FIR)" immutable Mixed <: Alg end
 end
 using .Algorithm: Alg, FFT, FIR, IIR, Mixed
 
@@ -30,7 +30,7 @@ Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
 
 include("utils.jl")
 include("kernelfactors.jl")
-using .KernelFactors: TriggsSdika, IIRFilter, ReshapedOneD, iterdims
+using .KernelFactors: TriggsSdika, IIRFilter, ReshapedOneD, iterdims, kernelfactors
 
 typealias ReshapedVector{T,N,Npre,V<:AbstractVector} ReshapedOneD{T,N,Npre,V}
 typealias ArrayType{T} Union{AbstractArray{T}, ReshapedVector{T}}
@@ -40,7 +40,7 @@ typealias ArrayLike{T} Union{ArrayType{T}, AnyIIR{T}}
 
 include("kernel.jl")
 using .Kernel
-using .Kernel: Laplacian
+using .Kernel: Laplacian, reflect
 
 typealias NDimKernel{N,K} Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N}}
 

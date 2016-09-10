@@ -7,6 +7,22 @@ using Base: tail, Indices, @pure, checkbounds_indices, throw_boundserror
 
 abstract IIRFilter{T}
 
+"""
+
+`KernelFactors` is a module implementing separable filtering kernels,
+each stored in terms of their factors. The following kernels are
+supported:
+
+  - `sobel`
+  - `prewitt`
+  - `ando3`, `ando4`, and `ando5` (the latter in 2d only)
+  - `gaussian`
+  - `IIRGaussian` (approximate gaussian filtering, fast even for large σ)
+
+See also: Kernel.
+"""
+KernelFactors
+
 Base.eltype{T}(kernel::IIRFilter{T}) = T
 
 """
@@ -133,9 +149,10 @@ function sobel()
 end
 
 """
-    kern = sobel(N, d)
+    kern = sobel(extended::NTuple{N,Bool}, d)
 
-Return a factored Sobel filter for computing the gradient in N dimensions along axis d.
+Return a factored Sobel filter for computing the gradient in `N` dimensions along axis `d`.
+If `extended[dim]` is false, `kern` will have size 1 along that dimension.
 """
 function sobel{N}(extended::NTuple{N,Bool}, d)
     gradfactors(extended, d, [-1, 0, 1]/2, [1, 2, 1]/4)
@@ -149,9 +166,10 @@ function prewitt()
 end
 
 """
-    kern = prewitt(N, d)
+    kern = prewitt(extended::NTuple{N,Bool}, d)
 
-Return a factored Prewitt filter for computing the gradient in N dimensions along axis d.
+Return a factored Prewitt filter for computing the gradient in `N` dimensions along axis `d`.
+If `extended[dim]` is false, `kern` will have size 1 along that dimension.
 """
 function prewitt{N}(extended::NTuple{N,Bool}, d)
     gradfactors(extended, d, [-1, 0, 1]/2, [1, 1, 1]/3)
@@ -178,6 +196,13 @@ function ando3()
     return kernelfactors((f2, f1)), kernelfactors((f1, f2))
 end
 
+"""
+    kern = ando3(extended::NTuple{N,Bool}, d)
+
+Return a factored Ando filter (size 3) for computing the gradient in
+`N` dimensions along axis `d`.  If `extended[dim]` is false, `kern`
+will have size 1 along that dimension.
+"""
 function ando3{N}(extended::NTuple{N,Bool}, d)
     gradfactors(extended, d, [-1.0, 0.0, 1.0]/2, 2*[0.112737, 0.274526, 0.112737])
 end
@@ -196,6 +221,13 @@ function ando4()
     return kernelfactors((f2, f1)), kernelfactors((f1, f2))
 end
 
+"""
+    kern = ando4(extended::NTuple{N,Bool}, d)
+
+Return a factored Ando filter (size 4) for computing the gradient in
+`N` dimensions along axis `d`.  If `extended[dim]` is false, `kern`
+will have size 1 along that dimension.
+"""
 function ando4{N}(extended::NTuple{N,Bool}, d)
     if N == 2 && all(extended)
         return ando4()[d]
@@ -218,6 +250,13 @@ function ando5()
     return kernelfactors((f2, f1)), kernelfactors((f1, f2))
 end
 
+"""
+    kern = ando5(extended::NTuple{N,Bool}, d)
+
+Return a factored Ando filter (size 5) for computing the gradient in
+`N` dimensions along axis `d`.  If `extended[dim]` is false, `kern`
+will have size 1 along that dimension.
+"""
 function ando5{N}(extended::NTuple{N,Bool}, d)
     if N == 2 && all(extended)
         return ando5()[d]
@@ -372,9 +411,10 @@ iirg{T}(::Type{T}, pre, σs::Tuple{Real}, ::Tuple{}, emit_warning) =
     kernelfactors(factors::Tuple)
 
 Prepare a factored kernel for filtering. If passed a 2-tuple of
-vectors of lengths `m` and `n`, this will return a 2-tuple of matrices
-of sizes `m×1` and `1×n`. In general, each successive `factor` will be
-reshaped to extend along the corresponding dimension.
+vectors of lengths `m` and `n`, this will return a 2-tuple of
+`ReshapedVector`s that are effectively of sizes `m×1` and `1×n`. In
+general, each successive `factor` will be reshaped to extend along the
+corresponding dimension.
 
 If passed a tuple of general arrays, it is assumed that each is shaped
 appropriately along its "leading" dimensions; the dimensionality of each is
