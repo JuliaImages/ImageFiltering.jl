@@ -11,6 +11,7 @@ include("2d.jl")
 include("triggs.jl")
 include("cascade.jl")
 include("specialty.jl")
+include("rank.jl")
 include("basic.jl")
 include("deprecated.jl")
 

@@ -1,184 +1,133 @@
-# Min max filter
+module Rank
 
-# This is a port of the Lemire min max filter as implemented by Bruno Luong
+using DataStructures
+using Base: tail
+
+export extrema_filter
+
+# Max-min filter
+
+# This is an implementation of the Lemire max-min filter
 # http://arxiv.org/abs/cs.DS/0610046
-# http://lemire.me/
-# http://www.mathworks.com/matlabcentral/fileexchange/24705-min-max-filter
 
-type Wedge{A <: AbstractArray}
-    buffer::A
-    size::Int
-    n::Int
-    first::Int
-    last::Int
-    mxn::Int
+# Monotonic wedge
+immutable Wedge{T}
+    L::CircularDeque{T}
+    U::CircularDeque{T}
+end
+(::Type{Wedge{T}}){T}(n::Integer) = Wedge(CircularDeque{T}(n), CircularDeque{T}(n))
+
+function Base.push!(W::Wedge, i::Integer)
+    push!(W.L, i)
+    push!(W.U, i)
+    W
 end
 
-
-for N = 2:4
-    @eval begin
-    function extrema_filter{T <: Number}(A::Array{T, $N}, window::Array{Int, 1})
-
-        maxval_temp = copy(A); minval_temp = copy(A)
-
-        for dim = 1:$N
-
-            # For all but the last dimension
-            @nloops $(N-1) i maxval_temp begin
-
-                # Create index for full array (fa) length
-                @nexprs $(N)   j->(fa_{j} = 1:size(maxval_temp)[j])
-                @nexprs $(N-1) j->(fa_{j} = i_j)
-
-                # Create index for short array (sa) length
-                @nexprs $(N)   j->(sa_{j} = 1:size(maxval_temp)[j] - window[dim] + 1)
-                @nexprs $(N-1) j->(sa_{j} = i_j)
-
-                # Filter the last dimension
-                (@nref $N minval_temp sa) = min_filter(vec( @nref $N minval_temp fa), window[dim])
-                (@nref $N maxval_temp sa) = max_filter(vec( @nref $N maxval_temp fa), window[dim])
-
-            end
-
-            # Circular shift the dimensions
-            maxval_temp = permutedims(maxval_temp, mod(collect(1:$N), $N)+1)
-            minval_temp = permutedims(minval_temp, mod(collect(1:$N), $N)+1)
-
-        end
-
-        # The dimensions to extract
-        @nexprs $N j->(a_{j} = 1:size(A, j)-window[j]+1)
-
-        # Extract set dimensions
-        maxval_out = @nref $N maxval_temp a
-        minval_out = @nref $N minval_temp a
-
-        return minval_out, maxval_out
+function addtoback!(W::Wedge, A, i, J)
+    mn, mx = A[i, J]
+    @inbounds while !isempty(W.L) && mn < A[back(W.L), J][1]
+        pop!(W.L)
     end
+    @inbounds while !isempty(W.U) && mx > A[back(W.U), J][2]
+        pop!(W.U)
     end
+    push!(W.L, i)
+    push!(W.U, i)
+    W
 end
 
+function Base.empty!(W::Wedge)
+    empty!(W.L)
+    empty!(W.U)
+    W
+end
 
-function extrema_filter{T <: Number}(a::AbstractArray{T}, window::Int)
+@inline function getextrema(A, W::Wedge, J)
+    (A[front(W.L), J][1], A[front(W.U), J][2])
+end
 
-    n = length(a)
+"""
+    extrema_filter(A, window) --> Array{(min,max)}
 
-    # Initialise the output variables
-    # This is the running minimum and maximum over the specified window length
-    minval = zeros(T, 1, n-window+1)
-    maxval = zeros(T, 1, n-window+1)
+Calculate the running min/max over a window of width `window[d]` along
+dimension `d`, centered on the current point. The returned array has
+the same indices as the input `A`.
+"""
+function extrema_filter{T,N}(A::AbstractArray{T,N}, window::NTuple{N,Integer})
+    _extrema_filter!([(a,a) for a in A], window...)
+end
+extrema_filter(A::AbstractArray, window::AbstractArray) = extrema_filter(A, (window...,))
+extrema_filter(A::AbstractArray, window) = error("`window` must have the same number of entries as dimensions of `A`")
 
+extrema_filter{T,N}(A::AbstractArray{T,N}, window::Integer) = extrema_filter(A, ntuple(d->window, Val{N}))
+
+function _extrema_filter!(A::Array, w1, w...)
+    if w1 > 1
+        a = first(A)
+        cache = ntuple(i->a, w1>>1)
+        _extrema_filter1!(A, w1, cache)
+    end
+    _extrema_filter!(permutedims(A, [2:ndims(A);1]), w...)
+end
+_extrema_filter!(A::Array) = A
+
+# Extrema-filtering along "columns" (dimension 1). This implements Lemire
+# Algorithm 1, with the following modifications:
+#   - multidimensional array support by looping over trailing dimensions
+#   - working with min/max pairs rather than plain values, to
+#     facilitate multidimensional processing
+#   - output for all points of the array, handling the edges as max-min
+#     over halfwindow on either side
+function _extrema_filter1!{T}(A::AbstractArray{Tuple{T,T}}, window::Int, cache)
     # Initialise the internal wedges
-    # U[1], L[1] are the location of the global maximum and minimum
-    # U[2], L[2] are the maximum and minimum over (U1, inf)
-    L = Wedge(zeros(Int,1,window+1), window+1, 0, 1, 0, 0)          # Min
-    U = Wedge(zeros(Int,1,window+1), window+1, 0, 1, 0, 0)
+    # U[1], L[1] are the location of the global (within the window) maximum and minimum
+    # U[2], L[2] are the maximum and minimum over (U1, end] and (L1, end], respectively
+    W = Wedge{Int}(window+1)
+    tmp = Array{Tuple{T,T}}(window)
+    c = z = first(cache)
 
-    for i = 2:n
-        if i > window
-            if !wedgeisempty(U)
-                maxval[i-window] = a[getfirst(U)]
-            else
-                maxval[i-window] = a[i-1]
+    inds = indices(A)
+    inds1 = inds[1]
+    halfwindow = window>>1
+    iw = min(last(inds1), first(inds1)+window-1)
+    for J in CartesianRange(tail(inds))
+        empty!(W)
+        # Leading edge. We can't overwrite any values yet in A because
+        # we'll need them again in later computations.
+        for i = first(inds1):iw
+            addtoback!(W, A, i, J)
+            c, cache = cyclecache(cache, getextrema(A, W, J))
+        end
+        # Process the rest of the "column"
+        for i = iw+1:last(inds1)
+            A[i-window, J] = c
+            if i == window+front(W.U)
+                shift!(W.U)
             end
-            if !wedgeisempty(L)
-                minval[i-window] = a[getfirst(L)]
-            else
-                minval[i-window] = a[i-1]
+            if i == window+front(W.L)
+                shift!(W.L)
             end
-        end # window
-
-        if a[i] > a[i-1]
-            pushback!(L, i-1)
-            if i==window+getfirst(L); L=popfront(L); end
-            while !wedgeisempty(U)
-                if a[i] <= a[getlast(U)]
-                    if i == window+getfirst(U); U = popfront(U); end
-                    break
-                end
-                U = popback(U)
+            addtoback!(W, A, i, J)
+            c, cache = cyclecache(cache, getextrema(A, W, J))
+        end
+        for i = last(inds1)-window+1:last(inds1)-1
+            if i >= first(inds1)
+                A[i, J] = c
             end
-
-        else
-
-            pushback!(U, i-1)
-            if i==window+getfirst(U); U=popfront(U); end
-
-            while !wedgeisempty(L)
-                if a[i] >= a[getlast(L)]
-                    if i == window+getfirst(L); L = popfront(L); end
-                    break
-                end
-                L = popback(L)
+            if i == front(W.U)
+                shift!(W.U)
             end
-
-        end  # a>a-1
-
-    end # for i
-
-    i = n+1
-    if !wedgeisempty(U)
-        maxval[i-window] = a[getfirst(U)]
-    else
-        maxval[i-window] = a[i-1]
+            if i == front(W.L)
+                shift!(W.L)
+            end
+            c, cache = cyclecache(cache, getextrema(A, W, J))
+        end
+        A[last(inds1), J] = c
     end
-
-    if !wedgeisempty(L)
-        minval[i-window] = a[getfirst(L)]
-    else
-        minval[i-window] = a[i-1]
-    end
-
-    return minval, maxval
+    A
 end
 
+# This is slightly faster than a circular buffer
+@inline cyclecache(b, x) = b[1], (Base.tail(b)..., x)
 
-function min_filter(a::AbstractArray, window::Int)
-
-    minval, maxval = extrema_filter(a, window)
-
-    return minval
-end
-
-
-function max_filter(a::AbstractArray, window::Int)
-
-    minval, maxval = extrema_filter(a, window)
-
-    return maxval
-end
-
-
-function wedgeisempty(X::Wedge)
-    X.n <= 0
-end
-
-function pushback!(X::Wedge, v)
-    X.last += 1
-    if X.last > X.size
-        X.last = 1
-    end
-    X.buffer[X.last] = v
-    X.n = X.n+1
-    X.mxn = max(X.mxn, X.n)
-end
-
-function getfirst(X::Wedge)
-    X.buffer[X.first]
-end
-
-function getlast(X::Wedge)
-    X.buffer[X.last]
-end
-
-function popfront(X::Wedge)
-    X.n = X.n-1
-    X.first = mod(X.first, X.size) + 1
-    return X
-end
-
-function popback(X::Wedge)
-    X.n = X.n-1
-    X.last = mod(X.last-2, X.size) + 1
-    return X
 end

@@ -4,7 +4,7 @@ using Colors, FixedPointNumbers, ImagesCore, MappedArrays, FFTViews, OffsetArray
 using ColorVectorSpace  # for filtering RGB arrays
 using Base: Indices, tail, fill_to_length, @pure, depwarn
 
-export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, imgradients, padarray, centered
+export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, extrema_filter, imgradients, padarray, centered
 
 typealias FixedColorant{T<:UFixed} Colorant{T}
 typealias StaticOffsetArray{T,N,A<:StaticArray} OffsetArray{T,N,A}
@@ -56,6 +56,9 @@ typealias ProcessedKernel Tuple
 
 include("imfilter.jl")
 include("specialty.jl")
+
+include("rank.jl")
+using .Rank
 
 function __init__()
     # See ComputationalResources README for explanation
