@@ -1,4 +1,4 @@
-using ImagesFiltering, ImagesCore, OffsetArrays, Colors
+using ImageFiltering, ImageCore, OffsetArrays, Colors
 using Base.Test
 
 @testset "specialty" begin
@@ -195,10 +195,10 @@ using Base.Test
         imgf2 = imfilter(img, kernel2)
         @test cor(vec(imgf1), vec(imgf2)) > 0.8
         # Ensure that edge-trimming under successive stages of filtering works correctly
-        ImagesFiltering.fillbuf_nan[] = true
+        ImageFiltering.fillbuf_nan[] = true
         kernel3 = (Kernel.Laplacian(), KernelFactors.IIRGaussian(σs)...)
         @test !any(isnan, imfilter(img, kernel3))
-        ImagesFiltering.fillbuf_nan[] = false
+        ImageFiltering.fillbuf_nan[] = false
     end
 end
 

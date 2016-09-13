@@ -1,8 +1,8 @@
 module Kernel
 
 using StaticArrays, OffsetArrays
-using ..ImagesFiltering: centered, KernelFactors
-import ..ImagesFiltering: _reshape
+using ..ImageFiltering: centered, KernelFactors
+import ..ImageFiltering: _reshape
 
 function product2d(kf)
     k1, k2 = kf

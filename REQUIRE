@@ -1,7 +1,7 @@
 julia 0.5-
 Colors
 ColorVectorSpace
-ImagesCore
+ImageCore
 OffsetArrays
 CatIndices
 StaticArrays
@@ -9,3 +9,4 @@ MappedArrays
 FFTViews
 ComputationalResources
 DataStructures
+TiledIteration

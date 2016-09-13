@@ -1,9 +1,9 @@
-using Documenter, ImagesFiltering
+using Documenter, ImageFiltering
 
-makedocs(modules  = [ImagesFiltering, Kernel, KernelFactors],
+makedocs(modules  = [ImageFiltering, Kernel, KernelFactors],
          format   = Documenter.Formats.HTML,
-         sitename = "ImagesFiltering",
+         sitename = "ImageFiltering",
          pages    = ["index.md", "Function reference" => "function_reference.md"])
 
-deploydocs(repo   = "github.com/JuliaImages/ImagesFiltering.jl.git")
+deploydocs(repo   = "github.com/JuliaImages/ImageFiltering.jl.git")
          # deps   = Deps.pip("mkdocs", "python-markdown-math"),

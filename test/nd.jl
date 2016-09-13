@@ -1,4 +1,4 @@
-using ImagesFiltering, OffsetArrays
+using ImageFiltering, OffsetArrays
 using Base.Test
 
 @testset "1d" begin
@@ -17,7 +17,7 @@ using Base.Test
     @test size(casc) == size(img)
     # copy! kernels, presence/order doesn't matter
     kc = centered([1])
-    @test ImagesFiltering.iscopy(kc)
+    @test ImageFiltering.iscopy(kc)
     @test_approx_eq imfilter(img, (k1,)) [1.25,2.0,3.0,4.0,5.0,6.0,7.0,7.75]
     @test_approx_eq imfilter(img, (kc, k1)) [1.25,2.0,3.0,4.0,5.0,6.0,7.0,7.75]
     @test_approx_eq imfilter(img, (k1, kc)) [1.25,2.0,3.0,4.0,5.0,6.0,7.0,7.75]

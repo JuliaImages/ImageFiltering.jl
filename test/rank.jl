@@ -1,4 +1,4 @@
-using ImagesFiltering, Base.Test
+using ImageFiltering, Base.Test
 
 @testset "extrema_filter" begin
     function groundtruth(f, A, window::Tuple)

@@ -1,4 +1,4 @@
-using ImagesFiltering, Colors, ColorVectorSpace
+using ImageFiltering, Colors, ColorVectorSpace
 using Base.Test
 
 @testset "gradient" begin

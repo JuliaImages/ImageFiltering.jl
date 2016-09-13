@@ -1,4 +1,4 @@
-using ImagesFiltering, ImagesCore, OffsetArrays, Colors, FFTViews, ColorVectorSpace, ComputationalResources
+using ImageFiltering, ImageCore, OffsetArrays, Colors, FFTViews, ColorVectorSpace, ComputationalResources
 using Base.Test
 
 @testset "FIR/FFT" begin

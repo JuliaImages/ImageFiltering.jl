@@ -1,4 +1,4 @@
-using ImagesFiltering, ImagesCore, OffsetArrays
+using ImageFiltering, ImageCore, OffsetArrays
 using Base.Test
 
 @testset "cascade" begin
