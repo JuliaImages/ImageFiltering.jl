@@ -1,3 +1,5 @@
+__precompile__()
+
 module ImageFiltering
 
 using Colors, FixedPointNumbers, ImageCore, MappedArrays, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
