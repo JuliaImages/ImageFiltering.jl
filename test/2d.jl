@@ -20,7 +20,7 @@ using Base.Test
         targetimg[3:4,2:3] = rot180(kern)*img[3,4]
         @test @inferred(imfilter(img, kernel)) ≈ targetimg
         @test @inferred(imfilter(img, (kernel,))) ≈ targetimg
-        @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32(targetimg)
+        @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32.(targetimg)
         ret = imfilter(img, kernel)
         fill!(ret, zero(eltype(ret)))
         @test @inferred(imfilter!(ret, img, kernel)) ≈ targetimg
@@ -28,13 +28,13 @@ using Base.Test
         @test @inferred(imfilter!(CPU1(Algorithm.FIR()), ret, img, kernel)) ≈ targetimg
         for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(img))))
             @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
-            @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
+            @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32.(targetimg)
             fill!(ret, zero(eltype(ret)))
             @test @inferred(imfilter!(ret, img, kernel, border)) ≈ targetimg
             for alg in (Algorithm.FIR(), Algorithm.FFT())
                 @test @inferred(imfilter(img, kernel, border, alg)) ≈ targetimg
                 @test @inferred(imfilter(img, (kernel,), border, alg)) ≈ targetimg
-                @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
+                @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32.(targetimg)
                 fill!(ret, zero(eltype(ret)))
                 @test @inferred(imfilter!(CPU1(alg), ret, img, kernel, border)) ≈ targetimg
             end
@@ -42,10 +42,10 @@ using Base.Test
         end
         targetimg_inner = OffsetArray(targetimg[2:end, 1:end-2], 2:5, 1:5)
         @test @inferred(imfilter(img, kernel, Inner())) ≈ targetimg_inner
-        @test @inferred(imfilter(f32type(img), img, kernel, Inner())) ≈ float32(targetimg_inner)
+        @test @inferred(imfilter(f32type(img), img, kernel, Inner())) ≈ float32.(targetimg_inner)
         for alg in (Algorithm.FIR(), Algorithm.FFT())
             @test @inferred(imfilter(img, kernel, Inner(), alg)) ≈ targetimg_inner
-            @test @inferred(imfilter(f32type(img), img, kernel, Inner(), alg)) ≈ float32(targetimg_inner)
+            @test @inferred(imfilter(f32type(img), img, kernel, Inner(), alg)) ≈ float32.(targetimg_inner)
             @test @inferred(imfilter(CPU1(alg), img, kernel, Inner())) ≈ targetimg_inner
         end
     end
@@ -57,22 +57,22 @@ using Base.Test
         targetimg[3:4,2:3] = rot180(kern)*img[3,4]
         ret = similar(targetimg)
         @test @inferred(imfilter(img, kernel)) ≈ targetimg
-        @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32(targetimg)
+        @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32.(targetimg)
         for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(img))))
             @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
-            @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
+            @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32.(targetimg)
             for alg in (Algorithm.FIR(), Algorithm.FFT())
                 @test @inferred(imfilter(img, kernel, border, alg)) ≈ targetimg
-                @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
+                @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32.(targetimg)
             end
             @test_throws MethodError imfilter!(CPU1(Algorithm.FIR()), ret, img, kernel, border, Algorithm.FFT())
         end
         targetimg_inner = OffsetArray(targetimg[2:end, 1:end-2], 2:5, 1:5)
         @test @inferred(imfilter(img, kernel, Inner())) ≈ targetimg_inner
-        @test @inferred(imfilter(f32type(img), img, kernel, Inner())) ≈ float32(targetimg_inner)
+        @test @inferred(imfilter(f32type(img), img, kernel, Inner())) ≈ float32.(targetimg_inner)
         for alg in (Algorithm.FIR(), Algorithm.FFT())
             @test @inferred(imfilter(img, kernel, Inner(), alg)) ≈ targetimg_inner
-            @test @inferred(imfilter(f32type(img), img, kernel, Inner(), alg)) ≈ float32(targetimg_inner)
+            @test @inferred(imfilter(f32type(img), img, kernel, Inner(), alg)) ≈ float32.(targetimg_inner)
         end
     end
     # Rational filter coefficients
@@ -82,29 +82,29 @@ using Base.Test
         targetimg = zeros(typeof(img[1]*kern[1]), size(img))
         targetimg[2:4,3:5] = img[3,4]*(1//9)
         @test @inferred(imfilter(img, kernel)) ≈ targetimg
-        @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32(targetimg)
+        @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32.(targetimg)
         for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(img))))
             @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
-            @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
+            @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32.(targetimg)
             for alg in (Algorithm.FIR(), Algorithm.FFT())
                 if alg == Algorithm.FFT() && eltype(img) == Int
                     @test @inferred(imfilter(Float64, img, kernel, border, alg)) ≈ targetimg
                 else
                     @test @inferred(imfilter(img, kernel, border, alg)) ≈ targetimg
                 end
-                @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
+                @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32.(targetimg)
             end
         end
         targetimg_inner = OffsetArray(targetimg[2:end-1, 2:end-1], 2:4, 2:6)
         @test @inferred(imfilter(img, kernel, Inner())) ≈ targetimg_inner
-        @test @inferred(imfilter(f32type(img), img, kernel, Inner())) ≈ float32(targetimg_inner)
+        @test @inferred(imfilter(f32type(img), img, kernel, Inner())) ≈ float32.(targetimg_inner)
         for alg in (Algorithm.FIR(), Algorithm.FFT())
             if alg == Algorithm.FFT() && eltype(img) == Int
                 @test @inferred(imfilter(Float64, img, kernel, Inner(), alg)) ≈ targetimg_inner
             else
                 @test @inferred(imfilter(img, kernel, Inner(), alg)) ≈ targetimg_inner
             end
-            @test @inferred(imfilter(f32type(img), img, kernel, Inner(), alg)) ≈ float32(targetimg_inner)
+            @test @inferred(imfilter(f32type(img), img, kernel, Inner(), alg)) ≈ float32.(targetimg_inner)
         end
     end
     ## Images for which the boundary conditions matter
@@ -117,18 +117,18 @@ using Base.Test
     kernel = OffsetArray(kern, -1:0, 1:2)
     function target1{T}(img::AbstractArray{T}, kern, border)
         if border ∈ ("replicate", "symmetric")
-            ret = float64(zero(img))
+            ret = float64.(zero(img))
             x = img[1,2]
             ret[1,1] = (kern[1,1]+kern[2,1])*x
             ret[2,1] = kern[1,1]*x
             ret
         elseif border == "circular"
-            a = FFTView(float64(zero(img)))
+            a = FFTView(float64.(zero(img)))
             x = img[1,2]
             a[0:1, -1:0] = rot180(kern).*x
             parent(a)
         elseif border == "reflect" || isa(border, Fill)
-            ret = float64(zero(img))
+            ret = float64.(zero(img))
             x = img[1,2]
             ret[1,1] = kern[2,1]*x
             ret[2,1] = kern[1,1]*x
@@ -136,7 +136,7 @@ using Base.Test
         end
     end
     function target1{T}(img::AbstractArray{T}, kern, ::NA)
-        ret = float64(zero(img))
+        ret = float64.(zero(img))
         x = img[1,2]
         ret[1,1] = kern[2,1]*x/(kern[2,1]+kern[2,2])
         ret[2,1] = kern[1,1]*x/sum(kern)
@@ -147,10 +147,10 @@ using Base.Test
         for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(img))))
             targetimg = target1(img, kern, border)
             @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
-            @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
+            @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32.(targetimg)
             for alg in (Algorithm.FIR(), Algorithm.FFT())
                 @test @inferred(imfilter(img, kernel, border, alg)) ≈ targetimg
-                @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
+                @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32.(targetimg)
             end
         end
         border = NA()
@@ -158,10 +158,10 @@ using Base.Test
         nanflag = isnan.(targetimg0)
         targetimg = zerona!(copy(targetimg0))
         @test @inferred(zerona!(imfilter(img, kernel, border))) ≈ targetimg
-        @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border))) ≈ float32(targetimg)
+        @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border))) ≈ float32.(targetimg)
         for alg in (Algorithm.FIR(), Algorithm.FFT())
             @test @inferred(zerona!(imfilter(img, kernel, border, alg), nanflag)) ≈ targetimg
-            @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border, alg), nanflag)) ≈ float32(targetimg)
+            @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border, alg), nanflag)) ≈ float32.(targetimg)
         end
     end
     # Factored kernel
@@ -171,10 +171,10 @@ using Base.Test
         for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(img))))
             targetimg = target1(img, kern, border)
             @test @inferred(imfilter(img, kernel, border)) ≈ targetimg
-            @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32(targetimg)
+            @test @inferred(imfilter(f32type(img), img, kernel, border)) ≈ float32.(targetimg)
             for alg in (Algorithm.FIR(), Algorithm.FFT())
                 @test @inferred(imfilter(img, kernel, border, alg)) ≈ targetimg
-                @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32(targetimg)
+                @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32.(targetimg)
             end
         end
         border = NA()
@@ -182,10 +182,10 @@ using Base.Test
         nanflag = isnan.(targetimg0)
         targetimg = zerona!(copy(targetimg0))
         @test @inferred(zerona!(imfilter(img, kernel, border))) ≈ targetimg
-        @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border))) ≈ float32(targetimg)
+        @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border))) ≈ float32.(targetimg)
         for alg in (Algorithm.FIR(), Algorithm.FFT())
             @test @inferred(zerona!(imfilter(img, kernel, border, alg), nanflag)) ≈ targetimg
-            @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border, alg), nanflag)) ≈ float32(targetimg)
+            @test @inferred(zerona!(imfilter(f32type(img), img, kernel, border, alg), nanflag)) ≈ float32.(targetimg)
         end
     end
     # filtering with a 0d kernel
