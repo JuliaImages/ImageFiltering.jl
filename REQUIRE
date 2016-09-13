@@ -8,5 +8,5 @@ StaticArrays 0.0.5
 MappedArrays
 FFTViews
 ComputationalResources
-DataStructures
+DataStructures 0.4.6
 TiledIteration
