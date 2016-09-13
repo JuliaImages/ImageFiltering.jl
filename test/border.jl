@@ -1,4 +1,4 @@
-using ImagesFiltering, OffsetArrays, Colors
+using ImageFiltering, OffsetArrays, Colors
 using Base.Test
 
 @testset "Border" begin
@@ -149,7 +149,7 @@ using Base.Test
 
         a = reshape(1:15, 3, 5)
         targetinds = (OffsetArray([1,1,2,3,3], 0:4), OffsetArray([1:5;], 1:5))
-        ret = @test_throws ArgumentError ImagesFiltering.padindices(rand(3,5), Pad(:replicate,(1,)))
+        ret = @test_throws ArgumentError ImageFiltering.padindices(rand(3,5), Pad(:replicate,(1,)))
         @test contains(ret.value.msg, "lacks the proper padding sizes")
     end
 
@@ -177,8 +177,8 @@ using Base.Test
 
     @testset "misc" begin
         a0 = reshape([1])  # 0-dimensional
-        @test ImagesFiltering.accumulate_padding((), a0) == ()
-        @test ImagesFiltering.accumulate_padding((0:1, -1:1), a0) == (0:1, -1:1)
+        @test ImageFiltering.accumulate_padding((), a0) == ()
+        @test ImageFiltering.accumulate_padding((0:1, -1:1), a0) == (0:1, -1:1)
     end
 end
 

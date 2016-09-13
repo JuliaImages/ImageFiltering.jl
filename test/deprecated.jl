@@ -1,4 +1,4 @@
-using ImagesFiltering, ImagesCore, Colors, FixedPointNumbers, OffsetArrays, Base.Test
+using ImageFiltering, ImageCore, Colors, FixedPointNumbers, OffsetArrays, Base.Test
 
 isapprox_const(A::AbstractArray, n::Number) = isapprox(A, fill(n, size(A)))
 

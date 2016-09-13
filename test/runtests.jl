@@ -1,6 +1,6 @@
-using ImagesFiltering, Base.Test
+using ImageFiltering, Base.Test
 
-aif = detect_ambiguities(ImagesFiltering, Kernel, KernelFactors, Base)
+aif = detect_ambiguities(ImageFiltering, Kernel, KernelFactors, Base)
 # Because StaticArrays has ambiguities with Base, we have to "subtract" these
 asa = detect_ambiguities(StaticArrays, Base)
 @test isempty(setdiff(aif, asa))

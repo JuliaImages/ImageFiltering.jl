@@ -618,16 +618,16 @@ function filtfft{C<:Colorant}(A::AbstractArray{C}, krn)
     colorview(base_colorant_type(C){eltype(Avf)}, Avf)
 end
 channelview_dims{C<:Colorant,N}(A::AbstractArray{C,N}) = channelview(A), ntuple(d->d+1, Val{N})
-if ImagesCore.squeeze1
-    channelview_dims{C<:ImagesCore.Color1,N}(A::AbstractArray{C,N}) = channelview(A), ntuple(identity, Val{N})
+if ImageCore.squeeze1
+    channelview_dims{C<:ImageCore.Color1,N}(A::AbstractArray{C,N}) = channelview(A), ntuple(identity, Val{N})
 end
 
 function kreshape{C<:Colorant}(::Type{C}, krn::FFTView)
     kern = parent(krn)
     kernrs = FFTView(reshape(kern, 1, size(kern)...))
 end
-if ImagesCore.squeeze1
-    kreshape{C<:ImagesCore.Color1}(::Type{C}, krn::FFTView) = krn
+if ImageCore.squeeze1
+    kreshape{C<:ImageCore.Color1}(::Type{C}, krn::FFTView) = krn
 end
 
 ### Triggs-Sdika (modified Young-van Vliet) recursive filtering

@@ -1,8 +1,8 @@
 module KernelFactors
 
 using StaticArrays, OffsetArrays
-using ..ImagesFiltering: centered, dummyind
-import ..ImagesFiltering: _reshape, _vec, nextendeddims
+using ..ImageFiltering: centered, dummyind
+import ..ImageFiltering: _reshape, _vec, nextendeddims
 using Base: tail, Indices, @pure, checkbounds_indices, throw_boundserror
 
 abstract IIRFilter{T}

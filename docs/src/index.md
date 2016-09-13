@@ -10,7 +10,7 @@ processing. The core function is `imfilter`, and common kernels
 Let's start with a simple example of linear filtering:
 
 ```julia
-julia> using ImagesFiltering, TestImages
+julia> using ImageFiltering, TestImages
 
 julia> img = testimage("mandrill");
 
@@ -29,7 +29,7 @@ The most commonly used function for filtering is [`imfilter`](@ref).
 
 ```@meta
 DocTestSetup = quote
-    using Colors, ImagesFiltering, TestImages
+    using Colors, ImageFiltering, TestImages
     img = testimage("mandrill")
 end
 ```
@@ -118,7 +118,7 @@ OffsetArrays.OffsetArray{Float64,1,Array{Float64,1}} with indices -1:1:
  0.333333
 
 julia> kernf = kernelfactors((kern1, kern1))
-(ImagesFiltering.KernelFactors.ReshapedOneD{Float64,2,0,OffsetArrays.OffsetArray{Float64,1,Array{Float64,1}}}([0.333333,0.333333,0.333333]),ImagesFiltering.KernelFactors.ReshapedOneD{Float64,2,1,OffsetArrays.OffsetArray{Float64,1,Array{Float64,1}}}([0.333333,0.333333,0.333333]))
+(ImageFiltering.KernelFactors.ReshapedOneD{Float64,2,0,OffsetArrays.OffsetArray{Float64,1,Array{Float64,1}}}([0.333333,0.333333,0.333333]),ImageFiltering.KernelFactors.ReshapedOneD{Float64,2,1,OffsetArrays.OffsetArray{Float64,1,Array{Float64,1}}}([0.333333,0.333333,0.333333]))
 
 julia> kernp = broadcast(*, kernf...)
 OffsetArrays.OffsetArray{Float64,2,Array{Float64,2}} with indices -1:1×-1:1:
