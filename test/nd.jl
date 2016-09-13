@@ -7,7 +7,7 @@ using Base.Test
     k1 = centered([0.25, 0.5, 0.25])
     k2 = OffsetArray([0.5, 0.5], 1:2)
     casc = imfilter(img, (k1, k2, k1))
-    A0 = padarray(img, Pad{:replicate}((2,),(4,)))
+    A0 = padarray(img, Pad(:replicate, (2,), (4,)))
     A1 = imfilter(A0, k1, Inner())
     @test_approx_eq A1 OffsetArray([1.0,1.25,2.0,3.0,4.0,5.0,6.0,7.0,7.75,8.0,8.0,8.0], 0:11)
     A2 = imfilter(A1, k2, Inner())
@@ -26,7 +26,7 @@ end
 @testset "3d" begin
     img = trues(10,10,10)
     kernel = centered(trues(3,3,3)/27)
-    for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(true))
+    for border in ("replicate", "circular", "symmetric", "reflect", Fill(true))
         for alg in (Algorithm.FIR(), Algorithm.FFT())
             @test_approx_eq imfilter(img, kernel, border) img
         end

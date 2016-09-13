@@ -1,10 +1,10 @@
 module ImagesFiltering
 
 using Colors, FixedPointNumbers, ImagesCore, MappedArrays, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
-using ColorVectorSpace  # in case someone filters RGB arrays
-using Base: Indices, tail, fill_to_length, @pure
+using ColorVectorSpace  # for filtering RGB arrays
+using Base: Indices, tail, fill_to_length, @pure, depwarn
 
-export Kernel, KernelFactors, Pad, Fill, Inner, NoPad, Algorithm, imfilter, imfilter!, imgradients, padarray, centered
+export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, extrema_filter, imgradients, padarray, centered, kernelfactors, reflect
 
 typealias FixedColorant{T<:UFixed} Colorant{T}
 typealias StaticOffsetArray{T,N,A<:StaticArray} OffsetArray{T,N,A}
@@ -19,10 +19,10 @@ module Algorithm
     # deliberately don't export these, but it's expected that they
     # will be used as Algorithm.FFT(), etc.
     abstract Alg
-    immutable FFT <: Alg end
-    immutable FIR <: Alg end
-    immutable IIR <: Alg end
-    immutable Mixed <: Alg end
+    "Filter using the Fast Fourier Transform" immutable FFT <: Alg end
+    "Filter using a direct algorithm" immutable FIR <: Alg end
+    "Filter with an Infinite Impulse Response filter" immutable IIR <: Alg end
+    "Filter with a cascade of mixed types (IIR, FIR)" immutable Mixed <: Alg end
 end
 using .Algorithm: Alg, FFT, FIR, IIR, Mixed
 
@@ -30,26 +30,25 @@ Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
 
 include("utils.jl")
 include("kernelfactors.jl")
-using .KernelFactors: TriggsSdika, IIRFilter, ReshapedVector, iterdims
+using .KernelFactors: TriggsSdika, IIRFilter, ReshapedOneD, iterdims, kernelfactors
 
-typealias ArrayLike{T} Union{AbstractArray{T}, IIRFilter{T}, ReshapedVector{T}}
-typealias ReshapedIIR{T,N,Npre,V<:IIRFilter} ReshapedVector{T,N,Npre,V}
-typealias AnyIIR Union{IIRFilter, ReshapedIIR}
+typealias ReshapedVector{T,N,Npre,V<:AbstractVector} ReshapedOneD{T,N,Npre,V}
+typealias ArrayType{T} Union{AbstractArray{T}, ReshapedVector{T}}
+typealias ReshapedIIR{T,N,Npre,V<:IIRFilter} ReshapedOneD{T,N,Npre,V}
+typealias AnyIIR{T} Union{IIRFilter{T}, ReshapedIIR{T}}
+typealias ArrayLike{T} Union{ArrayType{T}, AnyIIR{T}}
 
 include("kernel.jl")
 using .Kernel
-using .Kernel: Laplacian
+using .Kernel: Laplacian, reflect
 
-typealias NDimKernel{N,K} Union{AbstractArray{K,N},ReshapedVector{K,N},Laplacian{N}}
+typealias NDimKernel{N,K} Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N}}
 
 include("border.jl")
 
-typealias BorderSpec{Style,T} Union{Pad{Style,0}, Fill{T,0}, Inner{0}}
-typealias BorderSpecRF{T} Union{Pad{:replicate,0}, Fill{T,0}}
-typealias PadNoNa Union{Pad{:replicate,0}, Pad{:circular,0}, Pad{:symmetric,0},
-                        Pad{:reflect, 0}}
-typealias BorderSpecNoNa{T} Union{PadNoNa, Fill{T,0}, Inner{0}}
-typealias BorderSpecAny Union{BorderSpec,NoPad}
+typealias BorderSpec{T} Union{Pad{0}, Fill{T,0}, Inner{0}}
+typealias BorderSpecNoNa{T} Union{Pad{0}, Fill{T,0}, Inner{0}}
+typealias BorderSpecAny Union{BorderSpec,NA,NoPad}
 
 include("deprecated.jl")
 
@@ -57,6 +56,9 @@ typealias ProcessedKernel Tuple
 
 include("imfilter.jl")
 include("specialty.jl")
+
+include("rank.jl")
+using .Rank
 
 function __init__()
     # See ComputationalResources README for explanation

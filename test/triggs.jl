@@ -32,7 +32,7 @@ using Base.Test
         img = 1:8
         k1 = KernelFactors.IIRGaussian(2)
         k2 = centered(ones(3)/3)
-        for border in (Pad{:replicate}(), Fill(0))
+        for border in (Pad(:replicate), Fill(0))
             @test_approx_eq imfilter(img, (k1, k2), border) imfilter(img, (k2, k1), border)
         end
     end
@@ -54,10 +54,10 @@ using Base.Test
             @test img == img0
             @test imgf != img
         end
-        ret = imfilter(imgf, KernelFactors.IIRGaussian((0,σ)), Pad{:replicate}())
+        ret = imfilter(imgf, KernelFactors.IIRGaussian((0,σ)), "replicate")
         @test ret != imgf
         out = similar(ret)
-        imfilter!(CPU1(Algorithm.IIR()), out, imgf, KernelFactors.IIRGaussian(σ), 2, Pad{:replicate}())
+        imfilter!(CPU1(Algorithm.IIR()), out, imgf, KernelFactors.IIRGaussian(σ), 2, "replicate")
         @test out == ret
     end
 end

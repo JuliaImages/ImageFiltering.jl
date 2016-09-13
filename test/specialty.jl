@@ -43,7 +43,7 @@ using Base.Test
         for a in (makeimpulse(Float64, (5,), 1),
                   makeimpulse(Gray{U8}, (5,), 1),
                   makeimpulse(RGB{Float32}, (5,), 1))
-            for (border, edgecoef) in ((Pad{:replicate}(), -1),
+            for (border, edgecoef) in (("replicate", -1),
                                        (Fill(zero(eltype(a))), -2))
                 af = imfilter(a, kern, border)
                 T = eltype(a)
@@ -69,7 +69,7 @@ using Base.Test
         for a in (makeimpulse(Float64, (5,5), CartesianIndex((3,1))),
                   makeimpulse(Gray{U8}, (5,5), CartesianIndex((3,1))),
                   makeimpulse(RGB{Float32}, (5,5), CartesianIndex((3,1))))
-            for (border, edgecoef) in ((Pad{:replicate}(), -3),
+            for (border, edgecoef) in (("replicate", -3),
                                        (Fill(zero(eltype(a))), -4))
                 af = imfilter(a, kern, border)
                 T = eltype(a)
@@ -85,7 +85,7 @@ using Base.Test
         for a in (makeimpulse(Float64, (5,5), CartesianIndex((5,5))),
                   makeimpulse(Gray{U8}, (5,5), CartesianIndex((5,5))),
                   makeimpulse(RGB{Float32}, (5,5), CartesianIndex((5,5))))
-            for (border, edgecoef) in ((Pad{:replicate}(), -2),
+            for (border, edgecoef) in (("replicate", -2),
                                        (Fill(zero(eltype(a))), -4))
                 af = imfilter(a, kern, border)
                 T = eltype(a)
@@ -117,7 +117,7 @@ using Base.Test
         for a in (makeimpulse(Float64, (5,5), CartesianIndex((3,1))),
                   makeimpulse(Gray{U8}, (5,5), CartesianIndex((3,1))),
                   makeimpulse(RGB{Float32}, (5,5), CartesianIndex((3,1))))
-            for (border, edgecoef) in ((Pad{:replicate}(), -2),
+            for (border, edgecoef) in (("replicate", -2),
                                        (Fill(zero(eltype(a))), -2))
                 af = imfilter(a, kern, border)
                 T = eltype(a)
@@ -133,7 +133,7 @@ using Base.Test
         for a in (makeimpulse(Float64, (5,5), CartesianIndex((5,5))),
                   makeimpulse(Gray{U8}, (5,5), CartesianIndex((5,5))),
                   makeimpulse(RGB{Float32}, (5,5), CartesianIndex((5,5))))
-            for (border, edgecoef) in ((Pad{:replicate}(), -1),
+            for (border, edgecoef) in (("replicate", -1),
                                        (Fill(zero(eltype(a))), -2))
                 af = imfilter(a, kern, border)
                 T = eltype(a)

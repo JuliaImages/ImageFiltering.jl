@@ -5,7 +5,7 @@ using Base.Test
     a = rand(15)
     kern = OffsetArray(ones(3), -1:1)
     kern2 = OffsetArray(Float64[1,2,3,2,1], -2:2)  # the convolution of the above with self
-    for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(a))))
+    for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(a))))
         afc = imfilter(a, (kern, kern), border)
         af2 = imfilter(a, kern2, border)
         @test_approx_eq afc af2
@@ -17,7 +17,7 @@ using Base.Test
     kern2 = OffsetArray(c.*c', -2:2, -2:2)
     kern2x = OffsetArray(c.*ones(1,3), -2:2, -1:1)
     kern2y = OffsetArray(ones(3).*c',  -1:1, -2:2)
-    for border in (Pad{:replicate}(), Pad{:circular}(), Pad{:symmetric}(), Pad{:reflect}(), Fill(zero(eltype(a))))
+    for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(a))))
         afc = imfilter(a, (kernx, kerny, kernx, kerny), border)
         af2 = imfilter(a, kern2, border)
         @test_approx_eq afc af2
