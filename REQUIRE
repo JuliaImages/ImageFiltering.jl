@@ -4,7 +4,7 @@ ColorVectorSpace
 ImageCore
 OffsetArrays
 CatIndices
-StaticArrays
+StaticArrays 0.0.5
 MappedArrays
 FFTViews
 ComputationalResources
