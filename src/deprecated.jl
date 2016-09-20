@@ -84,6 +84,27 @@ _eltype{T,R<:Real}(::Type{T}, ::Type{R}) = T
 
 @deprecate imfilter_LoG(img, σ, border="replicate") imfilter(img, Kernel.LoG(σ), border)
 
+function imgradients(img::AbstractArray, method::AbstractString)
+    depwarn("imgradients requires the kernel to be specified as a function, e.g., KernelFactors.ando3. Note also that the order of outputs has switched.", :imgradients)
+    imgradients(img, kernelfunc_lookup(method))
+end
+
+function kernelfunc_lookup(method::AbstractString)
+    if method=="sobel"
+        return KernelFactors.sobel
+    elseif method=="prewitt"
+        return KernelFactors.prewitt
+    elseif method=="ando3"
+        return KernelFactors.ando3
+    elseif method=="ando4"
+        return KernelFactors.ando4
+    elseif method=="ando5"
+        return KernelFactors.ando5
+    else
+        error("$method does not correspond to a known gradient method")
+    end
+end
+
 function extrema_filter(A, window::AbstractVector{Int})
     depwarn("extrema_filter(A, window) has been replaced by rankfilter(extrema, A, window). Note that rankfilter returns a single array, rather than a pair Amin, Amax; it also preserves the input size.", :extrema_filter)
     Aminmax = rankfilter(extrema, A, window)
