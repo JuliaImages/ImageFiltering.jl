@@ -6,7 +6,7 @@ using Colors, FixedPointNumbers, ImageCore, MappedArrays, FFTViews, OffsetArrays
 using ColorVectorSpace  # for filtering RGB arrays
 using Base: Indices, tail, fill_to_length, @pure, depwarn
 
-export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, extrema_filter, imgradients, padarray, centered, kernelfactors, reflect
+export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, rankfilter, imgradients, padarray, centered, kernelfactors, reflect
 
 typealias FixedColorant{T<:UFixed} Colorant{T}
 typealias StaticOffsetArray{T,N,A<:StaticArray} OffsetArray{T,N,A}

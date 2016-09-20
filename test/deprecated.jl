@@ -128,6 +128,7 @@ isapprox_const(A::AbstractArray, n::Number) = isapprox(A, fill(n, size(A)))
         imgf = imfilter_gaussian(img, [2,2])
         @test_approx_eq channelview(data(imgf)) imfilter_gaussian(A, [0,2,2])
 
+        # TODO: uncomment these
         # A = zeros(Int, 9, 9); A[5, 5] = 1
         # @test maximum(abs(imfilter_LoG(A, [1,1]) - imlog(1.0))) < EPS
         # @test maximum(imfilter_LoG([0 0 0 0 1 0 0 0 0], [1,1]) - sum(imlog(1.0),1)) < EPS
@@ -136,6 +137,13 @@ isapprox_const(A::AbstractArray, n::Number) = isapprox(A, fill(n, size(A)))
         # @test imaverage() == fill(1/9, 3, 3)
         # @test imaverage([3,3]) == fill(1/9, 3, 3)
         # @test_throws ErrorException imaverage([5])
+    end
+
+    @testset "extrema_filter" begin
+        A = [0.1,0.3,0.2,0.3,0.4]
+        minval, maxval = extrema_filter(A, 3)
+        @test minval == [0.1,0.2,0.2]
+        @test maxval == [0.3,0.3,0.4]
     end
 end
 

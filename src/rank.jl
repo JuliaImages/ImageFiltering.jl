@@ -3,7 +3,9 @@ module Rank
 using DataStructures
 using Base: tail
 
-export extrema_filter
+export rankfilter
+
+rankfilter(::typeof(extrema), A, window) = extrema_filter(A, window)
 
 # Max-min filter
 
