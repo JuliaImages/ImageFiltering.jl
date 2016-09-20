@@ -1,6 +1,28 @@
 using ImageFiltering, ImageCore, OffsetArrays, Colors, FFTViews, ColorVectorSpace, ComputationalResources
 using Base.Test
 
+@testset "tiling" begin
+    m = zeros(UInt8, 20, 20)
+    for i = -2:2; m[diagind(m,i)] = 0xff; end
+    kernel = KernelFactors.prewitt((true,true), 1)
+    kp = broadcast(*, kernel...)
+    # target is the result we want to get
+    target = zeros(20, 20)
+    dv = [42.5, 85, 85, 42.5]
+    for i = 1:4
+        target[diagind(target, i)] = dv[i]
+        target[diagind(target, -i)] = -dv[i]
+    end
+    mf = imfilter(m, kernel)
+    @test mf[2:19, 2:19] ≈ target[2:19, 2:19]
+    mf = imfilter(CPU1(Algorithm.FIR()), m, kernel)
+    @test mf[2:19, 2:19] ≈ target[2:19, 2:19]
+    mf = imfilter(CPUThreads(Algorithm.FIR()), m, kernel)
+    @test mf[2:19, 2:19] ≈ target[2:19, 2:19]
+    mf = imfilter(m, (kp,))
+    @test mf[2:19, 2:19] ≈ target[2:19, 2:19]
+end
+
 @testset "FIR/FFT" begin
     f32type(img) = f32type(eltype(img))
     f32type{C<:Colorant}(::Type{C}) = base_colorant_type(C){Float32}
