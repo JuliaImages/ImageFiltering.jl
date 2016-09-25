@@ -16,7 +16,7 @@ using Base.Test
             A = [kernel.a'; eye(2) zeros(2)]
             B = [kernel.b'; eye(2) zeros(2)]
             I1 = zeros(3,3); I1[1,1] = 1
-            @test_approx_eq kernel.M (I1+B*kernel.M*A)  # Triggs & Sdika, Eq. 8
+            @test kernel.M ≈ (I1+B*kernel.M*A)  # Triggs & Sdika, Eq. 8
             for (i,c) in enumerate(x)
                 a = zeros(l)
                 a[c] = 1
@@ -33,7 +33,7 @@ using Base.Test
         k1 = KernelFactors.IIRGaussian(2)
         k2 = centered(ones(3)/3)
         for border in (Pad(:replicate), Fill(0))
-            @test_approx_eq imfilter(img, (k1, k2), border) imfilter(img, (k2, k1), border)
+            @test imfilter(img, (k1, k2), border) ≈ imfilter(img, (k2, k1), border)
         end
     end
 

@@ -153,20 +153,20 @@ using Base.Test
             cmp = [exp(-x^2/(2σ^2)) for x in xr]
             OffsetArray(cmp/sum(cmp), xr)
         end
-        @test_approx_eq KernelFactors.gaussian(2, 9) gaussiancmp(2, -4:4)
+        @test KernelFactors.gaussian(2, 9) ≈ gaussiancmp(2, -4:4)
         k = KernelFactors.gaussian((2,3), (9,7))
-        @test_approx_eq vec(k[1]) gaussiancmp(2, -4:4)
-        @test_approx_eq vec(k[2]) gaussiancmp(3, -3:3)
-        @test_approx_eq sum(KernelFactors.gaussian(5)) 1
+        @test vec(k[1]) ≈ gaussiancmp(2, -4:4)
+        @test vec(k[2]) ≈ gaussiancmp(3, -3:3)
+        @test sum(KernelFactors.gaussian(5)) ≈ 1
         for k = (KernelFactors.gaussian((2,3)), KernelFactors.gaussian([2,3]), KernelFactors.gaussian([2,3], [9,7]))
-            @test_approx_eq sum(k[1]) 1
-            @test_approx_eq sum(k[2]) 1
+            @test sum(k[1]) ≈ 1
+            @test sum(k[2]) ≈ 1
         end
-        @test_approx_eq Kernel.gaussian((2,), (9,)) gaussiancmp(2, -4:4)
-        @test_approx_eq Kernel.gaussian((2,3), (9,7)) gaussiancmp(2, -4:4).*gaussiancmp(3, -3:3)'
-        @test_approx_eq sum(Kernel.gaussian(5)) 1
+        @test Kernel.gaussian((2,), (9,)) ≈ gaussiancmp(2, -4:4)
+        @test Kernel.gaussian((2,3), (9,7)) ≈ gaussiancmp(2, -4:4).*gaussiancmp(3, -3:3)'
+        @test sum(Kernel.gaussian(5)) ≈ 1
         for k = (Kernel.gaussian((2,3)), Kernel.gaussian([2,3]), Kernel.gaussian([2,3], [9,7]))
-            @test_approx_eq sum(k) 1
+            @test sum(k) ≈ 1
         end
     end
 
@@ -175,11 +175,11 @@ using Base.Test
             cmp = [exp(-x^2/(2σ^2)) for x in xr]
             OffsetArray(cmp/sum(cmp), xr)
         end
-        @test_approx_eq Kernel.DoG((2,), (3,), (9,)) gaussiancmp(2, -4:4) - gaussiancmp(3, -4:4)
+        @test Kernel.DoG((2,), (3,), (9,)) ≈ gaussiancmp(2, -4:4) - gaussiancmp(3, -4:4)
         k = Kernel.DoG((2,3), (4,3.5), (9,7))
         k1 = gaussiancmp(2, -4:4) .* gaussiancmp(3, -3:3)'
         k2 = gaussiancmp(4, -4:4) .* gaussiancmp(3.5, -3:3)'
-        @test_approx_eq k k1-k2
+        @test k ≈ k1-k2
         @test abs(sum(Kernel.DoG(5))) < 1e-8
         @test Kernel.DoG(5) == Kernel.DoG((5,5))
         @test abs(sum(Kernel.DoG((5,), (7,), (21,)))) < 1e-8

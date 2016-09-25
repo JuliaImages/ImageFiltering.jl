@@ -8,7 +8,7 @@ using Base.Test
     for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(a))))
         afc = imfilter(a, (kern, kern), border)
         af2 = imfilter(a, kern2, border)
-        @test_approx_eq afc af2
+        @test afc ≈ af2
     end
 
     a = rand(15, 15)
@@ -20,15 +20,15 @@ using Base.Test
     for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(a))))
         afc = imfilter(a, (kernx, kerny, kernx, kerny), border)
         af2 = imfilter(a, kern2, border)
-        @test_approx_eq afc af2
+        @test afc ≈ af2
         afc = imfilter(a, (kernx, kernx, kerny, kerny), border)
         af2 = imfilter(a, kern2, border)
-        @test_approx_eq afc af2
+        @test afc ≈ af2
         afc = imfilter(a, (kernx, kernx, kerny), border)
         af2 = imfilter(a, kern2x, border)
-        @test_approx_eq afc af2
+        @test afc ≈ af2
         afc = imfilter(a, (kerny, kernx, kerny), border)
         af2 = imfilter(a, kern2y, border)
-        @test_approx_eq afc af2
+        @test afc ≈ af2
     end
 end

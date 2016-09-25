@@ -212,7 +212,7 @@ end
     end
     # filtering with a 0d kernel
     a = rand(3,3)
-    # @test_approx_eq imfilter(a, reshape([2])) 2a
+    # @test imfilter(a, reshape([2])) ≈ 2a
     # imfilter! as a copy
     ret = zeros(3, 3)
     b = @inferred(imfilter!(CPU1(Algorithm.FIR()), ret, a, (), NoPad()))

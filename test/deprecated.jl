@@ -79,7 +79,7 @@ isapprox_const(A::AbstractArray, n::Number) = isapprox(A, fill(n, size(A)))
         kernpad = zeros(5,5); kernpad[2:4,2:4] = kern
         Af = permuteddimsview(channelview(imfilter(A, kern)), (2,3,1))
 
-        @test_approx_eq cat(3, rot180(kernpad), zeros(5,5), rot180(kernpad)) Af
+        @test cat(3, rot180(kernpad), zeros(5,5), rot180(kernpad)) ≈ Af
         @test isapprox_const(imfilter(ones(4,4),ones(1,3),"replicate"), 3.0)
 
         A = zeros(5,5); A[3,3] = 1
@@ -87,46 +87,46 @@ isapprox_const(A::AbstractArray, n::Number) = isapprox(A, fill(n, size(A)))
         Af = imfilter(A, kern, Inner())
         @test Af == OffsetArray(rot180(kern), (1,1))
         Afft = imfilter_fft(A, kern, "inner")
-        @test_approx_eq Af Afft
+        @test Af ≈ Afft
         h = [0.24,0.87]
         hfft = imfilter_fft(eye(3), h, "inner")
         hfft[abs(hfft) .< 3eps()] = 0
-        @test_approx_eq imfilter(eye(3), h, Inner()) hfft  # issue #204
+        @test imfilter(eye(3), h, Inner()) ≈ hfft  # issue #204
 
         # circular
         A = zeros(3, 3)
         A[3,2] = 1
         kern = rand(3,3)
-        @test_approx_eq imfilter_fft(A, kern, "circular") kern[[1,3,2],[3,2,1]]
+        @test imfilter_fft(A, kern, "circular") ≈ kern[[1,3,2],[3,2,1]]
 
         A = zeros(5, 5)
         A[5,3] = 1
         kern = rand(3,3)
-        @test_approx_eq imfilter_fft(A, kern, "circular")[[1,4,5],2:4] kern[[1,3,2],[3,2,1]]
+        @test imfilter_fft(A, kern, "circular")[[1,4,5],2:4] ≈ kern[[1,3,2],[3,2,1]]
 
         A = zeros(5, 5)
         A[5,3] = 1
         kern = rand(3,3)
-        @test_approx_eq imfilter(A, kern, "circular")[[1,4,5],2:4] kern[[1,3,2],[3,2,1]]
+        @test imfilter(A, kern, "circular")[[1,4,5],2:4] ≈ kern[[1,3,2],[3,2,1]]
 
         @test isapprox_const(imfilter_gaussian(ones(4,4), [5,5]), 1.0)
         A = fill(convert(Float32, NaN), 4, 4)
         A[1:4,1] = 1:4
         @test isequal(imfilter_gaussian(A, [0,0]), A)
-        @test_approx_eq imfilter_gaussian(A, [0,3]) A
+        @test_approx_eq imfilter_gaussian(A, [0,3]) A  # NaN pattern prevents ≈
         B = copy(A)
         B[isfinite(B)] = 2.5
-        @test_approx_eq imfilter_gaussian(A, [10^3,0]) B
+        @test_approx_eq imfilter_gaussian(A, [10^3,0]) B  # NaN pattern prevents ≈
         @test maximum(map(abs, imfilter_gaussian(imgcol, [10^3,10^3]) - mean(imgcol))) < 1e-4
         @test maximum(map(abs, imfilter_gaussian(imgcolf, [10^3,10^3]) - mean(imgcolf))) < 1e-4
         A = rand(4,5)
         img = reinterpret(Gray{Float64}, A)
         imgf = imfilter_gaussian(img, [2,2])
-        @test_approx_eq reinterpret(Float64, data(imgf)) imfilter_gaussian(A, [2,2])
+        @test reinterpret(Float64, data(imgf)) ≈ imfilter_gaussian(A, [2,2])
         A = rand(3,4,5)
         img = colorim(A)
         imgf = imfilter_gaussian(img, [2,2])
-        @test_approx_eq channelview(data(imgf)) imfilter_gaussian(A, [0,2,2])
+        @test channelview(data(imgf)) ≈ imfilter_gaussian(A, [0,2,2])
 
         # TODO: uncomment these
         # A = zeros(Int, 9, 9); A[5, 5] = 1
