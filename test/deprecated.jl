@@ -139,6 +139,12 @@ isapprox_const(A::AbstractArray, n::Number) = isapprox(A, fill(n, size(A)))
         # @test_throws ErrorException imaverage([5])
     end
 
+    @testset "imgradients" begin
+        A = rand(5,7)
+        gy, gx = imgradients(A, "sobel")
+        @test (gy,gx) == imgradients(A, KernelFactors.sobel, "replicate")
+    end
+
     @testset "extrema_filter" begin
         A = [0.1,0.3,0.2,0.3,0.4]
         minval, maxval = extrema_filter(A, 3)

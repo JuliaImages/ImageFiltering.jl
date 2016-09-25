@@ -84,9 +84,11 @@ _eltype{T,R<:Real}(::Type{T}, ::Type{R}) = T
 
 @deprecate imfilter_LoG(img, σ, border="replicate") imfilter(img, Kernel.LoG(σ), border)
 
-function imgradients(img::AbstractArray, method::AbstractString)
+imgradients(img::AbstractArray, method::AbstractString) = imgradients(img, method, "replicate")
+
+function imgradients(img::AbstractArray, method::AbstractString, border::AbstractString)
     depwarn("imgradients requires the kernel to be specified as a function, e.g., KernelFactors.ando3. Note also that the order of outputs has switched.", :imgradients)
-    imgradients(img, kernelfunc_lookup(method))
+    imgradients(img, kernelfunc_lookup(method), border)
 end
 
 function kernelfunc_lookup(method::AbstractString)
