@@ -226,6 +226,7 @@ end
 
 Fill{T}(value::T) = Fill{T,0}(value)
 Fill{T,N}(value::T, lo::Dims{N}, hi::Dims{N}) = Fill{T,N}(value, lo, hi)
+Fill{T,N}(value::T, both::Dims{N}) = Fill{T,N}(value, both, both)
 Fill(value, lo::AbstractVector, hi::AbstractVector) = Fill(value, (lo...,), (hi...,))
 Fill{T,N}(value::T, inds::Base.Indices{N}) = Fill{T,N}(value, map(lo,inds), map(hi,inds))
 Fill(value, kernel) = Fill(value, calculate_padding(kernel))
