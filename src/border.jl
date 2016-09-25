@@ -55,6 +55,17 @@ end
 
 const valid_borders = ("replicate", "circular", "reflect", "symmetric")
 
+function borderinstance(border::AbstractString)
+    if border ∈ valid_borders
+        return Pad(Symbol(border))
+    elseif border == "inner"
+        throw(ArgumentError("specifying Inner as a string is deprecated, use `imfilter(img, kern, Inner())` instead"))
+    else
+        throw(ArgumentError("$border not a recognized border"))
+    end
+end
+borderinstance(b::AbstractBorder) = b
+
 """
     Pad(style::Symbol, m, n, ...)
 

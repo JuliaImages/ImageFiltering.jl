@@ -1,9 +1,41 @@
-using ImageFiltering, OffsetArrays
+using ImageFiltering, OffsetArrays, ComputationalResources
 using Base.Test
 
 @testset "1d" begin
-    # Cascades don't result in out-of-bounds values
     img = 1:8
+    # Exercise all the different ways to call imfilter
+    kern = centered([1/3,1/3,1/3])
+    imgf = imfilter(img, kern)
+    r = CPU1(Algorithm.FIR())
+    @test imfilter(Float64, img, kern) == imgf
+    @test imfilter(Float64, img, (kern,)) == imgf
+    @test imfilter(Float64, img, kern, "replicate") == imgf
+    @test imfilter(Float64, img, (kern,), "replicate") == imgf
+    @test_throws ArgumentError imfilter(Float64, img, (kern,), "inner")
+    @test_throws ArgumentError imfilter(Float64, img, (kern,), "nonsense")
+    @test imfilter(Float64, img, kern, "replicate", Algorithm.FIR()) == imgf
+    @test imfilter(Float64, img, (kern,), "replicate", Algorithm.FIR()) == imgf
+    @test imfilter(r, img, kern) == imgf
+    @test imfilter(r, img, kern) == imgf
+    @test imfilter(r, Float64, img, kern) == imgf
+    @test imfilter(r, Float64, img, (kern,)) == imgf
+    @test imfilter(r, img, kern, "replicate") == imgf
+    @test imfilter(r, Float64, img, kern, "replicate") == imgf
+    @test imfilter(r, img, (kern,), "replicate") == imgf
+    @test imfilter(r, Float64, img, (kern,), "replicate") == imgf
+    @test_throws MethodError imfilter(r, img, (kern,), "replicate", Algorithm.FIR())
+    @test_throws MethodError imfilter(r, Float64, img, (kern,), "replicate", Algorithm.FIR())
+    out = similar(imgf)
+    @test imfilter!(out, img, kern) == imgf
+    @test imfilter!(out, img, (kern,)) == imgf
+    @test imfilter!(out, img, (kern,), "replicate") == imgf
+    @test imfilter!(out, img, (kern,), "replicate", Algorithm.FIR()) == imgf
+    @test imfilter!(r, out, img, kern) == imgf
+    @test imfilter!(r, out, img, (kern,)) == imgf
+    @test imfilter!(r, out, img, kern, "replicate") == imgf
+    @test imfilter!(r, out, img, (kern,), "replicate") == imgf
+    @test_throws MethodError imfilter!(r, out, img, (kern,), "replicate", Algorithm.FIR())
+
     k1 = centered([0.25, 0.5, 0.25])
     k2 = OffsetArray([0.5, 0.5], 1:2)
     casc = imfilter(img, (k1, k2, k1))

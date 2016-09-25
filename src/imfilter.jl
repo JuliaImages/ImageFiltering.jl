@@ -16,13 +16,7 @@ function imfilter{T}(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, arg
 end
 
 function imfilter{T}(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractString, args...)
-    if border ∈ valid_borders
-        return imfilter(T, img, kernel, Pad(Symbol(border)), args...)
-    elseif border == "inner"
-        error("specifying Inner as a string is deprecated, use `imfilter(img, kern, Inner())` instead")
-    else
-        throw(ArgumentError("$border not a recognized border"))
-    end
+    imfilter(T, img, kernel, borderinstance(border), args...)
 end
 
 # Step 4: if necessary, allocate the ouput
@@ -43,6 +37,10 @@ end
 # specifying both r and an algorithm
 function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel)
     imfilter(r, T, img, kernel, Pad(:replicate))  # supply the default border
+end
+
+function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractString)
+    imfilter(r, T, img, kernel, borderinstance(border))
 end
 
 function imfilter{T}(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny)
@@ -116,19 +114,11 @@ function imfilter!(out::AbstractArray, img::AbstractArray, kernel::Union{ArrayLi
     imfilter!(out, img, factorkernel(kernel), args...)
 end
 
-function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::Union{ArrayLike,Laplacian})
-    imfilter!(r, out, img, factorkernel(kernel))
+function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel, args...)
+    imfilter!(r, out, img, factorkernel(kernel), args...)
 end
 
-function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::Union{ArrayLike,Laplacian}, border::AbstractString)
-    imfilter!(r, out, img, kernel, Pad(Symbol(border)))
-end
-
-function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::Union{ArrayLike,Laplacian}, border::BorderSpec)
-    imfilter!(r, out, img, factorkernel(kernel), border)
-end
-
-function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel)
+function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, args...)
     imfilter!(out, img, kernel, Pad(:replicate))
 end
 
@@ -136,15 +126,15 @@ function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, 
     imfilter!(r, out, img, kernel, Pad(:replicate))
 end
 
+function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::AbstractString, args...)
+    imfilter!(out, img, kernel, borderinstance(border), args...)
+end
+
 function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::AbstractString)
-    imfilter!(r, out, img, kernel, Pad(Symbol(border)))
+    imfilter!(r, out, img, kernel, borderinstance(border))
 end
 
 # Step 5: if necessary, pick an algorithm
-function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::AbstractString)
-    imfilter!(out, img, kernel, Pad(Symbol(border)))
-end
-
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny)
     imfilter!(out, img, kernel, border, filter_algorithm(out, img, kernel))
 end
@@ -673,7 +663,7 @@ With Triggs-Sdika filtering, the only border options are `NA()`,
 
 See also: imfilter, TriggsSdika, IIRGaussian.
 """
-function imfilter!(r::AbstractResource, out, img, kernel::TriggsSdika, dim::Integer, border::BorderSpec)
+function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::TriggsSdika, dim::Integer, border::BorderSpec)
     inds = indices(img)
     k, l = length(kernel.a), length(kernel.b)
     # This next part is not type-stable, which is why _imfilter_dim! has a @noinline
@@ -681,12 +671,12 @@ function imfilter!(r::AbstractResource, out, img, kernel::TriggsSdika, dim::Inte
     Rend   = CartesianRange(inds[dim+1:end])
     _imfilter_dim!(r, out, img, kernel, Rbegin, inds[dim], Rend, border)
 end
-function imfilter!(r::AbstractResource, out, img, kernel::TriggsSdika, dim::Integer, border::AbstractString)
+function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::TriggsSdika, dim::Integer, border::AbstractString)
     imfilter!(r, out, img, kernel, dim, Pad(Symbol(border)))
 end
 
 
-function imfilter!(r::AbstractResource, out, A::AbstractVector, kern::TriggsSdika, border::NoPad, inds::Indices=indices(out))
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractVector, kern::TriggsSdika, border::NoPad, inds::Indices=indices(out))
     indspre, ind, indspost = iterdims(inds, kern)
     _imfilter_dim!(r, out, A, kern, CartesianRange(indspre), ind, CartesianRange(indspost), border[])
 end
