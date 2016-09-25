@@ -100,6 +100,9 @@ end
 # for broadcasting
 @pure Base.promote_eltype_op{S,T}(op, ::ReshapedOneD{S}, ::ReshapedOneD{T}) = Base.promote_op(op, S, T)
 @pure Base.promote_eltype_op{S,T}(op, ::Type{S}, ::ReshapedOneD{T}) = Base.promote_op(op, S, T)
+if VERSION >= v"0.6.0-dev.693"
+    Base.Broadcast.containertype{T<:ReshapedOneD}(::Type{T}) = Array
+end
 
 _reshape{T,N}(A::ReshapedOneD{T,N}, ::Type{Val{N}}) = A
 _vec(A::ReshapedOneD) = A.data
