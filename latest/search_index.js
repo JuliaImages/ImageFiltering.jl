@@ -81,11 +81,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "index.html#Rank-filters-1",
+    "location": "index.html#Arbitrary-operations-over-sliding-windows-1",
     "page": "ImageFiltering.jl",
-    "title": "Rank filters",
+    "title": "Arbitrary operations over sliding windows",
     "category": "section",
-    "text": "This package also exports extrema_filter, which returns a (min,max) array representing the \"running\" (local) min/max around each point."
+    "text": "This package also exports mapwindow, which allows you to pass an arbitrary function to operate on the values within a sliding window.mapwindow has optimized implementations for some functions (currently, extrema)."
 },
 
 {
@@ -94,38 +94,6 @@ var documenterSearchIndex = {"docs": [
     "title": "Function reference",
     "category": "page",
     "text": ""
-},
-
-{
-    "location": "function_reference.html#ImageFiltering.imfilter",
-    "page": "Function reference",
-    "title": "ImageFiltering.imfilter",
-    "category": "Function",
-    "text": "imfilter([T], img, kernel, [border=\"replicate\"], [alg]) --> imgfilt\nimfilter([r], img, kernel, [border=\"replicate\"], [alg]) --> imgfilt\nimfilter(r, T, img, kernel, [border=\"replicate\"], [alg]) --> imgfilt\n\nFilter an array img with kernel kernel by computing their correlation.\n\nkernel[0,0,..] corresponds to the origin (zero displacement) of the kernel; you can use centered to place the origin at the array center, or use the OffsetArrays package to set kernel's indices manually. For example, to filter with a random centered 3x3 kernel, you could use either of the following:\n\nkernel = centered(rand(3,3))\nkernel = OffsetArray(rand(3,3), -1:1, -1:1)\n\nkernel can be specified as an array or as a \"factored kernel,\" a tuple (filt1, filt2, ...) of filters to apply along each axis of the image. In cases where you know your kernel is separable, this format can speed processing.  Each of these should have the same dimensionality as the image itself, and be shaped in a manner that indicates the filtering axis, e.g., a 3x1 filter for filtering the first dimension and a 1x3 filter for filtering the second dimension. In two dimensions, any kernel passed as a single matrix is checked for separability; if you want to eliminate that check, pass the kernel as a single-element tuple, (kernel,).\n\nOptionally specify the border, as one of Fill(value), \"replicate\", \"circular\", \"symmetric\", \"reflect\", NA(), or Inner(). The default is \"replicate\". These choices specify the boundary conditions, and therefore affect the result at the edges of the image. See padarray for more information.\n\nalg allows you to choose the particular algorithm: FIR() (finite impulse response, aka traditional digital filtering) or FFT() (Fourier-based filtering). If no choice is specified, one will be chosen based on the size of the image and kernel in a way that strives to deliver good performance. Alternatively you can use a custom filter type, like IIRGaussian.\n\nOptionally, you can control the element type of the output image by passing in a type T as the first argument.\n\nYou can also dispatch to different implementations by passing in a resource r as defined by the ComputationalResources package.  For example,\n\nimfilter(ArrayFire(), img, kernel)\n\nwould request that the computation be performed on the GPU using the ArrayFire libraries.\n\nSee also: imfilter!, centered, padarray, Pad, Fill, Inner, IIRGaussian.\n\n\n\n"
-},
-
-{
-    "location": "function_reference.html#ImageFiltering.imfilter!",
-    "page": "Function reference",
-    "title": "ImageFiltering.imfilter!",
-    "category": "Function",
-    "text": "imfilter!(imgfilt, img, kernel, [border=\"replicate\"], [alg])\nimfilter!(r, imgfilt, img, kernel, border, [inds])\nimfilter!(r, imgfilt, img, kernel, border::NoPad, [inds=indices(imgfilt)])\n\nFilter an array img with kernel kernel by computing their correlation, storing the result in imgfilt.\n\nThe indices of imgfilt determine the region over which the filtered image is computed–-you can use this fact to select just a specific region of interest, although be aware that the input img might still get padded.  Alteratively, explicitly provide the indices inds of imgfilt that you want to calculate, and use NoPad boundary conditions. In such cases, you are responsible for supplying appropriate padding: img must be indexable for all of the locations needed for calculating the output. This syntax is best-supported for FIR filtering; in particular, that that IIR filtering can lead to results that are inconsistent with respect to filtering the entire array.\n\nSee also: imfilter.\n\n\n\n"
-},
-
-{
-    "location": "function_reference.html#ImageFiltering.imgradients",
-    "page": "Function reference",
-    "title": "ImageFiltering.imgradients",
-    "category": "Function",
-    "text": "imgradients(img, [points], [method], [border])\n\nPerforms edge detection filtering in the N-dimensional array img. Gradients are computed at specified points (or indexes) in the array or everywhere.\n\nAvailable methods for 2D images: \"sobel\", \"prewitt\", \"ando3\", \"ando4\",                                  \"ando5\", \"ando4_sep\", \"ando5_sep\".\n\nAvailable methods for ND images: \"sobel\", \"prewitt\", \"ando3\", \"ando4\".\n\nBorder options:\"replicate\", \"circular\", \"reflect\", \"symmetric\".\n\nIf points is specified, returns a 2D array G with the gradients as rows. The number of rows is the number of points at which the gradient was computed and the number of columns is the dimensionality of the array.\n\nIf points is ommitted, returns a tuple of arrays, each of the same size of the input image: (gradx, grady, ...)\n\n\n\n"
-},
-
-{
-    "location": "function_reference.html#ImageFiltering.Rank.extrema_filter",
-    "page": "Function reference",
-    "title": "ImageFiltering.Rank.extrema_filter",
-    "category": "Function",
-    "text": "extrema_filter(A, window) --> Array{(min,max)}\n\nCalculate the running min/max over a window of width window[d] along dimension d, centered on the current point. The returned array has the same indices as the input A.\n\n\n\n"
 },
 
 {
