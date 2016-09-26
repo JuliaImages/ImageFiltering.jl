@@ -55,6 +55,17 @@ end
 
 const valid_borders = ("replicate", "circular", "reflect", "symmetric")
 
+function borderinstance(border::AbstractString)
+    if border ∈ valid_borders
+        return Pad(Symbol(border))
+    elseif border == "inner"
+        throw(ArgumentError("specifying Inner as a string is deprecated, use `imfilter(img, kern, Inner())` instead"))
+    else
+        throw(ArgumentError("$border not a recognized border"))
+    end
+end
+borderinstance(b::AbstractBorder) = b
+
 """
     Pad(style::Symbol, m, n, ...)
 
@@ -226,6 +237,7 @@ end
 
 Fill{T}(value::T) = Fill{T,0}(value)
 Fill{T,N}(value::T, lo::Dims{N}, hi::Dims{N}) = Fill{T,N}(value, lo, hi)
+Fill{T,N}(value::T, both::Dims{N}) = Fill{T,N}(value, both, both)
 Fill(value, lo::AbstractVector, hi::AbstractVector) = Fill(value, (lo...,), (hi...,))
 Fill{T,N}(value::T, inds::Base.Indices{N}) = Fill{T,N}(value, map(lo,inds), map(hi,inds))
 Fill(value, kernel) = Fill(value, calculate_padding(kernel))

@@ -17,33 +17,73 @@ end
 
 ## imgradients
 """
-```
-imgradients(img, [points], [method], [border])
-```
+    imgradients(img, kernelfun=KernelFactors.ando3, border="replicate") -> gimg1, gimg2, ...
+
+Estimate the gradient of `img` at all points of the image, using a
+kernel specified by `kernelfun`. The gradient is returned as a
+tuple-of-arrays, one for each dimension of the input; `gimg1`
+corresponds to the derivative with respect to the first dimension,
+`gimg2` to the second, and so on. At the image edges, `border` is used
+to specify the boundary conditions.
+
+`kernelfun` may be one of the filters defined in the `KernelFactors`
+module, or more generally any function which satisfies the following
+interface:
+
+    kernelfun(extended::NTuple{N,Bool}, d) -> kern_d
+
+`kern_d` is the kernel for producing the derivative with respect to
+the `d`th dimension of an `N`-dimensional array. `extended[i]` is true
+if the image is of size > 1 along dimension `i`. `kern_d` may be
+provided as a dense or factored kernel, with factored representations
+recommended when the kernel is separable.
+"""
+function imgradients(img::AbstractArray, kernelfun::Function, border="replicate")
+    extended = map(isextended, indices(img))
+    _imgradients((), img, kernelfun, extended, border)
+end
+
+# For the 0.6 release of Images, we need to warn users about the
+# switch in the order of the outputs. Use the provision of kernelfun
+# as the test for the new interface.
+function imgradients(img::AbstractArray)
+    depwarn("the order of outputs has switched (`grad1, grad2 = imgradients(img)` rather than `gradx, grady = imgradients`). Silence this warning by providing a kernelfun, e.g., imgradients(img, KernelFactors.ando3).", :imgradients)
+    imgradients(img, KernelFactors.ando3)
+end
+
+isextended(ind) = length(ind) > 1
+
+# When all N gradients have been calculated, return the result
+_imgradients{T,N}(G::NTuple{N}, img::AbstractArray{T,N}, kernelfun::Function, extent, border) = G
+
+# Add the next dimension to G
+function _imgradients{T,M,N}(G::NTuple{M}, img::AbstractArray{T,N}, kernelfun::Function, extended, border)
+    d = M+1  # the dimension we're working on now
+    kern = kernelfun(extended, d)
+    _imgradients((G..., imfilter(img, kern, border)), img, kernelfun, extended, border)
+end
+
+"""
+    imgradients(img, points, [kernelfunc], [border]) -> G
 
 Performs edge detection filtering in the N-dimensional array `img`.
 Gradients are computed at specified `points` (or indexes) in the
-array or everywhere.
+array.
 
-Available methods for 2D images: `"sobel"`, `"prewitt"`, `"ando3"`, `"ando4"`,
-                                 `"ando5"`, `"ando4_sep"`, `"ando5_sep"`.
-
-Available methods for ND images: `"sobel"`, `"prewitt"`, `"ando3"`, `"ando4"`.
+All kernel functions are specified as `KernelFactors.func`. For 2d
+images, the choices for `func` include `sobel`, `prewitt`, `ando3`,
+`ando4`, and `ando5`. For other dimensionalities, the `ando4` and
+`ando5` kernels are not available.
 
 Border options:`"replicate"`, `"circular"`, `"reflect"`, `"symmetric"`.
 
-If `points` is specified, returns a 2D array `G` with the
-gradients as rows. The number of rows is the number of
-points at which the gradient was computed and the number
-of columns is the dimensionality of the array.
-
-If `points` is ommitted, returns a tuple of arrays, each
-of the same size of the input image: (gradx, grady, ...)
+Returns a 2D array `G` with the gradients as rows. The number of rows
+is the number of points at which the gradient was computed and the
+number of columns is the dimensionality of the array.
 """
-function imgradients{T,N}(img::AbstractArray{T,N}, points::AbstractVector;
-                          method::AbstractString="ando3", border::AbstractString="replicate")
-    extent = size(img)
-    ndirs = length(extent)
+function imgradients{T,N}(img::AbstractArray{T,N}, points::AbstractVector,
+                          method=KernelFactors.ando3, border::AbstractString="replicate")
+    extended = map(isextended, indices(img))
     npoints = length(points)
 
     # pad input image only on appropriate directions
@@ -74,22 +114,4 @@ function imgradients{T,N}(img::AbstractArray{T,N}, points::AbstractVector;
     end
 
     G
-end
-
-function imgradients{T,N}(img::AbstractArray{T,N}, kernelfun::Function=KernelFactors.ando3, border=Pad{:replicate}())
-    extended = map(isextended, indices(img))
-    # kern1 = kernelfun(extended, 1)
-    # S = filter_type(img, kern1)
-    _imgradients((), img, kernelfun, extended, border)
-end
-isextended(ind) = length(ind) > 1
-
-# When all N gradients have been calculated, return the result
-_imgradients{T,N}(G::NTuple{N}, img::AbstractArray{T,N}, kernelfun::Function, extent, border) = G
-
-# Add the next dimension to G
-function _imgradients{T,M,N}(G::NTuple{M}, img::AbstractArray{T,N}, kernelfun::Function, extended, border)
-    d = M+1  # the dimension we're working on now
-    kern = kernelfun(extended, d)
-    _imgradients((G..., imfilter(img, kern, border)), img, kernelfun, extended, border)
 end

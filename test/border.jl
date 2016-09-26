@@ -166,6 +166,7 @@ using Base.Test
 
     @testset "Fill" begin
         @test Fill(1,[1,2],[5,6]) == Fill(1, (1,2), (5,6))
+        @test Fill(1,(3,2)) == Fill(1, (3,2), (3,2))
         @test @inferred(Fill(-1)(rand(3,5))) == Fill(-1, (0,0), (3,5))
         @test @inferred(Fill(-1)(centered(rand(3,5)))) == Fill(-1, (1,2), (1,2))
         @test @inferred(Fill(-1, rand(3,5))) == Fill(-1, (0,0), (3,5))
