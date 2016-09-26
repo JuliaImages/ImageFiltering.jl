@@ -1,6 +1,6 @@
 using ImageFiltering, Base.Test
 
-@testset "rankfilter" begin
+@testset "mapwindow" begin
     function groundtruth(f, A, window::Tuple)
         Aex = copy(A)
         hshift = map(x->x>>1+1, window)
@@ -14,41 +14,41 @@ using ImageFiltering, Base.Test
     groundtruth(f, A, window) = groundtruth(f, A, (window...,))
     # 1d case
     A = [0.1,0.3,0.2,0.3,0.4]
-    mm = rankfilter(extrema, A, 1)
+    mm = mapwindow(extrema, A, 1)
     @test mm == [(a,a) for a in A]
-    mm = rankfilter(extrema, A, 2)
+    mm = mapwindow(extrema, A, 2)
     @test mm == [(0.1,0.1),(0.1,0.3),(0.2,0.3),(0.2,0.3),(0.3,0.4)]
-    mm = rankfilter(extrema, A, 3)
+    mm = mapwindow(extrema, A, 3)
     @test mm == [(0.1,0.3),(0.1,0.3),(0.2,0.3),(0.2,0.4),(0.3,0.4)]
-    mm = rankfilter(extrema, A, 4)
+    mm = mapwindow(extrema, A, 4)
     @test mm == [(0.1,0.3),(0.1,0.3),(0.1,0.3),(0.2,0.4),(0.2,0.4)]
-    mm = rankfilter(extrema, A, 5)
+    mm = mapwindow(extrema, A, 5)
     @test mm == [(0.1,0.3),(0.1,0.3),(0.1,0.4),(0.2,0.4),(0.2,0.4)]
-    mm = rankfilter(extrema, A, 6)
+    mm = mapwindow(extrema, A, 6)
     @test mm == [(0.1,0.3),(0.1,0.3),(0.1,0.4),(0.1,0.4),(0.2,0.4)]
-    mm = rankfilter(extrema, A, 7)
+    mm = mapwindow(extrema, A, 7)
     @test mm == [(0.1,0.3),(0.1,0.4),(0.1,0.4),(0.1,0.4),(0.2,0.4)]
     A = [0.1,0.3,0.5,0.4,0.2]
-    mm = rankfilter(extrema, A, 1)
+    mm = mapwindow(extrema, A, 1)
     @test mm == [(a,a) for a in A]
-    mm = rankfilter(extrema, A, 2)
+    mm = mapwindow(extrema, A, 2)
     @test mm == [(0.1,0.1),(0.1,0.3),(0.3,0.5),(0.4,0.5),(0.2,0.4)]
-    mm = rankfilter(extrema, A, 3)
+    mm = mapwindow(extrema, A, 3)
     @test mm == [(0.1,0.3),(0.1,0.5),(0.3,0.5),(0.2,0.5),(0.2,0.4)]
-    mm = rankfilter(extrema, A, 4)
+    mm = mapwindow(extrema, A, 4)
     @test mm == [(0.1,0.3),(0.1,0.5),(0.1,0.5),(0.2,0.5),(0.2,0.5)]
-    mm = rankfilter(extrema, A, 5)
+    mm = mapwindow(extrema, A, 5)
     @test mm == [(0.1,0.5),(0.1,0.5),(0.1,0.5),(0.2,0.5),(0.2,0.5)]
-    mm = rankfilter(extrema, A, 6)
+    mm = mapwindow(extrema, A, 6)
     @test mm == [(0.1,0.5),(0.1,0.5),(0.1,0.5),(0.1,0.5),(0.2,0.5)]
-    mm = rankfilter(extrema, A, 7)
+    mm = mapwindow(extrema, A, 7)
     @test mm == [(0.1,0.5),(0.1,0.5),(0.1,0.5),(0.1,0.5),(0.2,0.5)]
     # 2d case
     A = rand(5,5)/10
     A[2,2] = 0.8
     A[4,4] = 0.6
     for w in ((2,2), (2,3), (3,2), (3,3), (2,5))
-        mm = rankfilter(extrema, A, w)
+        mm = mapwindow(extrema, A, w)
         maxval = last.(mm)
         Amax = groundtruth(max, A, w)
         @test maxval == Amax
@@ -62,7 +62,7 @@ using ImageFiltering, Base.Test
     A[4,4,2] = 0.4
     A[2,2,4] = 0.5
     for w in ((2,2,2), (2,3,2), (3,2,2), (2,2,3), (3,3,3), (2,5,3))
-        mm = rankfilter(extrema, A, w)
+        mm = mapwindow(extrema, A, w)
         maxval = last.(mm)
         Amax = groundtruth(max, A, w)
         @test maxval == Amax

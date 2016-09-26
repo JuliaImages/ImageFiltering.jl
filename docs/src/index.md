@@ -162,8 +162,11 @@ the algorithm by specifying a *resource* as defined by
 For example, `imfilter(CPU1(Algorithm.FIR()), img, ...)` would force
 the computation to be single-threaded.
 
-## Rank filters
+## Arbitrary operations over sliding windows
 
-This package also exports [`extrema_filter`](@ref), which returns a
-`(min,max)` array representing the "running" (local) min/max around
-each point.
+This package also exports [`mapwindow`](@ref), which allows you to
+pass an arbitrary function to operate on the values within a sliding
+window.
+
+`mapwindow` has optimized implementations for some functions
+(currently, `extrema`).

@@ -108,8 +108,8 @@ function kernelfunc_lookup(method::AbstractString)
 end
 
 function extrema_filter(A, window::AbstractVector{Int})
-    depwarn("extrema_filter(A, window) has been replaced by rankfilter(extrema, A, window). Note that rankfilter returns a single array, rather than a pair Amin, Amax; it also preserves the input size.", :extrema_filter)
-    Aminmax = rankfilter(extrema, A, window)
+    depwarn("extrema_filter(A, window) has been replaced by mapwindow(extrema, A, window). Note that mapwindow returns a single array, rather than a pair Amin, Amax; it also preserves the input size.", :extrema_filter)
+    Aminmax = mapwindow(extrema, A, window)
     minval, maxval = map(first, Aminmax), map(last, Aminmax)
     # For backwards-compatability, discard the edges
     halfsz = map(n->n>>1, window)
@@ -119,8 +119,8 @@ end
 
 # This was an internal---but exported---method
 function extrema_filter(A, window::Int)
-    depwarn("extrema_filter(A, window::Int) was an internal method and is being eliminated. Please see `rankfilter`.", :extrema_filter)
-    Aminmax = rankfilter(extrema, vec(A), window)
+    depwarn("extrema_filter(A, window::Int) was an internal method and is being eliminated. Please see `mapwindow`.", :extrema_filter)
+    Aminmax = mapwindow(extrema, vec(A), window)
     minval, maxval = map(first, Aminmax), map(last, Aminmax)
     ind1 = indices(Aminmax,1)
     halfsz = window>>1

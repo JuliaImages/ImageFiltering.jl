@@ -1,11 +1,21 @@
-module Rank
+module MapWindow
 
 using DataStructures
 using Base: tail
 
-export rankfilter
+export mapwindow
 
-rankfilter(::typeof(extrema), A, window) = extrema_filter(A, window)
+"""
+    mapwindow(f, img, window, [options])
+
+Apply `f` to sliding windows of `img`, with window indices specified
+by `window`. For example, `mapwindow(extrema, img, window)` returns an
+`Array` of `(min,max)` tuples over a window of size `window` centered
+on each point of `img`.
+
+This function is still under development.
+"""
+mapwindow(::typeof(extrema), A, window) = extrema_filter(A, window)
 
 # Max-min filter
 
