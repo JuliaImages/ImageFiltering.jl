@@ -141,8 +141,17 @@ isapprox_const(A::AbstractArray, n::Number) = isapprox(A, fill(n, size(A)))
 
     @testset "imgradients" begin
         A = rand(5,7)
-        gy, gx = imgradients(A, "sobel")
-        @test (gy,gx) == imgradients(A, KernelFactors.sobel, "replicate")
+        for (methstring, meth) in (("sobel", KernelFactors.sobel),
+                                   ("prewitt", KernelFactors.prewitt),
+                                   ("ando3", KernelFactors.ando3),
+                                   ("ando4", KernelFactors.ando4),
+                                   ("ando5", KernelFactors.ando5))
+            gy, gx = imgradients(A, methstring)
+            @test (gy,gx) == imgradients(A, meth, "replicate")
+        end
+        gy, gx = imgradients(A)
+        @test (gy,gx) == imgradients(A, KernelFactors.ando3, "replicate")
+        @test_throws ErrorException imgradients(A, "nonsense")
     end
 
     @testset "extrema_filter" begin
@@ -150,6 +159,12 @@ isapprox_const(A::AbstractArray, n::Number) = isapprox(A, fill(n, size(A)))
         minval, maxval = extrema_filter(A, 3)
         @test minval == [0.1,0.2,0.2]
         @test maxval == [0.3,0.3,0.4]
+        A = [1 4 7;
+             2 5 8;
+             3 6 9]
+        minval, maxval = extrema_filter(A, [3,3])
+        @test minval == [1]'
+        @test maxval == [9]'
     end
 end
 

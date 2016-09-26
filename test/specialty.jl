@@ -153,6 +153,14 @@ using Base.Test
             cmp = [exp(-x^2/(2σ^2)) for x in xr]
             OffsetArray(cmp/sum(cmp), xr)
         end
+        for kern in (Kernel.gaussian(()), Kernel.gaussian((),()))
+            @test ndims(kern) == 0
+            @test kern[] == 1
+            @test ImageFiltering.iscopy(kern)
+        end
+        for kern in (Kernel.gaussian((1.3,)), Kernel.gaussian((1.3,),(7,)))
+            @test kern ≈ gaussiancmp(1.3, indices(kern,1))
+        end
         @test KernelFactors.gaussian(2, 9) ≈ gaussiancmp(2, -4:4)
         k = KernelFactors.gaussian((2,3), (9,7))
         @test vec(k[1]) ≈ gaussiancmp(2, -4:4)
@@ -199,6 +207,7 @@ using Base.Test
         kernel3 = (Kernel.Laplacian(), KernelFactors.IIRGaussian(σs)...)
         @test !any(isnan, imfilter(img, kernel3))
         ImageFiltering.fillbuf_nan[] = false
+        @test Kernel.LoG(2.5) == Kernel.LoG((2.5,2.5))
     end
 end
 

@@ -54,6 +54,12 @@ using Base.Test
     @test imfilter(img, (k1,)) ≈ [1.25,2.0,3.0,4.0,5.0,6.0,7.0,7.75]
     @test imfilter(img, (kc, k1)) ≈ [1.25,2.0,3.0,4.0,5.0,6.0,7.0,7.75]
     @test imfilter(img, (k1, kc)) ≈ [1.25,2.0,3.0,4.0,5.0,6.0,7.0,7.75]
+
+    # FFT without padding
+    img = collect(1:8)
+    img[1] = img[8] = 0
+    out = imfilter!(CPU1(Algorithm.FFT()), similar(img, Float64), img, kern, NoPad())
+    @test out ≈ imfilter(img, kern)
 end
 
 @testset "3d" begin

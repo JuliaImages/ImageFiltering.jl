@@ -264,12 +264,14 @@ Compute the pointwise reflection around 0, 0, ... of the kernel
 rather than correlation, with respect to the original `kernel`.
 """
 function reflect(kernel::AbstractArray)
-    inds = map(-, indices(kernel))
+    inds = map(reflectind, indices(kernel))
     out = similar(kernel, inds)
     for I in CartesianRange(indices(kernel))
         out[-I] = kernel[I]
     end
     out
 end
+
+reflectind(r::AbstractUnitRange) = -last(r):-first(r)
 
 end

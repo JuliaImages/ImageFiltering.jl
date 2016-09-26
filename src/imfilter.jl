@@ -832,7 +832,7 @@ end
 
 ### NA boundary conditions
 
-function imfilter_na_inseparable!{T}(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple{Vararg{TriggsSdika}})
+function imfilter_na_inseparable!{T}(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple{Vararg{AnyIIR}})
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
     copy!(out, img)
     out[nanflag] = zero(T)
@@ -923,18 +923,6 @@ function factorstridedkernel(inds, kernel::StridedMatrix)
      kernelshift((dummyind(inds[2]), inds[2]), ss*v))
 end
 
-prod_kernel(kern::AbstractArray) = kern
-prod_kernel(kern::AbstractArray, kern1, kerns...) = broadcast(*, kern, kern1, kerns...) #prod_kernel(kern.*kern1, kerns...)
-prod_kernel{N}(::Type{Val{N}}, args...) = prod_kernel(Val{N}, prod_kernel(args...))
-prod_kernel{_,N}(::Type{Val{N}}, kernel::AbstractArray{_,N}) = kernel
-function prod_kernel{N}(::Type{Val{N}}, kernel::AbstractArray)
-    inds = indices(kernel)
-    newinds = fill_to_length(inds, oftype(inds[1], 0:0), Val{N})
-    reshape(kernel, newinds)
-end
-
-kernelshift(::Tuple{}, A::StridedArray) = A
-kernelshift(::Tuple{}, A) = A
 kernelshift{N}(inds::NTuple{N,Base.OneTo}, A::StridedArray) = _kernelshift(inds, A)
 kernelshift{N}(inds::NTuple{N,Base.OneTo}, A) = _kernelshift(inds, A)
 function _kernelshift(inds, A)

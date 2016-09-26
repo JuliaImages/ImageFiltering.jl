@@ -49,16 +49,30 @@ using Base.Test
             imgcmp = img[3,4]*exp(-(x.^2 .+ y.^2)/(2*σ^2))/(σ^2*2*pi)
             border = Fill(zero(eltype(img)))
             img0 = copy(img)
-            imgf = @inferred(imfilter(img, kernel, border))
-            @test sumabs2(imgcmp - imgf) < 0.2^2*sumabs2(imgcmp)
+            imgfilt = @inferred(imfilter(img, kernel, border))
+            @test sumabs2(imgcmp - imgfilt) < 0.2^2*sumabs2(imgcmp)
             @test img == img0
-            @test imgf != img
+            @test imgfilt != img
         end
+        ret = imfilter(imgf, KernelFactors.IIRGaussian((σ,0)), "replicate")
+        @test ret != imgf
         ret = imfilter(imgf, KernelFactors.IIRGaussian((0,σ)), "replicate")
         @test ret != imgf
         out = similar(ret)
         imfilter!(CPU1(Algorithm.IIR()), out, imgf, KernelFactors.IIRGaussian(σ), 2, "replicate")
         @test out == ret
+
+        # When the image has NaNs
+        imgfnan = copy(imgf)
+        imgfnum = copy(imgf)
+        imgfnan[1,1] = NaN
+        imgfnum[1,1] = 0
+        imgfden = ones(imgfnum)
+        imgfden[1,1] = 0
+        retnum, retden = imfilter(imgfnum, kernel, Fill(0.0)), imfilter(imgfden, kernel, Fill(0.0))
+        ret = imfilter(imgfnan, kernel, NA())
+        ret[1,1] = retnum[1,1] = 0
+        @test ret ≈ retnum./retden
     end
 end
 
