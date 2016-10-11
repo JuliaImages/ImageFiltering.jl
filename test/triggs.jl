@@ -1,4 +1,4 @@
-using ImageFiltering, Colors, ComputationalResources
+using ImageFiltering, Colors, ComputationalResources, FixedPointNumbers
 using Base.Test
 
 @testset "TriggsSdika" begin

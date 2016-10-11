@@ -1,4 +1,4 @@
-using ImageFiltering, ImageCore, OffsetArrays, Colors
+using ImageFiltering, ImageCore, OffsetArrays, Colors, FixedPointNumbers
 using Base.Test
 
 @testset "specialty" begin
@@ -31,9 +31,9 @@ using Base.Test
                   makeimpulse(UInt16, (5,), 3),
                   makeimpulse(UInt8, (5,), 3),
                   makeimpulse(Bool, (5,), 3),
-                  makeimpulse(Gray{U8}, (5,), 3),
+                  makeimpulse(Gray{N0f8}, (5,), 3),
                   makeimpulse(RGB{Float32}, (5,), 3),
-                  makeimpulse(RGB{U8}, (5,), 3))
+                  makeimpulse(RGB{N0f8}, (5,), 3))
             af = imfilter(a, kern)
             T = eltype(a)
             @test af == [zero(T),a[3],-2a[3],a[3],zero(T)]
@@ -41,7 +41,7 @@ using Base.Test
             @test af == [zero(T),a[3],-2a[3],a[3],zero(T)]
         end
         for a in (makeimpulse(Float64, (5,), 1),
-                  makeimpulse(Gray{U8}, (5,), 1),
+                  makeimpulse(Gray{N0f8}, (5,), 1),
                   makeimpulse(RGB{Float32}, (5,), 1))
             for (border, edgecoef) in (("replicate", -1),
                                        (Fill(zero(eltype(a))), -2))
@@ -54,7 +54,7 @@ using Base.Test
         kern = Kernel.Laplacian((true,true))
         @test convert(AbstractArray, kern) == OffsetArray([0 1 0; 1 -4 1; 0 1 0],-1:1,-1:1)
         for a in (makeimpulse(Float64, (5,5), CartesianIndex((3,3))),
-                  makeimpulse(Gray{U8}, (5,5), CartesianIndex((3,3))),
+                  makeimpulse(Gray{N0f8}, (5,5), CartesianIndex((3,3))),
                   makeimpulse(RGB{Float32}, (5,5), CartesianIndex((3,3))))
             af = imfilter(a, kern)
             T = eltype(a)
@@ -67,7 +67,7 @@ using Base.Test
                          z z z z z]
         end
         for a in (makeimpulse(Float64, (5,5), CartesianIndex((3,1))),
-                  makeimpulse(Gray{U8}, (5,5), CartesianIndex((3,1))),
+                  makeimpulse(Gray{N0f8}, (5,5), CartesianIndex((3,1))),
                   makeimpulse(RGB{Float32}, (5,5), CartesianIndex((3,1))))
             for (border, edgecoef) in (("replicate", -3),
                                        (Fill(zero(eltype(a))), -4))
@@ -83,7 +83,7 @@ using Base.Test
             end
         end
         for a in (makeimpulse(Float64, (5,5), CartesianIndex((5,5))),
-                  makeimpulse(Gray{U8}, (5,5), CartesianIndex((5,5))),
+                  makeimpulse(Gray{N0f8}, (5,5), CartesianIndex((5,5))),
                   makeimpulse(RGB{Float32}, (5,5), CartesianIndex((5,5))))
             for (border, edgecoef) in (("replicate", -2),
                                        (Fill(zero(eltype(a))), -4))
@@ -102,7 +102,7 @@ using Base.Test
         kern = Kernel.Laplacian((true,false))
         @test convert(AbstractArray, kern) == OffsetArray(reshape([1, -2, 1], (3,1)),-1:1,0:0)
         for a in (makeimpulse(Float64, (5,5), CartesianIndex((3,3))),
-                  makeimpulse(Gray{U8}, (5,5), CartesianIndex((3,3))),
+                  makeimpulse(Gray{N0f8}, (5,5), CartesianIndex((3,3))),
                   makeimpulse(RGB{Float32}, (5,5), CartesianIndex((3,3))))
             af = imfilter(a, kern)
             T = eltype(a)
@@ -115,7 +115,7 @@ using Base.Test
                          z z z z z]
         end
         for a in (makeimpulse(Float64, (5,5), CartesianIndex((3,1))),
-                  makeimpulse(Gray{U8}, (5,5), CartesianIndex((3,1))),
+                  makeimpulse(Gray{N0f8}, (5,5), CartesianIndex((3,1))),
                   makeimpulse(RGB{Float32}, (5,5), CartesianIndex((3,1))))
             for (border, edgecoef) in (("replicate", -2),
                                        (Fill(zero(eltype(a))), -2))
@@ -131,7 +131,7 @@ using Base.Test
             end
         end
         for a in (makeimpulse(Float64, (5,5), CartesianIndex((5,5))),
-                  makeimpulse(Gray{U8}, (5,5), CartesianIndex((5,5))),
+                  makeimpulse(Gray{N0f8}, (5,5), CartesianIndex((5,5))),
                   makeimpulse(RGB{Float32}, (5,5), CartesianIndex((5,5))))
             for (border, edgecoef) in (("replicate", -1),
                                        (Fill(zero(eltype(a))), -2))

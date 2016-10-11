@@ -34,7 +34,7 @@ isapprox_const(A::AbstractArray, n::Number) = isapprox(A, fill(n, size(A)))
     @testset "Filtering" begin
         EPS = 1e-14
         imgcol = colorim(rand(3,5,6))
-        imgcolf = convert(Array{RGB{UFixed8}}, imgcol)
+        imgcolf = convert(Array{RGB{N0f8}}, imgcol)
         for T in (Float64, Int)
             A = zeros(T,3,3); A[2,2] = 1
             kern = rand(3,3)

@@ -8,7 +8,7 @@ using Base: Indices, tail, fill_to_length, @pure, depwarn
 
 export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, mapwindow, imgradients, padarray, centered, kernelfactors, reflect
 
-typealias FixedColorant{T<:UFixed} Colorant{T}
+typealias FixedColorant{T<:Normed} Colorant{T}
 typealias StaticOffsetArray{T,N,A<:StaticArray} OffsetArray{T,N,A}
 typealias OffsetVector{T} OffsetArray{T,1}
 

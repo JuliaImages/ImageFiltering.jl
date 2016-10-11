@@ -972,7 +972,7 @@ end
 filter_type{S}(img::AbstractArray{S}, kernel) = filter_type(S, kernel)
 
 filter_type{S,T}(::Type{S}, kernel::ArrayLike{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
-filter_type{S<:Union{UFixed,FixedColorant}}(::Type{S}, ::Laplacian) = float32(S)
+filter_type{S<:Union{Normed,FixedColorant}}(::Type{S}, ::Laplacian) = float32(S)
 filter_type{S<:Colorant}(::Type{S}, kernel::Laplacian) = S
 filter_type{S<:AbstractFloat}(::Type{S}, ::Laplacian) = S
 filter_type{S<:Signed}(::Type{S}, ::Laplacian) = S
