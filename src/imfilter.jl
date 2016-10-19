@@ -533,18 +533,37 @@ function _imfilter_inbounds{TT}(r::AbstractResource, ::Type{TT}, out, A::Abstrac
 end
 
 function _imfilter_iter!(r::AbstractResource, out, padded, kernel::AbstractArray, iter)
-    p = first(padded) * first(kernel)
+    p = padded[first(iter)] * first(kernel)
     TT = typeof(p+p)
     Rk = CartesianRange(indices(kernel))
     for I in iter
         tmp = zero(TT)
-        for J in Rk
+        @unsafe for J in Rk
             tmp += padded[I+J]*kernel[J]
         end
         out[I] = tmp
     end
     out
 end
+
+function _imfilter_iter!(r::AbstractResource, out, padded, kern::ReshapedOneD, iter)
+    Rpre, ind, Rpost = iterdims(indices(out), kern)
+    k = kern.data
+    indsk = indices(k, 1)
+    p = padded[first(iter)] * first(k)
+    TT = typeof(p+p)
+    for I in iter
+        Ipre, i, Ipost = KernelFactors.indexsplit(I, kern)
+        tmp = zero(TT)
+        @unsafe for j in indsk
+            tmp += padded[Ipre,i+j,Ipost]*k[j]
+        end
+        out[I] = tmp
+    end
+    out
+end
+
+
 
 ### FFT filtering
 
