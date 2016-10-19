@@ -255,8 +255,6 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
     imfilter!(r, out, A, samedims(out, kern), border, inds)
 end
 
-const fillbuf_nan = Ref(false)  # used only for testing purposes
-
 # A filter cascade (2 or more filters)
 function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=indices(out))
     kern = kernel[1]
@@ -264,10 +262,7 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
     # For multiple stages of filtering, we introduce a second buffer
     # and swap them at each stage. The first of the two is the one
     # that holds the most recent result.
-    A2 = similar(A, eltype(out))
-    if fillbuf_nan[]
-        fill!(A2, NaN)  # for testing purposes
-    end
+    A2 = tempbuffer(A, eltype(out), kernel)
     indsstep = shrink(expand(inds, calculate_padding(kernel)), kern)
     _imfilter!(r, out, A, A2, kernel, border, indsstep)
     return out
@@ -314,7 +309,7 @@ function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{AnyIIR}, border
     imfilter!(r, out, A1, kernel[1], border, indsstep)
 end
 
-function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, indsstep::Indices)
+function _imfilter!(r, out::AbstractArray, A1, A2::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, indsstep::Indices)
     kern = kernel[1]
     iscopy(kern) && return _imfilter!(r, out, A1, A2, tail(kernel), border, indsstep)
     kernN = samedims(A2, kern)
@@ -322,6 +317,17 @@ function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any,Any,Vararg{
     kernelt = tail(kernel)
     newinds = next_shrink(indsstep, kernelt)
     _imfilter!(r, out, A2, A1, tail(kernel), border, newinds)          # swap the buffers
+end
+
+function _imfilter!(r, out::AbstractArray, A1, A2::Tuple{AbstractArray,AbstractArray}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, indsstep::Indices)
+    kern = kernel[1]
+    iscopy(kern) && return _imfilter!(r, out, A1, A2, tail(kernel), border, indsstep)
+    A2_1, A2_2 = A2
+    kernN = samedims(A2_1, kern)
+    imfilter!(r, A2_1, A1, kernN, border, indsstep)  # store result in A2
+    kernelt = tail(kernel)
+    newinds = next_shrink(indsstep, kernelt)
+    _imfilter!(r, out, A2_1, A2_2, tail(kernel), border, newinds)          # swap the buffers
 end
 
 # Single-threaded, pair of kernels (with only one temporary buffer required)
@@ -1023,4 +1029,21 @@ function tile_allocate{T}(::Type{T}, kernel::Tuple{Any,Any,Vararg{Any}})
     sz = map(length, calculate_padding(kernel))
     tsz = padded_tilesize(T, sz)
     [(Array{T}(tsz), Array{T}(tsz)) for i = 1:Threads.nthreads()]
+end
+
+## Whole-image temporaries
+const fillbuf_nan = Ref(false)  # used only for testing purposes
+
+function tempbuffer{T}(A::AbstractArray, ::Type{T}, kernel::Tuple{Any,Any})
+    A2 = similar(A, T)
+    if fillbuf_nan[]
+        fill!(A2, NaN)  # for testing purposes
+    end
+    A2
+end
+
+# If there are more than two stages of filtering, we need two
+# temporaries to avoid overwriting the input image
+function tempbuffer{T}(A::AbstractArray, ::Type{T}, kernel::Tuple{Any,Any,Any,Vararg{Any}})
+    (similar(A, T), similar(A, T))
 end
