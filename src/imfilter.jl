@@ -264,7 +264,7 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
     # For multiple stages of filtering, we introduce a second buffer
     # and swap them at each stage. The first of the two is the one
     # that holds the most recent result.
-    A2 = similar(A)  # for type-stability, let's hope it's really the *same* type...
+    A2 = similar(A, eltype(out))
     if fillbuf_nan[]
         fill!(A2, NaN)  # for testing purposes
     end
