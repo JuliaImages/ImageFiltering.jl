@@ -221,11 +221,11 @@ function imfilter!{S,T,N}(r::AbstractResource,
 end
 
 # An optimized case that performs only "virtual padding"
-function imfilter!{S,T,N}(r::AbstractCPU{FIR},
-                          out::AbstractArray{S,N},
-                          img::AbstractArray{T,N},
-                          kernel::ProcessedKernel,
-                          border::Pad{0})
+function imfilter!{S,T,N,A<:Union{FIR,FIRTiled}}(r::AbstractCPU{A},
+                                                 out::AbstractArray{S,N},
+                                                 img::AbstractArray{T,N},
+                                                 kernel::ProcessedKernel,
+                                                 border::Pad{0})
     # The fast path: handle the points that don't need padding
     iinds = map(intersect, interior(img, kernel), indices(out))
     imfilter!(r, out, img, kernel, NoPad(border), iinds)
@@ -273,8 +273,8 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
     return out
 end
 
-### When everything is FIR, we can instead use a tiled algorithm for the cascaded case
-function imfilter!{S,T,N}(r::AbstractCPU{FIR}, out::AbstractArray{S,N}, A::AbstractArray{T,N}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=indices(out))
+### Use a tiled algorithm for the cascaded case
+function imfilter!{S,T,N}(r::AbstractCPU{FIRTiled}, out::AbstractArray{S,N}, A::AbstractArray{T,N}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=indices(out))
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border, inds)
     tmp = tile_allocate(filter_type(A, kernel), kernel)
@@ -942,7 +942,7 @@ function filter_algorithm(out, img, kernel::Union{ArrayType,Tuple{Vararg{ArrayTy
     if L > 30
         return FFT()
     end
-    FIR()
+    isa(kernel, Tuple) && length(kernel) > 1 ? FIRTiled() : FIR()
 end
 filter_algorithm(out, img, kernel::Tuple{AnyIIR,Vararg{AnyIIR}}) = IIR()
 filter_algorithm(out, img, kernel) = Mixed()
@@ -1007,7 +1007,7 @@ function kernelconv(k1, k2, kernels...)
     kernelconv(out, kernels...)
 end
 
-default_resource(alg::FIR) = Threads.nthreads() > 1 ? CPUThreads(alg) : CPU1(alg)
+default_resource(alg::FIRTiled) = Threads.nthreads() > 1 ? CPUThreads(alg) : CPU1(alg)
 default_resource(alg) = CPU1(alg)
 
 ## Tiling utilities

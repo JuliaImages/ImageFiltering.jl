@@ -23,10 +23,11 @@ module Algorithm
     abstract Alg
     "Filter using the Fast Fourier Transform" immutable FFT <: Alg end
     "Filter using a direct algorithm" immutable FIR <: Alg end
+    "Cache-efficient filtering using tiles" immutable FIRTiled <: Alg end
     "Filter with an Infinite Impulse Response filter" immutable IIR <: Alg end
     "Filter with a cascade of mixed types (IIR, FIR)" immutable Mixed <: Alg end
 end
-using .Algorithm: Alg, FFT, FIR, IIR, Mixed
+using .Algorithm: Alg, FFT, FIR, FIRTiled, IIR, Mixed
 
 Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
 
