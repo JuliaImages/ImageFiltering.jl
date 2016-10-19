@@ -328,9 +328,9 @@ end
 function _imfilter_tiled!{AA<:AbstractArray}(r::CPU1, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA}, indsout)
     k1, k2 = kernel
     tile = tiles[1]
-    indsk1, indstile = indices(k1), indices(tile)
+    indsk2, indstile = indices(k2), indices(tile)
     sz = map(length, indstile)
-    chunksz = map(length, shrink(indstile, indsk1))
+    chunksz = map(length, shrink(indstile, indsk2))
     for tinds in TileIterator(indsout, chunksz)
         tileinds = expand(tinds, k2)
         tileb = TileBuffer(tile, tileinds)
@@ -344,9 +344,9 @@ end
 function _imfilter_tiled!{AA<:AbstractArray}(r::CPUThreads, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA}, indsout)
     k1, k2 = kernel
     tile = tiles[1]
-    indsk1, indstile = indices(k1), indices(tile)
+    indsk2, indstile = indices(k2), indices(tile)
     sz = map(length, indstile)
-    chunksz = map(length, shrink(indstile, indsk1))
+    chunksz = map(length, shrink(indstile, indsk2))
     tileinds_all = collect(expand(inds, k2) for inds in TileIterator(indsout, chunksz))
     _imfilter_tiled_threads!(CPU1(r), out, A, samedims(out, k1), samedims(out, k2), border, tileinds_all, tiles)
 end
@@ -366,9 +366,9 @@ end
 function _imfilter_tiled!{AA<:AbstractArray}(r::CPU1, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}}, indsout)
     k1, kt = kernel[1], tail(kernel)
     tilepair = tiles[1]
-    indsk1, indstile = indices(k1), indices(tilepair[1])
+    indstile = indices(tilepair[1])
     sz = map(length, indstile)
-    chunksz = map(length, shrink(indstile, indsk1))
+    chunksz = map(length, shrink(indstile, kt))
     for tinds in TileIterator(indsout, chunksz)
         tileinds = expand(tinds, kt)
         tileb1 = TileBuffer(tilepair[1], tileinds)
@@ -381,9 +381,9 @@ end
 function _imfilter_tiled!{AA<:AbstractArray}(r::CPUThreads, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}}, indsout)
     k1, kt = kernel[1], tail(kernel)
     tilepair = tiles[1]
-    indsk1, indstile = indices(k1), indices(tilepair[1])
+    indstile = indices(tilepair[1])
     sz = map(length, indstile)
-    chunksz = map(length, shrink(indstile, indsk1))
+    chunksz = map(length, shrink(indstile, kt))
     tileinds_all = collect(expand(inds, kt) for inds in TileIterator(indsout, chunksz))
     _imfilter_tiled_threads!(CPU1(r), out, A, samedims(out, k1), kt, border, tileinds_all, tiles)
 end
