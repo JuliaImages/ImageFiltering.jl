@@ -70,6 +70,26 @@ using ImageFiltering, Base.Test
         Amin = groundtruth(min, A, w)
         @test minval == Amin
     end
-end
 
+    # median
+    for f in (median, median!)
+        a = [1,1,1,2,2,2]
+        @test mapwindow(f, a, -1:1) == a
+        @test mapwindow(f, a, (-1:1,)) == a
+        @test mapwindow(f, a, -2:2) == a
+        @test mapwindow(f, a, -3:3) == a
+        b = [1,100,1,2,-1000,2]
+        @test mapwindow(f, b, -1:1) == [1,1,2,1,2,2]
+        @test mapwindow(f, b, -2:2) == a
+
+        A = [1 5 -2 3 7;
+             2 0 3  4 4;
+             3 3 6  2 5;
+             1 -3 5 3 0]
+        @test mapwindow(f, A, (3,3)) == [1 1 3 3 4;
+                                         2 3 3 4 4;
+                                         2 3 3 4 4;
+                                         1 3 3 3 2]
+    end
+end
 nothing

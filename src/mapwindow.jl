@@ -1,21 +1,152 @@
 module MapWindow
 
-using DataStructures
-using Base: tail
+using DataStructures, TiledIteration
+using ..ImageFiltering: BorderSpecAny, Pad, Fill, borderinstance, _interior, padindex
+using Base: Indices, tail
 
 export mapwindow
 
 """
-    mapwindow(f, img, window, [options])
+    mapwindow(f, img, window, [border="replicate"]) -> imgf
 
-Apply `f` to sliding windows of `img`, with window indices specified
-by `window`. For example, `mapwindow(extrema, img, window)` returns an
-`Array` of `(min,max)` tuples over a window of size `window` centered
-on each point of `img`.
+Apply `f` to sliding windows of `img`, with window size or indices
+specified by `window`. For example, `mapwindow(median!, img, window)`
+returns an `Array` of values similar to `img` (median-filtered, of
+course), whereas `mapwindow(extrema, img, window)` returns an `Array`
+of `(min,max)` tuples over a window of size `window` centered on each
+point of `img`.
 
-This function is still under development.
+The function `f` receives a buffer `buf` for the window of data
+surrounding the current point. If `window` is specified as a
+Dims-tuple (tuple-of-integers), then all the integers must be odd and
+the window is centered around the current image point. For example, if
+`window=(3,3)`, then `f` will receive an Array `buf` corresponding to
+offsets `(-1:1, -1:1)` from the `imgf[i,j]` for which this is
+currently being computed. Alternatively, `window` can be a tuple of
+AbstractUnitRanges, in which case the specified ranges are used for
+`buf`; this allows you to use asymmetric windows if needed.
+
+`border` specifies how the edges of `img` should be handled; see
+`imfilter` for details.
+
+For functions that can only take `AbstractVector` inputs, you might have to
+first specialize `default_shape`:
+
+```julia
+f = v->quantile(v, 0.75)
+ImageFiltering.MapWindow.default_shape(::typeof(f)) = vec
+```
+
+and then `mapwindow(f, img, (m,n))` should filter at the 75th quantile.
+
+See also: imfilter.
 """
-mapwindow(::typeof(extrema), A, window) = extrema_filter(A, window)
+function mapwindow(f, img::AbstractArray, window::Dims, args...; kwargs...)
+    all(isodd(w) for w in window) || error("entries in window must be odd, got $window")
+    halfsize = map(w->w>>1, window)
+    mapwindow(f, img, map(h->-h:h, halfsize), args...; kwargs...)
+end
+function mapwindow(f, img::AbstractVector, window::Integer, args...; kwargs...)
+    isodd(window) || error("window must be odd, got $window")
+    h = window>>1
+    mapwindow(f, img, (-h:h,), args...; kwargs...)
+end
+
+mapwindow(f, img::AbstractArray, window::Indices; kwargs...) =
+    mapwindow(f, img, window, "replicate"; kwargs...)
+mapwindow(f, img::AbstractVector, window::AbstractUnitRange; kwargs...) =
+    mapwindow(f, img, (window,); kwargs...)
+
+function mapwindow(f, img::AbstractArray, window::Indices, border::AbstractString;
+                   kwargs...)
+    mapwindow(f, img, window, borderinstance(border); kwargs...)
+end
+function mapwindow(f, img::AbstractVector, window::AbstractUnitRange, border::AbstractString;
+                   kwargs...)
+    mapwindow(f, img, (window,), border; kwargs...)
+end
+
+mapwindow(f, img, window::AbstractArray, args...; kwargs...) = mapwindow(f, img, (window...,), args...; kwargs...)
+
+function mapwindow{T,N}(f,
+                        img::AbstractArray{T,N},
+                        window::Indices{N},
+                        border::BorderSpecAny;
+                        callmode=:copy!)
+    _mapwindow(replace_function(f), img, window, border, default_shape(f); callmode=callmode)
+end
+function _mapwindow{T,N}(f,
+                         img::AbstractArray{T,N},
+                         window::Indices{N},
+                         border::BorderSpecAny,
+                         shape=default_shape(f);
+                         callmode=:copy!)
+    inds = indices(img)
+    inner = _interior(inds, window)
+    if callmode == :copy!
+        buf = Array{T}(map(length, window))
+        bufrs = shape(buf)
+        Rbuf = CartesianRange(size(buf))
+        offset = CartesianIndex(map(w->first(w)-1, window))
+        # To allocate the output, we have to evaluate f once
+        Rinner = CartesianRange(inner)
+        if !isempty(Rinner)
+            Rwin = CartesianRange(map(+, window, first(Rinner).I))
+            copy!(buf, Rbuf, img, Rwin)
+            out = similar(img, typeof(f(bufrs)))
+            # Handle the interior
+            for I in Rinner
+                Rwin = CartesianRange(map(+, window, I.I))
+                copy!(buf, Rbuf, img, Rwin)
+                out[I] = f(bufrs)
+            end
+        else
+            copy_win!(buf, img, first(CartesianRange(inds)), border, offset)
+            out = similar(img, typeof(f(bufrs)))
+        end
+        # Now pick up the edge points we skipped over above
+        for I in EdgeIterator(inds, inner)
+            copy_win!(buf, img, I, border, offset)
+            out[I] = f(bufrs)
+        end
+    else
+        # TODO: implement :view
+        error("callmode $callmode not supported")
+    end
+    out
+end
+
+# For copying along the edge of the image
+function copy_win!{T,N}(buf::AbstractArray{T,N}, img, I, border::Pad, offset)
+    win_inds = map(+, indices(buf), (I+offset).I)
+    win_img_inds = map(intersect, indices(img), win_inds)
+    padinds = map((inner,outer)->padindex(border, inner, outer), win_img_inds, win_inds)
+    docopy!(buf, img, padinds)
+    buf
+end
+docopy!(buf, img, padinds::NTuple{1}) = buf[:] = view(img, padinds[1])
+docopy!(buf, img, padinds::NTuple{2}) = buf[:,:] = view(img, padinds[1], padinds[2])
+docopy!(buf, img, padinds::NTuple{3}) = buf[:,:,:] = view(img, padinds[1], padinds[2], padinds[3])
+@inline function docopy!{N}(buf, img, padinds::NTuple{N})
+    @show N
+    colons = ntuple(d->Colon(), Val{N})
+    buf[colons...] = view(img, padinds...)
+end
+
+function copy_win!{T,N}(buf::AbstractArray{T,N}, img, I, border::Fill, offset)
+    R = CartesianRange(indices(img))
+    Ioff = I+offset
+    for J in CartesianRange(indices(buf))
+        K = Ioff+J
+        buf[J] = K ∈ R ? img[K] : convert(eltype(img), border.value)
+    end
+    buf
+end
+
+### Optimizations for particular window-functions
+
+mapwindow(::typeof(extrema), A::AbstractArray, window::Dims) = extrema_filter(A, window)
+mapwindow(::typeof(extrema), A::AbstractVector, window::Integer) = extrema_filter(A, (window,))
 
 # Max-min filter
 
@@ -141,5 +272,14 @@ end
 
 # This is slightly faster than a circular buffer
 @inline cyclecache(b, x) = b[1], (Base.tail(b)..., x)
+
+replace_function(f) = f
+replace_function(::typeof(median!)) = function(v)
+    inds = indices(v,1)
+    Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
+end
+
+default_shape(::Any) = identity
+default_shape(::typeof(median!)) = vec
 
 end
