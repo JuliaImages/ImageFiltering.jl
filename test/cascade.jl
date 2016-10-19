@@ -1,4 +1,4 @@
-using ImageFiltering, ImageCore, OffsetArrays
+using ImageFiltering, ImageCore, OffsetArrays, ComputationalResources
 using Base.Test
 
 @testset "cascade" begin
@@ -19,7 +19,8 @@ using Base.Test
     kern2 = OffsetArray(c.*c', -2:2, -2:2)
     kern2x = OffsetArray(c.*ones(1,3), -2:2, -1:1)
     kern2y = OffsetArray(ones(3).*c',  -1:1, -2:2)
-    for r in (CPU1(Algorithm.FIR()), CPUThreads(Algorithm.FIR()))
+    for r in (CPU1(Algorithm.FIR()), CPU1(Algorithm.FIRTiled()),
+              CPUThreads(Algorithm.FIR()), CPUThreads(Algorithm.FIRTiled()))
         for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(a))))
             afc = imfilter(r, a, (kernx, kerny, kernx, kerny), border)
             af2 = imfilter(r, a, kern2, border)
@@ -36,3 +37,5 @@ using Base.Test
         end
     end
 end
+
+nothing

@@ -66,7 +66,7 @@ end
     img = trues(10,10,10)
     kernel = centered(trues(3,3,3)/27)
     for border in ("replicate", "circular", "symmetric", "reflect", Fill(true))
-        for alg in (Algorithm.FIR(), Algorithm.FFT())
+        for alg in (Algorithm.FIR(), Algorithm.FIRTiled(), Algorithm.FFT())
             @test imfilter(img, kernel, border) ≈ img
         end
     end
