@@ -516,6 +516,20 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::R
     _imfilter_inbounds(r, TT, out, A, k, Rpre, ind, Rpost)
 end
 
+function _imfilter_inbounds{TT}(r::AbstractResource, ::Type{TT}, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange{CartesianIndex{0}}, ind, Rpost::CartesianRange)
+    indsk = indices(k, 1)
+    for Ipost in Rpost
+        for i in ind
+            tmp = zero(TT)
+            @unsafe for j in indsk
+                tmp += A[i+j,Ipost]*k[j]
+            end
+            @unsafe out[i,Ipost] = tmp
+        end
+    end
+    out
+end
+
 function _imfilter_inbounds{TT}(r::AbstractResource, ::Type{TT}, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange, ind, Rpost::CartesianRange)
     indsk = indices(k, 1)
     for Ipost in Rpost
