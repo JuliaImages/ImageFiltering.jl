@@ -230,6 +230,8 @@ function imfilter!{S,T,N,A<:Union{FIR,FIRTiled}}(r::AbstractCPU{A},
     iinds = map(intersect, interior(img, kernel), indices(out))
     imfilter!(r, out, img, kernel, NoPad(border), iinds)
     # The not-so-fast path: handle the edges
+    # TODO: when the kernel is factored, move this logic in to each factor
+    # This is especially important for bigger kernels, where the product pkernel is larger
     padded = view(img, padindices(img, border(kernel))...)
     pkernel = kernelconv(kernel...)
     _imfilter_iter!(r, out, padded, pkernel, EdgeIterator(indices(out), iinds))
@@ -493,13 +495,39 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern, b
         return out
     end
     p = A[first(R)+first(Rk)] * first(kern)
-    TT = typeof(p+p)
+    z = zero(typeof(p+p))
+    __imfilter_inbounds!(r, out, A, kern, border, R, z)
+end
+
+function __imfilter_inbounds!(r, out, A, kern, border, R, z)
+    Rk = CartesianRange(indices(kern))
     for I in safetail(R), i in safehead(R)
-        tmp = zero(TT)
+        tmp = z
         @unsafe for J in safetail(Rk), j in safehead(Rk)
             tmp += A[i+j,I+J]*kern[j,J]
         end
         @unsafe out[i,I] = tmp
+    end
+    out
+end
+
+# This is unfortunate, but specializing this saves an add in the inner
+# loop and results in a modest performance improvement. It would be
+# nice if LLVM did this automatically.
+function __imfilter_inbounds!(r, out, A, kern::OffsetArray, border, R, z)
+    off, k = CartesianIndex(kern.offsets), parent(kern)
+    o, O = safehead(off), safetail(off)
+    Rnew = CartesianRange(R.start+off, R.stop+off)
+    Rk = CartesianRange(indices(k))
+    # LLVM generates better code if the next two are separate statements
+    for I in safetail(Rnew)
+        for i in safehead(Rnew)
+            tmp = z
+            @unsafe for J in safetail(Rk), j in safehead(Rk)
+                tmp += A[i+j,I+J]*k[j,J]
+            end
+            @unsafe out[i-o,I-O] = tmp
+        end
     end
     out
 end
@@ -548,12 +576,12 @@ end
 
 function _imfilter_iter!(r::AbstractResource, out, padded, kernel::AbstractArray, iter)
     p = padded[first(iter)] * first(kernel)
-    TT = typeof(p+p)
+    z = zero(typeof(p+p))
     Rk = CartesianRange(indices(kernel))
     for I in iter
-        tmp = zero(TT)
-        @unsafe for J in Rk
-            tmp += padded[I+J]*kernel[J]
+        tmp = z
+        for J in Rk
+            @unsafe tmp += padded[I+J]*kernel[J]
         end
         out[I] = tmp
     end
@@ -1058,11 +1086,16 @@ safetail(R::CartesianRange{CartesianIndex{0}}) = CartesianRange(())
 safetail(t::Indices) = tail(t)
 safetail(::Indices{1}) = CartesianRange(())
 safetail(::Tuple{}) = CartesianRange(())
+safetail(I::CartesianIndex) = CartesianIndex(tail(I.I))
+safetail(::CartesianIndex{1}) = CartesianIndex(())
+safetail(::CartesianIndex{0}) = CartesianIndex(())
 
 safehead(R::CartesianRange) = R.start[1]:R.stop[1]
 safehead(R::CartesianRange{CartesianIndex{0}}) = CartesianRange(())
 safehead(t::Indices) = t[1]
 safehead(::Tuple{}) = CartesianRange(())
+safehead(I::CartesianIndex) = I[1]
+safehead(::CartesianIndex{0}) = CartesianIndex(())
 
 ## Tiling utilities
 
