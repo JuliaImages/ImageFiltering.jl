@@ -540,32 +540,18 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::R
         return out
     end
     p = A[first(R)+first(Rk)] * first(k)
-    TT = typeof(p+p)
-    _imfilter_inbounds(r, TT, out, A, k, Rpre, ind, Rpost)
+    z = zero(typeof(p+p))
+    _imfilter_inbounds!(r, z, out, A, k, Rpre, ind, Rpost)
 end
 
-function _imfilter_inbounds{TT}(r::AbstractResource, ::Type{TT}, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange{CartesianIndex{0}}, ind, Rpost::CartesianRange)
+function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange, ind, Rpost::CartesianRange)
     indsk = indices(k, 1)
     for Ipost in Rpost
         for i in ind
-            tmp = zero(TT)
-            @unsafe for j in indsk
-                tmp += A[i+j,Ipost]*k[j]
-            end
-            @unsafe out[i,Ipost] = tmp
-        end
-    end
-    out
-end
-
-function _imfilter_inbounds{TT}(r::AbstractResource, ::Type{TT}, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange, ind, Rpost::CartesianRange)
-    indsk = indices(k, 1)
-    for Ipost in Rpost
-        for Ipre in Rpre
-            for i in ind
-                tmp = zero(TT)
-                @unsafe for j in indsk
-                    tmp += A[Ipre,i+j,Ipost]*k[j]
+            for Ipre in Rpre
+                tmp = z
+                for j in indsk
+                    @unsafe tmp += A[Ipre,i+j,Ipost]*k[j]
                 end
                 @unsafe out[Ipre,i,Ipost] = tmp
             end
