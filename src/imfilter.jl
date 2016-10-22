@@ -494,12 +494,12 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern, b
     end
     p = A[first(R)+first(Rk)] * first(kern)
     TT = typeof(p+p)
-    for I in R
+    for I in safetail(R), i in safehead(R)
         tmp = zero(TT)
-        @unsafe for J in Rk
-            tmp += A[I+J]*kern[J]
+        @unsafe for J in safetail(Rk), j in safehead(Rk)
+            tmp += A[i+j,I+J]*kern[j,J]
         end
-        @unsafe out[I] = tmp
+        @unsafe out[i,I] = tmp
     end
     out
 end
@@ -1048,6 +1048,21 @@ end
 
 default_resource(alg::FIRTiled) = Threads.nthreads() > 1 ? CPUThreads(alg) : CPU1(alg)
 default_resource(alg) = CPU1(alg)
+
+## Faster Cartesian iteration
+# Splitting out the first dimension saves a branch
+safetail(R::CartesianRange) = CartesianRange(CartesianIndex(tail(R.start.I)),
+                                             CartesianIndex(tail(R.stop.I)))
+safetail(R::CartesianRange{CartesianIndex{1}}) = CartesianRange(())
+safetail(R::CartesianRange{CartesianIndex{0}}) = CartesianRange(())
+safetail(t::Indices) = tail(t)
+safetail(::Indices{1}) = CartesianRange(())
+safetail(::Tuple{}) = CartesianRange(())
+
+safehead(R::CartesianRange) = R.start[1]:R.stop[1]
+safehead(R::CartesianRange{CartesianIndex{0}}) = CartesianRange(())
+safehead(t::Indices) = t[1]
+safehead(::Tuple{}) = CartesianRange(())
 
 ## Tiling utilities
 
