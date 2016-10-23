@@ -342,8 +342,8 @@ function _imfilter_tiled!{AA<:AbstractArray}(r::CPU1, out, A, kernel::Tuple{Any,
     for tinds in TileIterator(indsout, chunksz)
         tileinds = expand(tinds, k2)
         tileb = TileBuffer(tile, tileinds)
-        imfilter!(r, tileb, A, samedims(tileb, k1), border, tileinds)
-        imfilter!(r, out, tileb, samedims(out, k2), border, tinds)
+        imfilter!(r, tileb.view, A, samedims(tileb, k1), border, tileinds)
+        imfilter!(r, out, tileb.view, samedims(out, k2), border, tinds)
     end
     out
 end
@@ -513,7 +513,7 @@ end
 
 # This is unfortunate, but specializing this saves an add in the inner
 # loop and results in a modest performance improvement. It would be
-# nice if LLVM did this automatically.
+# nice if LLVM did this automatically. (@polly?)
 function __imfilter_inbounds!(r, out, A, kern::OffsetArray, border, R, z)
     off, k = CartesianIndex(kern.offsets), parent(kern)
     o, O = safehead(off), safetail(off)
@@ -544,14 +544,20 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::R
     _imfilter_inbounds!(r, z, out, A, k, Rpre, ind, Rpost)
 end
 
-function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange, ind, Rpost::CartesianRange)
+# Many of the following are unfortunate specializations
+function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::OffsetVector, Rpre::CartesianRange, ind, Rpost::CartesianRange)
+    _imfilter_inbounds!(r, z, out, A, parent(k), Rpre, ind, Rpost, k.offsets[1])
+end
+
+function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange, ind, Rpost::CartesianRange, koffset=0)
     indsk = indices(k, 1)
     for Ipost in Rpost
         for i in ind
+            ik = i+koffset
             for Ipre in Rpre
                 tmp = z
                 for j in indsk
-                    @unsafe tmp += A[Ipre,i+j,Ipost]*k[j]
+                    @unsafe tmp += A[Ipre,ik+j,Ipost]*k[j]
                 end
                 @unsafe out[Ipre,i,Ipost] = tmp
             end
@@ -559,6 +565,43 @@ function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::A
     end
     out
 end
+
+function _imfilter_inbounds!(r::AbstractResource, out, A::OffsetArray, kern::ReshapedVector, border::NoPad, inds)
+    Rpre, ind, Rpost = iterdims(inds, kern)
+    k = kern.data
+    R, Rk = CartesianRange(inds), CartesianRange(indices(kern))
+    if isempty(R) || isempty(Rk)
+        return out
+    end
+    p = A[first(R)+first(Rk)] * first(k)
+    z = zero(typeof(p+p))
+    Opre, o, Opost = KernelFactors.indexsplit(CartesianIndex(A.offsets), kern)
+    _imfilter_inbounds!(r, z, out, parent(A), k, Rpre, ind, Rpost, Opre, o, Opost)
+end
+
+function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::OffsetVector, Rpre::CartesianRange, ind, Rpost::CartesianRange, Opre, o, Opost)
+    _imfilter_inbounds!(r, z, out, A, parent(k), Rpre, ind, Rpost, Opre, o, Opost, k.offsets[1])
+end
+
+function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange, ind, Rpost::CartesianRange, Opre, o, Opost, koffset=0)
+    indsk = indices(k, 1)
+    for Ipost in Rpost
+        IOpost = Ipost - Opost
+        for i in ind
+            io = i-o+koffset
+            for Ipre in Rpre
+                IOpre = Ipre - Opre
+                tmp = z
+                for j in indsk
+                    @unsafe tmp += A[IOpre,io+j,IOpost]*k[j]
+                end
+                @unsafe out[Ipre,i,Ipost] = tmp
+            end
+        end
+    end
+    out
+end
+# end unfortunate specializations
 
 function _imfilter_iter!(r::AbstractResource, out, padded, kernel::AbstractArray, iter)
     p = padded[first(iter)] * first(kernel)

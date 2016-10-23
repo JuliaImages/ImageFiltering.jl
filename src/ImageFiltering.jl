@@ -10,6 +10,7 @@ export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, 
 
 typealias FixedColorant{T<:UFixed} Colorant{T}
 typealias StaticOffsetArray{T,N,A<:StaticArray} OffsetArray{T,N,A}
+typealias OffsetVector{T} OffsetArray{T,1}
 
 # Needed for type-stability
 function Base.transpose{T}(A::StaticOffsetArray{T,2})
