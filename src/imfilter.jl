@@ -140,7 +140,7 @@ function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKern
 end
 
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny, alg::Alg)
-    imfilter!(default_resource(alg), out, img, kernel, border)
+    imfilter!(default_resource(alg_defaults(alg, out, kernel)), out, img, kernel, border)
 end
 
 """
@@ -271,10 +271,10 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
 end
 
 ### Use a tiled algorithm for the cascaded case
-function imfilter!{S,T,N}(r::AbstractCPU{FIRTiled}, out::AbstractArray{S,N}, A::AbstractArray{T,N}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=indices(out))
+function imfilter!{S,T,N}(r::AbstractCPU{FIRTiled{N}}, out::AbstractArray{S,N}, A::AbstractArray{T,N}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=indices(out))
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border, inds)
-    tmp = tile_allocate(filter_type(A, kernel), kernel)
+    tmp = tile_allocate(filter_type(A, kernel), r.settings.tilesize, kernel)
     _imfilter_tiled!(r, out, A, kernel, border, tmp, inds)
     out
 end
@@ -1038,7 +1038,8 @@ function filter_algorithm(out, img, kernel::Union{ArrayType,Tuple{Vararg{ArrayTy
     if L > 30
         return FFT()
     end
-    isa(kernel, Tuple) && length(kernel) > 1 ? FIRTiled() : FIR()
+    sz = map(length, calculate_padding(kernel))
+    isa(kernel, Tuple) && length(kernel) > 1 ? FIRTiled(padded_tilesize(eltype(out), sz)) : FIR()
 end
 filter_algorithm(out, img, kernel::Tuple{AnyIIR,Vararg{AnyIIR}}) = IIR()
 filter_algorithm(out, img, kernel) = Mixed()
@@ -1106,6 +1107,13 @@ end
 default_resource(alg::FIRTiled) = Threads.nthreads() > 1 ? CPUThreads(alg) : CPU1(alg)
 default_resource(alg) = CPU1(alg)
 
+function alg_defaults(alg::FIRTiled{0}, out, kernel)
+    sz = map(length, calculate_padding(kernel))
+    FIRTiled(padded_tilesize(eltype(out), sz))
+end
+alg_defaults(alg::Alg, out, kernel) = alg
+
+
 ## Faster Cartesian iteration
 # Splitting out the first dimension saves a branch
 safetail(R::CartesianRange) = CartesianRange(CartesianIndex(tail(R.start.I)),
@@ -1128,16 +1136,19 @@ safehead(::CartesianIndex{0}) = CartesianIndex(())
 
 ## Tiling utilities
 
-function tile_allocate{T}(::Type{T}, kernel::Tuple{Any,Any})
+function tile_allocate{T}(::Type{T}, kernel)
     sz = map(length, calculate_padding(kernel))
     tsz = padded_tilesize(T, sz)
+    tile_allocate(T, tsz, kernel)
+end
+
+function tile_allocate{T}(::Type{T}, tsz::Dims, kernel::Tuple{Any,Any})
+    # Allocate a single tile for a 2-stage filter
     [Array{T}(tsz) for i = 1:Threads.nthreads()]
 end
 
-function tile_allocate{T}(::Type{T}, kernel::Tuple{Any,Any,Vararg{Any}})
+function tile_allocate{T}(::Type{T}, tsz::Dims, kernel::Tuple{Any,Any,Vararg{Any}})
     # Allocate a pair of tiles and swap buffers at each stage
-    sz = map(length, calculate_padding(kernel))
-    tsz = padded_tilesize(T, sz)
     [(Array{T}(tsz), Array{T}(tsz)) for i = 1:Threads.nthreads()]
 end
 
