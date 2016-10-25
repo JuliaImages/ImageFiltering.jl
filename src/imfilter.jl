@@ -220,22 +220,22 @@ function imfilter!{S,T,N}(r::AbstractResource,
     imfilter!(r, out, A, kernel, NoPad(border))
 end
 
-# An optimized case that performs only "virtual padding"
-function imfilter!{S,T,N,A<:Union{FIR,FIRTiled}}(r::AbstractCPU{A},
-                                                 out::AbstractArray{S,N},
-                                                 img::AbstractArray{T,N},
-                                                 kernel::ProcessedKernel,
-                                                 border::Pad{0})
-    # The fast path: handle the points that don't need padding
-    iinds = map(intersect, interior(img, kernel), indices(out))
-    imfilter!(r, out, img, kernel, NoPad(border), iinds)
-    # The not-so-fast path: handle the edges
-    # TODO: when the kernel is factored, move this logic in to each factor
-    # This is especially important for bigger kernels, where the product pkernel is larger
-    padded = view(img, padindices(img, border(kernel))...)
-    pkernel = kernelconv(kernel...)
-    _imfilter_iter!(r, out, padded, pkernel, EdgeIterator(indices(out), iinds))
-end
+# # An optimized case that performs only "virtual padding"
+# function imfilter!{S,T,N,A<:Union{FIR,FIRTiled}}(r::AbstractCPU{A},
+#                                                  out::AbstractArray{S,N},
+#                                                  img::AbstractArray{T,N},
+#                                                  kernel::ProcessedKernel,
+#                                                  border::Pad{0})
+#     # The fast path: handle the points that don't need padding
+#     iinds = map(intersect, interior(img, kernel), indices(out))
+#     imfilter!(r, out, img, kernel, NoPad(border), iinds)
+#     # The not-so-fast path: handle the edges
+#     # TODO: when the kernel is factored, move this logic in to each factor
+#     # This is especially important for bigger kernels, where the product pkernel is larger
+#     padded = view(img, padindices(img, border(kernel))...)
+#     pkernel = kernelconv(kernel...)
+#     _imfilter_iter!(r, out, padded, pkernel, EdgeIterator(indices(out), iinds))
+# end
 
 ### "Scheduler" methods (all with NoPad)
 
@@ -514,17 +514,20 @@ end
 # This is unfortunate, but specializing this saves an add in the inner
 # loop and results in a modest performance improvement. It would be
 # nice if LLVM did this automatically. (@polly?)
-function __imfilter_inbounds!(r, out, A, kern::OffsetArray, border, R, z)
+function __imfilter_inbounds!(r, out, A::OffsetArray, kern::OffsetArray, border, R, z)
     off, k = CartesianIndex(kern.offsets), parent(kern)
     o, O = safehead(off), safetail(off)
     Rnew = CartesianRange(R.start+off, R.stop+off)
     Rk = CartesianRange(indices(k))
-    # LLVM generates better code if the next two are separate statements
+    offA, pA = CartesianIndex(A.offsets), parent(A)
+    oA, OA = safehead(offA), safetail(offA)
     for I in safetail(Rnew)
+        IA = I-OA
         for i in safehead(Rnew)
             tmp = z
+            iA = i-oA
             @unsafe for J in safetail(Rk), j in safehead(Rk)
-                tmp += A[i+j,I+J]*k[j,J]
+                tmp += pA[iA+j,IA+J]*k[j,J]
             end
             @unsafe out[i-o,I-O] = tmp
         end

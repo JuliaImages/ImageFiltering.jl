@@ -146,13 +146,31 @@ function padarray{T}(::Type{T}, img::AbstractArray, border::Pad)
     # like img[inds...] except that we can control the element type
     newinds = map(Base.indices1, inds)
     dest = similar(img, T, newinds)
-    @unsafe for I in CartesianRange(newinds)
-        J = CartesianIndex(map((i,x)->x[i], I.I, inds))
-        dest[I] = img[J]
+    copydata!(dest, img, inds)
+end
+
+padarray{P}(img, ::Type{P}) = img[padindices(img, P)...]      # just to throw the nice error
+
+function copydata!(dest, img, inds)
+    isempty(inds) && return dest
+    idest = indices(dest)
+    # Work around julia #9080
+    i1, itail = idest[1], tail(idest)
+    inds1, indstail = inds[1], tail(inds)
+    @unsafe for I in CartesianRange(itail)
+        J = CartesianIndex(map((i,x)->x[i], I.I, indstail))
+        for i in i1
+            j = inds1[i]
+            dest[i,I] = img[j,J]
+        end
     end
     dest
 end
-padarray{P}(img, ::Type{P}) = img[padindices(img, P)...]      # just to throw the nice error
+
+function copydata!(dest::OffsetArray, img, inds::Tuple{Vararg{OffsetArray}})
+    copydata!(parent(dest), img, map(parent, inds))
+    dest
+end
 
 Base.ndims{N}(::Pad{N}) = N
 
