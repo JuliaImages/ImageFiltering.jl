@@ -606,36 +606,37 @@ function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::A
 end
 # end unfortunate specializations
 
-function _imfilter_iter!(r::AbstractResource, out, padded, kernel::AbstractArray, iter)
-    p = padded[first(iter)] * first(kernel)
-    z = zero(typeof(p+p))
-    Rk = CartesianRange(indices(kernel))
-    for I in iter
-        tmp = z
-        for J in Rk
-            @unsafe tmp += padded[I+J]*kernel[J]
-        end
-        out[I] = tmp
-    end
-    out
-end
+## commented out because "virtual padding" is commented out
+# function _imfilter_iter!(r::AbstractResource, out, padded, kernel::AbstractArray, iter)
+#     p = padded[first(iter)] * first(kernel)
+#     z = zero(typeof(p+p))
+#     Rk = CartesianRange(indices(kernel))
+#     for I in iter
+#         tmp = z
+#         for J in Rk
+#             @unsafe tmp += padded[I+J]*kernel[J]
+#         end
+#         out[I] = tmp
+#     end
+#     out
+# end
 
-function _imfilter_iter!(r::AbstractResource, out, padded, kern::ReshapedOneD, iter)
-    Rpre, ind, Rpost = iterdims(indices(out), kern)
-    k = kern.data
-    indsk = indices(k, 1)
-    p = padded[first(iter)] * first(k)
-    TT = typeof(p+p)
-    for I in iter
-        Ipre, i, Ipost = KernelFactors.indexsplit(I, kern)
-        tmp = zero(TT)
-        @unsafe for j in indsk
-            tmp += padded[Ipre,i+j,Ipost]*k[j]
-        end
-        out[I] = tmp
-    end
-    out
-end
+# function _imfilter_iter!(r::AbstractResource, out, padded, kern::ReshapedOneD, iter)
+#     Rpre, ind, Rpost = iterdims(indices(out), kern)
+#     k = kern.data
+#     indsk = indices(k, 1)
+#     p = padded[first(iter)] * first(k)
+#     TT = typeof(p+p)
+#     for I in iter
+#         Ipre, i, Ipost = KernelFactors.indexsplit(I, kern)
+#         tmp = zero(TT)
+#         @unsafe for j in indsk
+#             tmp += padded[Ipre,i+j,Ipost]*k[j]
+#         end
+#         out[I] = tmp
+#     end
+#     out
+# end
 
 
 
@@ -1123,17 +1124,12 @@ safetail(R::CartesianRange) = CartesianRange(CartesianIndex(tail(R.start.I)),
                                              CartesianIndex(tail(R.stop.I)))
 safetail(R::CartesianRange{CartesianIndex{1}}) = CartesianRange(())
 safetail(R::CartesianRange{CartesianIndex{0}}) = CartesianRange(())
-safetail(t::Indices) = tail(t)
-safetail(::Indices{1}) = CartesianRange(())
-safetail(::Tuple{}) = CartesianRange(())
 safetail(I::CartesianIndex) = CartesianIndex(tail(I.I))
 safetail(::CartesianIndex{1}) = CartesianIndex(())
 safetail(::CartesianIndex{0}) = CartesianIndex(())
 
 safehead(R::CartesianRange) = R.start[1]:R.stop[1]
 safehead(R::CartesianRange{CartesianIndex{0}}) = CartesianRange(())
-safehead(t::Indices) = t[1]
-safehead(::Tuple{}) = CartesianRange(())
 safehead(I::CartesianIndex) = I[1]
 safehead(::CartesianIndex{0}) = CartesianIndex(())
 
