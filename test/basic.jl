@@ -26,8 +26,19 @@ using ImageFiltering, OffsetArrays, Base.Test
     kern = KernelFactors.IIRGaussian(Float64, [1,2.0f0])
     @test isa(kern, Tuple{KernelFactors.ReshapedOneD{Float64},KernelFactors.ReshapedOneD{Float64}})
 
+    @test ndims(Pad(:replicate, (3,3))) == 2
+
     @test KernelFactors.kernelfactors(([0,3], [1,7]))  == (reshape([0,3], 1:2, 0:0), reshape([1,7], 0:0, 1:2))
     @test KernelFactors.kernelfactors(([0,3], [1,7]')) == (reshape([0,3], 2, 1), reshape([1,7], 1, 2))
+
+    tiles = ImageFiltering.tile_allocate(Float32, (rand(3),rand(3)'))
+    @test isa(tiles, Vector{Matrix{Float32}})
+    @test length(tiles) == 1
+
+    @test length(ImageFiltering.safetail(CartesianRange(()))) == 1
+    @test ImageFiltering.safetail(CartesianIndex(())) == CartesianIndex(())
+    @test length(ImageFiltering.safehead(CartesianRange(()))) == 1
+    @test ImageFiltering.safehead(CartesianIndex(())) == CartesianIndex(())
 
     # Warnings
     const OLDERR = STDERR

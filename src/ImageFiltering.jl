@@ -10,6 +10,7 @@ export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, 
 
 typealias FixedColorant{T<:UFixed} Colorant{T}
 typealias StaticOffsetArray{T,N,A<:StaticArray} OffsetArray{T,N,A}
+typealias OffsetVector{T} OffsetArray{T,1}
 
 # Needed for type-stability
 function Base.transpose{T}(A::StaticOffsetArray{T,2})
@@ -23,9 +24,13 @@ module Algorithm
     abstract Alg
     "Filter using the Fast Fourier Transform" immutable FFT <: Alg end
     "Filter using a direct algorithm" immutable FIR <: Alg end
-    "Cache-efficient filtering using tiles" immutable FIRTiled <: Alg end
+    "Cache-efficient filtering using tiles" immutable FIRTiled{N} <: Alg
+        tilesize::Dims{N}
+    end
     "Filter with an Infinite Impulse Response filter" immutable IIR <: Alg end
     "Filter with a cascade of mixed types (IIR, FIR)" immutable Mixed <: Alg end
+
+    FIRTiled() = FIRTiled(())
 end
 using .Algorithm: Alg, FFT, FIR, FIRTiled, IIR, Mixed
 

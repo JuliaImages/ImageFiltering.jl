@@ -135,6 +135,11 @@ end
     indspre, inds[1], tail(inds)   # return the "central" and trailing dimensions
 end
 
+function indexsplit{_,N}(I::CartesianIndex{N}, v::ReshapedOneD{_,N})
+    ipre, i, ipost = _iterdims((), (), I.I, v)
+    CartesianIndex(ipre), i, CartesianIndex(ipost)
+end
+
 #### FIR filters
 
 ## gradients
