@@ -1,4 +1,4 @@
-using ImageFiltering, OffsetArrays, Colors
+using ImageFiltering, OffsetArrays, Colors, FixedPointNumbers
 using Base.Test
 
 @testset "Border" begin
@@ -129,7 +129,7 @@ using Base.Test
         # test that it's a copy
         B[1,1] = 0
         @test B != A
-        A = rand(RGB{U8}, 3, 5)
+        A = rand(RGB{N0f8}, 3, 5)
         ret = @test_throws ErrorException padarray(A, Fill(0, (0,0), (0,0)))
         @test contains(ret.value.msg, "element type ColorTypes.RGB")
         A = bitrand(3, 5)

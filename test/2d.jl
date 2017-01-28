@@ -1,4 +1,4 @@
-using ImageFiltering, ImageCore, OffsetArrays, Colors, FFTViews, ColorVectorSpace, ComputationalResources
+using ImageFiltering, ImageCore, OffsetArrays, Colors, FFTViews, ColorVectorSpace, ComputationalResources, FixedPointNumbers
 using Base.Test
 
 @testset "tiling" begin
