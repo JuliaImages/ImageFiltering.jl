@@ -12,7 +12,7 @@ include("triggs.jl")
 include("cascade.jl")
 include("specialty.jl")
 include("gradient.jl")
-include("rank.jl")
+include("mapwindow.jl")
 include("basic.jl")
 include("deprecated.jl")
 

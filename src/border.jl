@@ -289,9 +289,6 @@ padarray(img::AbstractArray, f::Fill) = padarray(eltype(img), img, f)
     padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer)
 
 Generate an index-vector to be used for padding. `inds` specifies the image indices along a particular axis; `lo` and `hi` are the amount to pad on the lower and upper, respectively, sides of this axis. `border` specifying the style of padding.
-
-You can specialize this for custom `Pad{:name}` types to generate
-arbitrary (cartesian) padding types.
 """
 function padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer)
     if border.style == :replicate
@@ -308,6 +305,11 @@ function padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer
     else
         error("border style $(border.style) unrecognized")
     end
+end
+function padindex(border::Pad, inner::AbstractUnitRange, outer::AbstractUnitRange)
+    lo = max(0, first(inner)-first(outer))
+    hi = max(0, last(outer)-last(inner))
+    padindex(border, lo, inner, hi)
 end
 
 function inner(lo::Integer, inds::AbstractUnitRange, hi::Integer)
