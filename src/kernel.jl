@@ -10,29 +10,13 @@ function product2d(kf)
 end
 
 """
-`Kernel` is a module implementing filtering kernels of full
-dimensionality. The following kernels are supported:
-
-  - `sobel`
-  - `prewitt`
-  - `ando3`, `ando4`, and `ando5`
-  - `gaussian`
-  - `DoG` (Difference-of-Gaussian)
-  - `LoG` (Laplacian-of-Gaussian)
-  - `Laplacian`
-
-See also: KernelFactors.
-"""
-Kernel
-
-"""
     diff1, diff2 = sobel()
 
 Return kernels for two-dimensional gradient compution using the Sobel
 operator. `diff1` computes the gradient along the first (y) dimension,
 and `diff2` computes the gradient along the second (x) dimension.
 
-See also: KernelFactors.sobel, Kernel.prewitt, Kernel.ando.
+See also: [`KernelFactors.sobel`](@ref), [`Kernel.prewitt`](@ref), [`Kernel.ando3`](@ref).
 """
 sobel() = product2d(KernelFactors.sobel())
 
@@ -46,7 +30,7 @@ Prewitt operator.  `diff1` computes the gradient along the first (y)
 dimension, and `diff2` computes the gradient along the second (x)
 dimension.
 
-See also: KernelFactors.prewitt, Kernel.sobel, Kernel.ando.
+See also: [`KernelFactors.prewitt`](@ref), [`Kernel.sobel`](@ref), [`Kernel.ando3`](@ref).
 """
 prewitt() = product2d(KernelFactors.prewitt())
 
@@ -64,7 +48,7 @@ x-axis (second dimension).
 Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
 2000
 
-See also: KernelFactors.ando3, Kernel.ando4, Kernel.ando5.
+See also: [`KernelFactors.ando3`](@ref), [`Kernel.ando4`](@ref), [`Kernel.ando5`](@ref).
 """
 ando3() = product2d(KernelFactors.ando3())
 
@@ -82,7 +66,7 @@ x-axis (second dimension).
 Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
 2000
 
-See also: KernelFactors.ando4, Kernel.ando3, Kernel.ando5.
+See also: [`KernelFactors.ando4`](@ref), [`Kernel.ando3`](@ref), [`Kernel.ando5`](@ref).
 """
 function ando4()
     f = centered(@SMatrix [ -0.022116 -0.025526  0.025526  0.022116
@@ -109,7 +93,7 @@ x-axis (second dimension).
 Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
 2000
 
-See also: `KernelFactors.ando5`, `Kernel.ando3`, `Kernel.ando4`.
+See also: [`KernelFactors.ando5`](@ref), [`Kernel.ando3`](@ref), [`Kernel.ando4`](@ref).
 """
 function ando5()
     f = centered(@SMatrix [ -0.003776 -0.010199  0.0  0.010199  0.003776
@@ -136,7 +120,7 @@ which must be a tuple of the same length.
 If `σ` is supplied as a single number, a symmetric 2d kernel is
 constructed.
 
-See also: KernelFactors.gaussian.
+See also: [`KernelFactors.gaussian`](@ref).
 """
 @inline gaussian{N}(σs::NTuple{N,Real}, ls::NTuple{N,Integer}) =
     broadcast(*, KernelFactors.gaussian(σs, ls)...)
@@ -166,7 +150,7 @@ provide the kernel length `l`; the default is to extend by two
 If `σ` is provided as a single number, a symmetric 2d DoG kernel is
 returned.
 
-See also: KernelFactors.IIRGaussian.
+See also: [`KernelFactors.IIRGaussian`](@ref).
 """
 DoG{N}(σps::NTuple{N,Real}, σms::NTuple{N,Real}, ls::NTuple{N,Integer}) =
     gaussian(σps, ls) - gaussian(σms, ls)
@@ -186,7 +170,7 @@ Construct a Laplacian-of-Gaussian kernel `k`. `σd` is the gaussian width
 along dimension `d`.  If `σ` is supplied as a single number, a
 symmetric 2d kernel is returned.
 
-See also: KernelFactors.IIRGaussian and Kernel.Laplacian.
+See also: [`KernelFactors.IIRGaussian`](@ref) and [`Kernel.Laplacian`](@ref).
 """
 function LoG{N}(σs::NTuple{N})
     w = CartesianIndex(map(n->(ceil(Int,8.5*n)>>1), σs))
