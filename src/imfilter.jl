@@ -86,7 +86,7 @@ impulse response, aka traditional digital filtering) or `FFT()`
 (Fourier-based filtering). If no choice is specified, one will be
 chosen based on the size of the image and kernel in a way that strives
 to deliver good performance. Alternatively you can use a custom filter
-type, like `IIRGaussian`.
+type, like `KernelFactors.IIRGaussian`.
 
 Optionally, you can control the element type of the output image by
 passing in a type `T` as the first argument.
@@ -100,7 +100,7 @@ example,
 would request that the computation be performed on the GPU using the
 ArrayFire libraries.
 
-See also: imfilter!, centered, padarray, Pad, Fill, Inner, IIRGaussian.
+See also: [`imfilter!`](@ref), [`centered`](@ref), [`padarray`](@ref), [`Pad`](@ref), [`Fill`](@ref), [`Inner`](@ref), [`KernelFactors.IIRGaussian`](@ref).
 """
 imfilter
 
@@ -163,7 +163,7 @@ FIR filtering; in particular, that that IIR filtering can lead to
 results that are inconsistent with respect to filtering the entire
 array.
 
-See also: imfilter.
+See also: [`imfilter`](@ref).
 """
 imfilter!
 
@@ -454,7 +454,7 @@ useful for "cascaded FIR filters" where you pad over a larger area and
 then calculate the result over just the necessary/well-defined region
 at each successive stage.
 
-See also: imfilter.
+See also: [`imfilter`](@ref).
 """
 function imfilter!{S,T,N}(r::AbstractResource,
                           out::AbstractArray{S,N},
@@ -658,7 +658,7 @@ with a specific `border`, or use
 
 for default padding.
 
-See also: imfilter.
+See also: [`imfilter`](@ref).
 """
 function imfilter!{S,T,K,N}(r::AbstractCPU{FFT},
                             out::AbstractArray{S,N},
@@ -761,7 +761,7 @@ be filtered.
 With Triggs-Sdika filtering, the only border options are `NA()`,
 `"replicate"`, or `Fill(value)`.
 
-See also: imfilter, TriggsSdika, IIRGaussian.
+See also: [`imfilter`](@ref), [`KernelFactors.TriggsSdika`](@ref), [`KernelFactors.IIRGaussian`](@ref).
 """
 function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::TriggsSdika, dim::Integer, border::BorderSpec)
     inds = indices(img)

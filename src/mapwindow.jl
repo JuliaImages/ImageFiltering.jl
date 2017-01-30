@@ -1,7 +1,7 @@
 module MapWindow
 
 using DataStructures, TiledIteration
-using ..ImageFiltering: BorderSpecAny, Pad, Fill, borderinstance, _interior, padindex
+using ..ImageFiltering: BorderSpecAny, Pad, Fill, borderinstance, _interior, padindex, imfilter
 using Base: Indices, tail
 
 export mapwindow
@@ -39,7 +39,7 @@ ImageFiltering.MapWindow.default_shape(::typeof(f)) = vec
 
 and then `mapwindow(f, img, (m,n))` should filter at the 75th quantile.
 
-See also: imfilter.
+See also: [`imfilter`](@ref).
 """
 function mapwindow(f, img::AbstractArray, window::Dims, args...; kwargs...)
     all(isodd(w) for w in window) || error("entries in window must be odd, got $window")

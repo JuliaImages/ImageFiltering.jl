@@ -9,7 +9,7 @@ This function makes it easy to supply kernels using regular Arrays,
 and provides compatibility with other languages that do not support
 arbitrary indices.
 
-See also: imfilter.
+See also: [`imfilter`](@ref).
 """
 centered(A::AbstractArray) = OffsetArray(A, map(n->-((n+1)>>1), size(A)))
 

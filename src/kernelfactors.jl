@@ -7,22 +7,6 @@ using Base: tail, Indices, @pure, checkbounds_indices, throw_boundserror
 
 abstract IIRFilter{T}
 
-"""
-
-`KernelFactors` is a module implementing separable filtering kernels,
-each stored in terms of their factors. The following kernels are
-supported:
-
-  - `sobel`
-  - `prewitt`
-  - `ando3`, `ando4`, and `ando5` (the latter in 2d only)
-  - `gaussian`
-  - `IIRGaussian` (approximate gaussian filtering, fast even for large σ)
-
-See also: Kernel.
-"""
-KernelFactors
-
 Base.eltype{T}(kernel::IIRFilter{T}) = T
 
 """
@@ -196,7 +180,7 @@ end
 `kern1, kern2 = ando3()` returns optimal 3x3 gradient filters for dimensions 1 and 2 of your image, as defined in
 Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.
 
-See also: `ando4`, `ando5`.
+See also: [`Kernel.ando3`](@ref), [`KernelFactors.ando4`](@ref), [`KernelFactors.ando5`](@ref).
 """
 function ando3()
     f1 = centered(2*SVector(0.112737, 0.274526, 0.112737))
@@ -221,7 +205,7 @@ optimal 4x4 filters for dimensions 1 and 2 of your image, as defined
 in Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3,
 March 2000.
 
-See also: `Kernel.ando4`.
+See also: [`Kernel.ando4`](@ref).
 """
 function ando4()
     f1 = centered(SVector( 0.0919833,  0.408017, 0.408017, 0.0919833))
@@ -250,7 +234,7 @@ optimal 5x5 gradient filters for dimensions 1 and 2 of your image, as defined
 in Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3,
 March 2000.
 
-See also: `Kernel.ando5`.
+See also: [`Kernel.ando5`](@ref).
 """
 function ando5()
     f1 = centered(SVector( 0.0357338, 0.248861, 0.43081, 0.248861, 0.0357338))

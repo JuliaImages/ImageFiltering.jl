@@ -4,7 +4,7 @@
 imfilter
 imfilter!
 imgradients
-extrema_filter
+mapwindow
 ```
 
 # Kernel
