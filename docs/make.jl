@@ -8,4 +8,5 @@ makedocs(modules  = [ImageFiltering, Kernel, KernelFactors],
 deploydocs(repo   = "github.com/JuliaImages/ImageFiltering.jl.git",
            target = "build",
            deps   = nothing,
-           make   = nothing)
+           make   = nothing,
+           julia  = "0.5")
