@@ -36,6 +36,13 @@ using Base.Test
     @test imfilter!(r, out, img, (kern,), "replicate") == imgf
     @test_throws MethodError imfilter!(r, out, img, (kern,), "replicate", Algorithm.FIR())
 
+    # Element-type widening
+    v = fill(0xff, 10)
+    kern = centered(fill(0xff, 3))
+    vout = imfilter(v, kern)
+    @test eltype(vout) == UInt32
+    @test all(x->x==0x0002fa03, vout)
+
     # Cascades don't result in out-of-bounds values
     k1 = centered([0.25, 0.5, 0.25])
     k2 = OffsetArray([0.5, 0.5], 1:2)
@@ -60,6 +67,12 @@ using Base.Test
     img[1] = img[8] = 0
     out = imfilter!(CPU1(Algorithm.FFT()), similar(img, Float64), img, kern, NoPad())
     @test out ≈ imfilter(img, kern)
+end
+
+@testset "2d widening" begin
+    ret = imfilter(fill(typemax(Int16), 10, 10), centered(Int16[1 2 2 2 1]))  # issue #17
+    @test eltype(ret) == Int32
+    @test all(x->x==262136, ret)
 end
 
 @testset "3d" begin
