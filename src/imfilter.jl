@@ -972,6 +972,8 @@ end
 filter_type{S}(img::AbstractArray{S}, kernel) = filter_type(S, kernel)
 
 filter_type{S,T}(::Type{S}, kernel::ArrayLike{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
+filter_type{S<:Integer,T<:Integer}(::Type{S}, kernel::ArrayLike{T}) =
+    typeof(zero(widen(S))*zero(widen(T)) + zero(widen(S))*zero(widen(T)))
 filter_type{S<:Union{Normed,FixedColorant}}(::Type{S}, ::Laplacian) = float32(S)
 filter_type{S<:Colorant}(::Type{S}, kernel::Laplacian) = S
 filter_type{S<:AbstractFloat}(::Type{S}, ::Laplacian) = S
@@ -982,6 +984,7 @@ filter_type(::Type{Bool}, ::Laplacian) = Int8
 signed_type(::Type{UInt8})  = Int16
 signed_type(::Type{UInt16}) = Int32
 signed_type(::Type{UInt32}) = Int64
+signed_type{T<:Integer}(::Type{T}) = Int
 
 @inline function filter_type{S}(::Type{S}, kernel::Tuple{Any,Vararg{Any}})
     T = filter_type(S, kernel[1])
