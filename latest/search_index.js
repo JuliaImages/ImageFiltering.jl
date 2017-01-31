@@ -97,11 +97,43 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "function_reference.html#ImageFiltering.imfilter",
+    "page": "Function reference",
+    "title": "ImageFiltering.imfilter",
+    "category": "Function",
+    "text": "imfilter([T], img, kernel, [border=\"replicate\"], [alg]) --> imgfilt\nimfilter([r], img, kernel, [border=\"replicate\"], [alg]) --> imgfilt\nimfilter(r, T, img, kernel, [border=\"replicate\"], [alg]) --> imgfilt\n\nFilter an array img with kernel kernel by computing their correlation.\n\nkernel[0,0,..] corresponds to the origin (zero displacement) of the kernel; you can use centered to place the origin at the array center, or use the OffsetArrays package to set kernel's indices manually. For example, to filter with a random centered 3x3 kernel, you could use either of the following:\n\nkernel = centered(rand(3,3))\nkernel = OffsetArray(rand(3,3), -1:1, -1:1)\n\nkernel can be specified as an array or as a \"factored kernel,\" a tuple (filt1, filt2, ...) of filters to apply along each axis of the image. In cases where you know your kernel is separable, this format can speed processing.  Each of these should have the same dimensionality as the image itself, and be shaped in a manner that indicates the filtering axis, e.g., a 3x1 filter for filtering the first dimension and a 1x3 filter for filtering the second dimension. In two dimensions, any kernel passed as a single matrix is checked for separability; if you want to eliminate that check, pass the kernel as a single-element tuple, (kernel,).\n\nOptionally specify the border, as one of Fill(value), \"replicate\", \"circular\", \"symmetric\", \"reflect\", NA(), or Inner(). The default is \"replicate\". These choices specify the boundary conditions, and therefore affect the result at the edges of the image. See padarray for more information.\n\nalg allows you to choose the particular algorithm: FIR() (finite impulse response, aka traditional digital filtering) or FFT() (Fourier-based filtering). If no choice is specified, one will be chosen based on the size of the image and kernel in a way that strives to deliver good performance. Alternatively you can use a custom filter type, like KernelFactors.IIRGaussian.\n\nOptionally, you can control the element type of the output image by passing in a type T as the first argument.\n\nYou can also dispatch to different implementations by passing in a resource r as defined by the ComputationalResources package.  For example,\n\nimfilter(ArrayFire(), img, kernel)\n\nwould request that the computation be performed on the GPU using the ArrayFire libraries.\n\nSee also: imfilter!, centered, padarray, Pad, Fill, Inner, KernelFactors.IIRGaussian.\n\n\n\n"
+},
+
+{
+    "location": "function_reference.html#ImageFiltering.imfilter!",
+    "page": "Function reference",
+    "title": "ImageFiltering.imfilter!",
+    "category": "Function",
+    "text": "imfilter!(imgfilt, img, kernel, [border=\"replicate\"], [alg])\nimfilter!(r, imgfilt, img, kernel, border, [inds])\nimfilter!(r, imgfilt, img, kernel, border::NoPad, [inds=indices(imgfilt)])\n\nFilter an array img with kernel kernel by computing their correlation, storing the result in imgfilt.\n\nThe indices of imgfilt determine the region over which the filtered image is computed–-you can use this fact to select just a specific region of interest, although be aware that the input img might still get padded.  Alteratively, explicitly provide the indices inds of imgfilt that you want to calculate, and use NoPad boundary conditions. In such cases, you are responsible for supplying appropriate padding: img must be indexable for all of the locations needed for calculating the output. This syntax is best-supported for FIR filtering; in particular, that that IIR filtering can lead to results that are inconsistent with respect to filtering the entire array.\n\nSee also: imfilter.\n\n\n\n"
+},
+
+{
+    "location": "function_reference.html#ImageFiltering.imgradients",
+    "page": "Function reference",
+    "title": "ImageFiltering.imgradients",
+    "category": "Function",
+    "text": "imgradients(img, kernelfun=KernelFactors.ando3, border=\"replicate\") -> gimg1, gimg2, ...\n\nEstimate the gradient of img at all points of the image, using a kernel specified by kernelfun. The gradient is returned as a tuple-of-arrays, one for each dimension of the input; gimg1 corresponds to the derivative with respect to the first dimension, gimg2 to the second, and so on. At the image edges, border is used to specify the boundary conditions.\n\nkernelfun may be one of the filters defined in the KernelFactors module, or more generally any function which satisfies the following interface:\n\nkernelfun(extended::NTuple{N,Bool}, d) -> kern_d\n\nkern_d is the kernel for producing the derivative with respect to the dth dimension of an N-dimensional array. extended[i] is true if the image is of size > 1 along dimension i. kern_d may be provided as a dense or factored kernel, with factored representations recommended when the kernel is separable.\n\n\n\nimgradients(img, points, [kernelfunc], [border]) -> G\n\nPerforms edge detection filtering in the N-dimensional array img. Gradients are computed at specified points (or indexes) in the array.\n\nAll kernel functions are specified as KernelFactors.func. For 2d images, the choices for func include sobel, prewitt, ando3, ando4, and ando5. For other dimensionalities, the ando4 and ando5 kernels are not available.\n\nBorder options:\"replicate\", \"circular\", \"reflect\", \"symmetric\".\n\nReturns a 2D array G with the gradients as rows. The number of rows is the number of points at which the gradient was computed and the number of columns is the dimensionality of the array.\n\n\n\n"
+},
+
+{
+    "location": "function_reference.html#ImageFiltering.MapWindow.mapwindow",
+    "page": "Function reference",
+    "title": "ImageFiltering.MapWindow.mapwindow",
+    "category": "Function",
+    "text": "mapwindow(f, img, window, [border=\"replicate\"]) -> imgf\n\nApply f to sliding windows of img, with window size or indices specified by window. For example, mapwindow(median!, img, window) returns an Array of values similar to img (median-filtered, of course), whereas mapwindow(extrema, img, window) returns an Array of (min,max) tuples over a window of size window centered on each point of img.\n\nThe function f receives a buffer buf for the window of data surrounding the current point. If window is specified as a Dims-tuple (tuple-of-integers), then all the integers must be odd and the window is centered around the current image point. For example, if window=(3,3), then f will receive an Array buf corresponding to offsets (-1:1, -1:1) from the imgf[i,j] for which this is currently being computed. Alternatively, window can be a tuple of AbstractUnitRanges, in which case the specified ranges are used for buf; this allows you to use asymmetric windows if needed.\n\nborder specifies how the edges of img should be handled; see imfilter for details.\n\nFor functions that can only take AbstractVector inputs, you might have to first specialize default_shape:\n\nf = v->quantile(v, 0.75)\nImageFiltering.MapWindow.default_shape(::typeof(f)) = vec\n\nand then mapwindow(f, img, (m,n)) should filter at the 75th quantile.\n\nSee also: imfilter.\n\n\n\n"
+},
+
+{
     "location": "function_reference.html#Filtering-functions-1",
     "page": "Function reference",
     "title": "Filtering functions",
     "category": "section",
-    "text": "imfilter\nimfilter!\nimgradients\nextrema_filter"
+    "text": "imfilter\nimfilter!\nimgradients\nmapwindow"
 },
 
 {
@@ -109,7 +141,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Function reference",
     "title": "ImageFiltering.Kernel.sobel",
     "category": "Function",
-    "text": "diff1, diff2 = sobel()\n\nReturn kernels for two-dimensional gradient compution using the Sobel operator. diff1 computes the gradient along the first (y) dimension, and diff2 computes the gradient along the second (x) dimension.\n\nSee also: KernelFactors.sobel, Kernel.prewitt, Kernel.ando.\n\n\n\n"
+    "text": "diff1, diff2 = sobel()\n\nReturn kernels for two-dimensional gradient compution using the Sobel operator. diff1 computes the gradient along the first (y) dimension, and diff2 computes the gradient along the second (x) dimension.\n\nSee also: KernelFactors.sobel, Kernel.prewitt, Kernel.ando3.\n\n\n\n"
 },
 
 {
@@ -117,7 +149,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Function reference",
     "title": "ImageFiltering.Kernel.prewitt",
     "category": "Function",
-    "text": "diff1, diff2 = prewitt()\n\nReturn kernels for two-dimensional gradient compution using the Prewitt operator.  diff1 computes the gradient along the first (y) dimension, and diff2 computes the gradient along the second (x) dimension.\n\nSee also: KernelFactors.prewitt, Kernel.sobel, Kernel.ando.\n\n\n\n"
+    "text": "diff1, diff2 = prewitt()\n\nReturn kernels for two-dimensional gradient compution using the Prewitt operator.  diff1 computes the gradient along the first (y) dimension, and diff2 computes the gradient along the second (x) dimension.\n\nSee also: KernelFactors.prewitt, Kernel.sobel, Kernel.ando3.\n\n\n\n"
 },
 
 {
@@ -205,7 +237,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Function reference",
     "title": "ImageFiltering.KernelFactors.ando3",
     "category": "Function",
-    "text": "kern1, kern2 = ando3() returns optimal 3x3 gradient filters for dimensions 1 and 2 of your image, as defined in Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.\n\nSee also: ando4, ando5.\n\n\n\nkern = ando3(extended::NTuple{N,Bool}, d)\n\nReturn a factored Ando filter (size 3) for computing the gradient in N dimensions along axis d.  If extended[dim] is false, kern will have size 1 along that dimension.\n\n\n\n"
+    "text": "kern1, kern2 = ando3() returns optimal 3x3 gradient filters for dimensions 1 and 2 of your image, as defined in Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.\n\nSee also: Kernel.ando3, KernelFactors.ando4, KernelFactors.ando5.\n\n\n\nkern = ando3(extended::NTuple{N,Bool}, d)\n\nReturn a factored Ando filter (size 3) for computing the gradient in N dimensions along axis d.  If extended[dim] is false, kern will have size 1 along that dimension.\n\n\n\n"
 },
 
 {
