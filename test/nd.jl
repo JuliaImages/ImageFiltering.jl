@@ -36,10 +36,12 @@ using Base.Test
     @test imfilter!(r, out, img, (kern,), "replicate") == imgf
     @test_throws MethodError imfilter!(r, out, img, (kern,), "replicate", Algorithm.FIR())
 
-    # Element-type widening
+    # Element-type widening (issue #17)
     v = fill(0xff, 10)
     kern = centered(fill(0xff, 3))
-    vout = imfilter(v, kern)
+    info("Two warnings are expected")
+    @test_throws InexactError imfilter(v, kern)
+    vout = imfilter(UInt32, v, kern)
     @test eltype(vout) == UInt32
     @test all(x->x==0x0002fa03, vout)
 
@@ -70,7 +72,11 @@ using Base.Test
 end
 
 @testset "2d widening" begin
-    ret = imfilter(fill(typemax(Int16), 10, 10), centered(Int16[1 2 2 2 1]))  # issue #17
+    # issue #17
+    img = fill(typemax(Int16), 10, 10)
+    kern = centered(Int16[1 2 2 2 1])
+    @test_throws InexactError imfilter(img, kern)
+    ret = imfilter(Int32, img, kern)
     @test eltype(ret) == Int32
     @test all(x->x==262136, ret)
 end

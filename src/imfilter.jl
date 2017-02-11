@@ -140,7 +140,25 @@ function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKern
 end
 
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny, alg::Alg)
-    imfilter!(default_resource(alg_defaults(alg, out, kernel)), out, img, kernel, border)
+    local ret
+    try
+        ret = imfilter!(default_resource(alg_defaults(alg, out, kernel)), out, img, kernel, border)
+    catch err
+        if isa(err, InexactError)
+            Tw = Float64
+            if eltype(img) <: Integer
+                try
+                    # If a type doesn't support widen, it would be bad
+                    # if our attempt to be helpful triggered a
+                    # completely different error...
+                    Tw = widen(eltype(img))
+                end
+            end
+            warn("Likely overflow or conversion error detected. Consider specifying the output type, e.g., `imfilter($Tw, img, kernel, ...)`")
+        end
+        rethrow(err)
+    end
+    ret
 end
 
 """
@@ -494,7 +512,7 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern, b
     if isempty(R) || isempty(Rk)
         return out
     end
-    p = A[first(R)+first(Rk)] * first(kern)
+    p = accumfilter(A[first(R)+first(Rk)], first(kern))
     z = zero(typeof(p+p))
     __imfilter_inbounds!(r, out, A, kern, border, R, z)
 end
@@ -504,7 +522,7 @@ function __imfilter_inbounds!(r, out, A, kern, border, R, z)
     for I in safetail(R), i in safehead(R)
         tmp = z
         @unsafe for J in safetail(Rk), j in safehead(Rk)
-            tmp += A[i+j,I+J]*kern[j,J]
+            tmp += safe_for_prod(A[i+j,I+J], tmp)*kern[j,J]
         end
         @unsafe out[i,I] = tmp
     end
@@ -527,7 +545,7 @@ function __imfilter_inbounds!(r, out, A::OffsetArray, kern::OffsetArray, border,
             tmp = z
             iA = i-oA
             @unsafe for J in safetail(Rk), j in safehead(Rk)
-                tmp += pA[iA+j,IA+J]*k[j,J]
+                tmp += safe_for_prod(pA[iA+j,IA+J], tmp)*k[j,J]
             end
             @unsafe out[i-o,I-O] = tmp
         end
@@ -542,7 +560,7 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::R
     if isempty(R) || isempty(Rk)
         return out
     end
-    p = A[first(R)+first(Rk)] * first(k)
+    p = accumfilter(A[first(R)+first(Rk)], first(k))
     z = zero(typeof(p+p))
     _imfilter_inbounds!(r, z, out, A, k, Rpre, ind, Rpost)
 end
@@ -560,7 +578,7 @@ function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::A
             for Ipre in Rpre
                 tmp = z
                 for j in indsk
-                    @unsafe tmp += A[Ipre,ik+j,Ipost]*k[j]
+                    @unsafe tmp += safe_for_prod(A[Ipre,ik+j,Ipost], tmp)*k[j]
                 end
                 @unsafe out[Ipre,i,Ipost] = tmp
             end
@@ -576,7 +594,7 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::OffsetArray, kern::Res
     if isempty(R) || isempty(Rk)
         return out
     end
-    p = A[first(R)+first(Rk)] * first(k)
+    p = accumfilter(A[first(R)+first(Rk)], first(k))
     z = zero(typeof(p+p))
     Opre, o, Opost = KernelFactors.indexsplit(CartesianIndex(A.offsets), kern)
     _imfilter_inbounds!(r, z, out, parent(A), k, Rpre, ind, Rpost, Opre, o, Opost)
@@ -596,7 +614,7 @@ function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::A
                 IOpre = Ipre - Opre
                 tmp = z
                 for j in indsk
-                    @unsafe tmp += A[IOpre,io+j,IOpost]*k[j]
+                    @unsafe tmp += safe_for_prod(A[IOpre,io+j,IOpost], tmp)*k[j]
                 end
                 @unsafe out[Ipre,i,Ipost] = tmp
             end
@@ -614,7 +632,7 @@ end
 #     for I in iter
 #         tmp = z
 #         for J in Rk
-#             @unsafe tmp += padded[I+J]*kernel[J]
+#             @unsafe tmp += safe_for_prod(padded[I+J], tmp)*kernel[J]
 #         end
 #         out[I] = tmp
 #     end
@@ -629,9 +647,9 @@ end
 #     TT = typeof(p+p)
 #     for I in iter
 #         Ipre, i, Ipost = KernelFactors.indexsplit(I, kern)
-#         tmp = zero(TT)
+#         tmp = zero(TT) error("probably needs fixing")
 #         @unsafe for j in indsk
-#             tmp += padded[Ipre,i+j,Ipost]*k[j]
+#             tmp += safe_for_prod(padded[Ipre,i+j,Ipost], tmp)*k[j]
 #         end
 #         out[I] = tmp
 #     end
@@ -830,9 +848,9 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
         # available. rightborder! will handle that point.
         for i = ind[k]+1:ind[end-1]
             @unsafe for Ibegin in Rbegin
-                tmp = one(T)*img[Ibegin, i, Iend]
+                tmp = accumfilter(img[Ibegin, i, Iend], one(T))
                 for j = 1:k
-                    tmp += kernel.a[j]*out[Ibegin, i-j, Iend]
+                    tmp += kernel.a[j]*safe_for_prod(out[Ibegin, i-j, Iend], tmp)
                 end
                 out[Ibegin, i, Iend] = tmp
             end
@@ -845,9 +863,9 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
         # Propagate backwards
         for i = ind[end-l]:-1:ind[1]
             @unsafe for Ibegin in Rbegin
-                tmp = one(T)*out[Ibegin, i, Iend]
+                tmp = accumfilter(out[Ibegin, i, Iend], one(T))
                 for j = 1:l
-                    tmp += kernel.b[j]*out[Ibegin, i+j, Iend]
+                    tmp += kernel.b[j]*safe_for_prod(out[Ibegin, i+j, Iend], tmp)
                 end
                 out[Ibegin, i, Iend] = tmp
             end
@@ -874,9 +892,9 @@ function _leftborder!{T,k,l}(out, img, kernel::TriggsSdika{T,k,l}, Ibegin, indle
     n = 0
     for i in indleft
         n += 1
-        tmp = one(T)*img[Ibegin, i, Iend]
+        tmp = accumfilter(img[Ibegin, i, Iend], one(T))
         for j = 1:n-1
-            tmp += kernel.a[j]*out[Ibegin, i-j, Iend]
+            tmp += kernel.a[j]*safe_for_prod(out[Ibegin, i-j, Iend], tmp)
         end
         for j = n:k
             tmp += kernel.a[j]*uminus
@@ -896,9 +914,9 @@ end
 function _rightborder!{T,k,l}(out, img, kernel::TriggsSdika{T,k,l}, Ibegin, indright, Iend, iplus)
     # The final value from forward-filtering was not calculated, so do that here
     i = last(indright)
-    tmp = one(T)*img[Ibegin, i, Iend]
+    tmp = accumfilter(img[Ibegin, i, Iend], one(T))
     for j = 1:k
-        tmp += kernel.a[j]*out[Ibegin, i-j, Iend]
+        tmp += kernel.a[j]*safe_for_prod(out[Ibegin, i-j, Iend], tmp)
     end
     out[Ibegin, i, Iend] = tmp
     # Initialize the v values at and beyond the right edge
@@ -910,12 +928,12 @@ function _rightborder!{T,k,l}(out, img, kernel::TriggsSdika{T,k,l}, Ibegin, indr
     n = 1
     for i in last(indright)-1:-1:first(indright)
         n += 1
-        tmp = one(T)*out[Ibegin, i, Iend]
+        tmp = accumfilter(out[Ibegin, i, Iend], one(T))
         for j = 1:n-1
-            tmp += kernel.b[j]*out[Ibegin, i+j, Iend]
+            tmp += kernel.b[j]*safe_for_prod(out[Ibegin, i+j, Iend], tmp)
         end
         for j = n:l
-            tmp += kernel.b[j]*vright[j-n+2]
+            tmp += kernel.b[j]*safe_for_prod(vright[j-n+2], tmp)
         end
         out[Ibegin, i, Iend] = tmp
     end
@@ -972,8 +990,6 @@ end
 filter_type{S}(img::AbstractArray{S}, kernel) = filter_type(S, kernel)
 
 filter_type{S,T}(::Type{S}, kernel::ArrayLike{T}) = typeof(zero(S)*zero(T) + zero(S)*zero(T))
-filter_type{S<:Integer,T<:Integer}(::Type{S}, kernel::ArrayLike{T}) =
-    typeof(zero(widen(S))*zero(widen(T)) + zero(widen(S))*zero(widen(T)))
 filter_type{S<:Union{Normed,FixedColorant}}(::Type{S}, ::Laplacian) = float32(S)
 filter_type{S<:Colorant}(::Type{S}, kernel::Laplacian) = S
 filter_type{S<:AbstractFloat}(::Type{S}, ::Laplacian) = S
@@ -1103,9 +1119,10 @@ function kernelconv(k1, k2, kernels...)
     fill!(out, zero(eltype(out)))
     k1N, k2N = samedims(out, k1), samedims(out, k2)
     R1, R2 = CartesianRange(indices(k1N)), CartesianRange(indices(k2N))
+    ref = accumfilter(zero(eltype(k1)), zero(eltype(k2)))
     for I1 in R1
         for I2 in R2
-            out[I1+I2] += k1N[I1]*k2N[I2]
+            out[I1+I2] += safe_for_prod(k1N[I1], ref)*k2N[I2]
         end
     end
     kernelconv(out, kernels...)
