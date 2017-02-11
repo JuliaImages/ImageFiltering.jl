@@ -61,6 +61,7 @@ using ImageFiltering, OffsetArrays, Base.Test
         end
     end
     @test contains(readstring(fname), "too small for accuracy")
+    rm(fname)
 end
 
 nothing
