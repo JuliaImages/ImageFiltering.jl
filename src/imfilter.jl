@@ -1091,7 +1091,7 @@ function normalize_separable!{N}(r::AbstractResource, A, kernels::NTuple{N,Resha
     normalize_separable!(r, A, map(_vec, kernels), border)
 end
 
-function normalize_separable!{N}(r::AbstractResource, A, kernels::NTuple{N}, border)
+function normalize_separable!{N}(r::AbstractResource, A, kernels::NTuple{N,Any}, border)
     inds = indices(A)
     filtdims = ntuple(d->imfilter(r, similar(dims->ones(dims), inds[d]), _vec(kernels[d]), border), Val{N})
     normalize_dims!(A, filtdims)

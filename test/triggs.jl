@@ -20,7 +20,7 @@ using Base.Test
             for (i,c) in enumerate(x)
                 a = zeros(l)
                 a[c] = 1
-                af = exp(-((1:l)-c).^2/(2*σ^2))/(σ*√(2π))
+                af = exp.(-((1:l)-c).^2/(2*σ^2))/(σ*√(2π))
                 @inferred(imfilter!(a, a, (kernel,), Fill(0)))
                 @test norm(a-af) < 0.1*norm(af)
                 # aσ[i][:,2n-1:2n] = [af a]
@@ -46,11 +46,11 @@ using Base.Test
         y = (-3:3)'
         kernel = KernelFactors.IIRGaussian((σ, σ))
         for img in (imgf, imgg, imgc)
-            imgcmp = img[3,4]*exp(-(x.^2 .+ y.^2)/(2*σ^2))/(σ^2*2*pi)
+            imgcmp = img[3,4]*exp.(-(x.^2 .+ y.^2)/(2*σ^2))/(σ^2*2*pi)
             border = Fill(zero(eltype(img)))
             img0 = copy(img)
             imgfilt = @inferred(imfilter(img, kernel, border))
-            @test sumabs2(imgcmp - imgfilt) < 0.2^2*sumabs2(imgcmp)
+            @test sum(abs2, imgcmp - imgfilt) < 0.2^2*sum(abs2, imgcmp)
             @test img == img0
             @test imgfilt != img
         end
