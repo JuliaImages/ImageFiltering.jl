@@ -57,7 +57,7 @@ to_ranges(R::CartesianRange) = map((b,e)->b:e, R.start.I, R.stop.I)
 # ensure that overflow is detected, by ensuring that it doesn't happen
 # at intermediate stages of the computation
 accumfilter(pixelval, filterval) = pixelval * filterval
-typealias SmallInts Union{UInt8,Int8,UInt16,Int16}
+const SmallInts = Union{UInt8,Int8,UInt16,Int16}
 accumfilter(pixelval::SmallInts, filterval::SmallInts) = Int(pixelval)*Int(filterval)
 # advice: don't use FixedPoint for the kernel
 accumfilter(pixelval::N0f8, filterval::N0f8) = Float32(pixelval)*Float32(filterval)

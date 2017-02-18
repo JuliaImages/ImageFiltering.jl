@@ -192,7 +192,7 @@ immutable Laplacian{N}
     flags::NTuple{N,Bool}
     offsets::Vector{CartesianIndex{N}}
 
-    function Laplacian(flags::NTuple{N,Bool})
+    function (::Type{Laplacian{N}}){N}(flags::NTuple{N,Bool})
         offsets = Array{CartesianIndex{N}}(0)
         for i = 1:N
             if flags[i]
@@ -200,7 +200,7 @@ immutable Laplacian{N}
                       CartesianIndex{N}((ntuple(d->0, i-1)..., 1, ntuple(d->0, N-i)...)))
             end
         end
-        new(flags, offsets)
+        new{N}(flags, offsets)
     end
 end
 

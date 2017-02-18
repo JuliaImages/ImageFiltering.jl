@@ -4,13 +4,14 @@ module ImageFiltering
 
 using Colors, FixedPointNumbers, ImageCore, MappedArrays, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
 using ColorVectorSpace  # for filtering RGB arrays
+using Compat
 using Base: Indices, tail, fill_to_length, @pure, depwarn
 
 export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, mapwindow, imgradients, padarray, centered, kernelfactors, reflect
 
-typealias FixedColorant{T<:Normed} Colorant{T}
-typealias StaticOffsetArray{T,N,A<:StaticArray} OffsetArray{T,N,A}
-typealias OffsetVector{T} OffsetArray{T,1}
+@compat FixedColorant{T<:Normed} = Colorant{T}
+@compat StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
+@compat OffsetVector{T} = OffsetArray{T,1}
 
 # Needed for type-stability
 function Base.transpose{T}(A::StaticOffsetArray{T,2})
@@ -21,7 +22,8 @@ end
 module Algorithm
     # deliberately don't export these, but it's expected that they
     # will be used as Algorithm.FFT(), etc.
-    abstract Alg
+    using Compat
+    @compat abstract type Alg end
     "Filter using the Fast Fourier Transform" immutable FFT <: Alg end
     "Filter using a direct algorithm" immutable FIR <: Alg end
     "Cache-efficient filtering using tiles" immutable FIRTiled{N} <: Alg
@@ -40,27 +42,27 @@ include("utils.jl")
 include("kernelfactors.jl")
 using .KernelFactors: TriggsSdika, IIRFilter, ReshapedOneD, iterdims, kernelfactors
 
-typealias ReshapedVector{T,N,Npre,V<:AbstractVector} ReshapedOneD{T,N,Npre,V}
-typealias ArrayType{T} Union{AbstractArray{T}, ReshapedVector{T}}
-typealias ReshapedIIR{T,N,Npre,V<:IIRFilter} ReshapedOneD{T,N,Npre,V}
-typealias AnyIIR{T} Union{IIRFilter{T}, ReshapedIIR{T}}
-typealias ArrayLike{T} Union{ArrayType{T}, AnyIIR{T}}
+@compat ReshapedVector{T,N,Npre,V<:AbstractVector} = ReshapedOneD{T,N,Npre,V}
+@compat ArrayType{T} = Union{AbstractArray{T}, ReshapedVector{T}}
+@compat ReshapedIIR{T,N,Npre,V<:IIRFilter} = ReshapedOneD{T,N,Npre,V}
+@compat AnyIIR{T} = Union{IIRFilter{T}, ReshapedIIR{T}}
+@compat ArrayLike{T} = Union{ArrayType{T}, AnyIIR{T}}
 
 include("kernel.jl")
 using .Kernel
 using .Kernel: Laplacian, reflect
 
-typealias NDimKernel{N,K} Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N}}
+@compat NDimKernel{N,K} = Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N}}
 
 include("border.jl")
 
-typealias BorderSpec{T} Union{Pad{0}, Fill{T,0}, Inner{0}}
-typealias BorderSpecNoNa{T} Union{Pad{0}, Fill{T,0}, Inner{0}}
-typealias BorderSpecAny Union{BorderSpec,NA,NoPad}
+@compat BorderSpec{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}
+@compat BorderSpecNoNa{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}
+const BorderSpecAny = Union{BorderSpec,NA,NoPad}
 
 include("deprecated.jl")
 
-typealias ProcessedKernel Tuple
+const ProcessedKernel = Tuple
 
 include("imfilter.jl")
 include("specialty.jl")

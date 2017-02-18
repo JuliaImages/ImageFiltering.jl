@@ -2,7 +2,7 @@
 
 using OffsetArrays, CatIndices
 
-abstract AbstractBorder
+@compat abstract type AbstractBorder end
 
 immutable NoPad{T} <: AbstractBorder
     border::T
@@ -249,8 +249,8 @@ immutable Fill{T,N} <: AbstractBorder
     lo::Dims{N}
     hi::Dims{N}
 
-    Fill(value::T) = new(value)
-    Fill(value::T, lo::Dims{N}, hi::Dims{N}) = new(value, lo, hi)
+    (::Type{Fill{T,N}}){T,N}(value::T) = new{T,N}(value)
+    (::Type{Fill{T,N}}){T,N}(value::T, lo::Dims{N}, hi::Dims{N}) = new{T,N}(value, lo, hi)
 end
 
 Fill{T}(value::T) = Fill{T,0}(value)

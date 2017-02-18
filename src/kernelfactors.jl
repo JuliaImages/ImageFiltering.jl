@@ -5,7 +5,9 @@ using ..ImageFiltering: centered, dummyind
 import ..ImageFiltering: _reshape, _vec, nextendeddims
 using Base: tail, Indices, @pure, checkbounds_indices, throw_boundserror
 
-abstract IIRFilter{T}
+using Compat
+
+@compat abstract type IIRFilter{T} end
 
 Base.eltype{T}(kernel::IIRFilter{T}) = T
 
@@ -26,9 +28,9 @@ ReshapedOneDs allow one to specify a "filtering dimension" for a
 immutable ReshapedOneD{T,N,Npre,V}  # not <: AbstractArray{T,N} (more general, incl. IIR)
     data::V
 
-    function ReshapedOneD(data::V)
+    function (::Type{ReshapedOneD{T,N,Npre,V}}){T,N,Npre,V}(data::V)
         ndims(V) == 1 || throw(DimensionMismatch("must be one dimensional, got $(ndims(V))"))
-        new(data)
+        new{T,N,Npre,V}(data)
     end
 end
 
@@ -73,17 +75,29 @@ import Base: ==
 ==(A::ReshapedOneD, B::AbstractArray) = convert(AbstractArray, A) == B
 ==(A::AbstractArray, B::ReshapedOneD) = A == convert(AbstractArray, B)
 
-import Base: .+, .-, .*, ./
-for op in (:+, :-, :*, :/)
-    opdot = Symbol(:., op)
-    @eval begin
-        ($opdot)(A::ReshapedOneD, B::ReshapedOneD) = broadcast($op, A, B)
-        @inline ($opdot)(As::ReshapedOneD...) = broadcast($op, As...)
+if VERSION < v"0.6.0-dev.1839"
+    import Base: .+, .-, .*, ./
+    for op in (:+, :-, :*, :/)
+        opdot = Symbol(:., op)
+        @eval begin
+            ($opdot)(A::ReshapedOneD, B::ReshapedOneD) = broadcast($op, A, B)
+            @inline ($opdot)(As::ReshapedOneD...) = broadcast($op, As...)
+        end
+    end
+    # for broadcasting
+    @pure Base.promote_eltype_op{S,T}(op, ::ReshapedOneD{S}, ::ReshapedOneD{T}) = Base.promote_op(op, S, T)
+    @pure Base.promote_eltype_op{S,T}(op, ::Type{S}, ::ReshapedOneD{T}) = Base.promote_op(op, S, T)
+else
+    import Base: +, -, *, /
+    for op in (:+, :-, :*, :/)
+        @eval begin
+            ($op)(A::ReshapedOneD, B::ReshapedOneD) =
+                broadcast($op, convert(AbstractArray, A), convert(AbstractArray, B))
+            @inline ($op)(As::ReshapedOneD...) =
+                broadcast($op, map(A->convert(AbstractArray, A), As)...)
+        end
     end
 end
-# for broadcasting
-@pure Base.promote_eltype_op{S,T}(op, ::ReshapedOneD{S}, ::ReshapedOneD{T}) = Base.promote_op(op, S, T)
-@pure Base.promote_eltype_op{S,T}(op, ::Type{S}, ::ReshapedOneD{T}) = Base.promote_op(op, S, T)
 if VERSION >= v"0.6.0-dev.693"
     Base.Broadcast.containertype{T<:ReshapedOneD}(::Type{T}) = Array
 end
@@ -298,7 +312,8 @@ immutable TriggsSdika{T,k,l,L} <: IIRFilter{T}
     asum::T
     bsum::T
 
-    TriggsSdika(a, b, scale, M) = new(a, b, scale, M, sum(a), sum(b))
+    (::Type{TriggsSdika{T,k,l,L}}){T,k,l,L}(a, b, scale, M) =
+        new{T,k,l,L}(a, b, scale, M, sum(a), sum(b))
 end
 """
     TriggsSdika(a, b, scale, M)
@@ -414,7 +429,7 @@ appropriately along its "leading" dimensions; the dimensionality of each is
 """
 kernelfactors{N}(factors::NTuple{N,AbstractVector}) = _kernelfactors((), ntuple(d->true,Val{N}), (), factors)
 
-_kernelfactors(pre, post, out::NTuple, ::Tuple{}) = out
+_kernelfactors(pre, post, out, ::Tuple{}) = out
 @inline function _kernelfactors(pre, post, out, factors)
     # L+M=N
     f = factors[1]
