@@ -756,7 +756,7 @@ function imfilter!{S,T,N}(r::AbstractResource{IIR},
                           img::AbstractArray{T,N},
                           kernel::Tuple{TriggsSdika, Vararg{TriggsSdika}},
                           border::BorderSpec)
-    isa(border, Pad) && border.symbol != :replicate && throw(ArgumentError("only \"replicate\" is supported"))
+    isa(border, Pad) && border.style != :replicate && throw(ArgumentError("only \"replicate\" is supported"))
     length(kernel) <= N || throw(DimensionMismatch("cannot have more kernels than dimensions"))
     inds = indices(img)
     _imfilter_inplace_tuple!(r, out, img, kernel, CartesianRange(()), inds, CartesianRange(tail(inds)), border)
@@ -835,7 +835,8 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
         return out
     end
     if length(ind) <= max(k, l)
-        throw(DimensionMismatch("size of img along dimension $dim $(length(inds[dim])) is too small for filtering with IIR kernel of length $(max(k,l))"))
+        dim = ndims(Rbegin)+1
+        throw(DimensionMismatch("size of img along dimension $dim $(length(ind)) is too small for filtering with IIR kernel of length $(max(k,l))"))
     end
     for Iend in Rend
         # Initialize the left border
