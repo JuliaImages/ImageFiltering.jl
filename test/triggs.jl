@@ -26,6 +26,9 @@ using Base.Test
                 # aσ[i][:,2n-1:2n] = [af a]
             end
         end
+
+        kernel = KernelFactors.IIRGaussian(2.0)
+        @test_throws DimensionMismatch imfilter([1.0, 2.0], (kernel,))
     end
 
     @testset "commutivity" begin
