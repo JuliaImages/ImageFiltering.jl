@@ -53,6 +53,9 @@ immutable Pad{N} <: AbstractBorder
     hi::Dims{N}    # number to extend by on the upper edge for each dimension
 end
 
+(::Type{Pad{N}}){N}(style, lo::AbstractVector, hi::AbstractVector) =
+    Pad{N}(style, (lo...), (hi...))
+
 const valid_borders = ("replicate", "circular", "reflect", "symmetric")
 
 function borderinstance(border::AbstractString)
