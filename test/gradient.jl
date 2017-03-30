@@ -1,12 +1,12 @@
 using ImageFiltering, Colors, ColorVectorSpace, FixedPointNumbers
-using Base.Test
+using Base.Test, Compat  # Compat for ones(x, T)
 
 @testset "gradient" begin
     y, x = 1:5, (1:7)'
     img_grads = ((y .* ones(x), 1, 0),
             (ones(y) .* x, 0, 1),
-            (map(Gray, y.*ones(Float64, x)), Gray(1), Gray(0)),
-            (map(v->RGB(v,0,0), y.*ones(Float64, x)), RGB(1,0,0), RGB(0,0,0)))
+            (map(Gray, y.*ones(x, Float64)), Gray(1), Gray(0)),
+            (map(v->RGB(v,0,0), y.*ones(x, Float64)), RGB(1,0,0), RGB(0,0,0)))
     for (img, ey, ex) in img_grads
         for kernelfunc in (KernelFactors.ando3, KernelFactors.sobel, KernelFactors.prewitt,
                            KernelFactors.ando4, KernelFactors.ando5,

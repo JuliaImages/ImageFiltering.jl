@@ -1,11 +1,9 @@
 using ImageFiltering, Base.Test
 
-if VERSION < v"0.6.0-dev"
-    aif = detect_ambiguities(ImageFiltering, Kernel, KernelFactors, Base)
-    # Because StaticArrays has ambiguities with Base, we have to "subtract" these
-    asa = detect_ambiguities(StaticArrays, Base)
-    @test isempty(setdiff(aif, asa))
-end
+aif = detect_ambiguities(ImageFiltering, Kernel, KernelFactors, Base)
+# Because StaticArrays has ambiguities with Base, we have to "subtract" these
+asa = detect_ambiguities(StaticArrays, Base)
+@test isempty(setdiff(aif, asa))
 
 include("border.jl")
 include("nd.jl")
