@@ -228,6 +228,10 @@ end
     b = @inferred(imfilter!(CPU1(Algorithm.FIR()), ret, a, (), NoPad()))
     @test b == a
     @test !(b === a)
+    # OffsetArrays
+    img = OffsetArray(rand(RGB{N0f8}, 80, 100), (-5, 3))
+    imgf = imfilter(img, Kernel.gaussian((3,3)))
+    @test indices(imgf) == indices(img)
 end
 
 nothing

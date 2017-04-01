@@ -69,6 +69,18 @@ using Base.Test
     img[1] = img[8] = 0
     out = imfilter!(CPU1(Algorithm.FFT()), similar(img, Float64), img, kern, NoPad())
     @test out ≈ imfilter(img, kern)
+
+    # Inputs that have non-1 indices
+    img = OffsetArray(zeros(11), -5:5)
+    img[0] = 1
+    for border in ("replicate", "circular", "symmetric", "reflect",
+                   Fill(zero(eltype(img))), Inner(1), NA())
+        imgf = imfilter(img, centered([0.25, 0.5, 0.25]), border)
+        @test imgf[-1] == imgf[1] == 0.25
+        @test imgf[0] == 0.5
+        inds = indices(imgf,1)
+        @test all(x->x==0, imgf[first(inds):-2]) && all(x->x==0, imgf[2:last(inds)])
+    end
 end
 
 @testset "2d widening" begin
