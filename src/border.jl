@@ -295,16 +295,17 @@ Generate an index-vector to be used for padding. `inds` specifies the image indi
 """
 function padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer)
     if border.style == :replicate
-        return vcat(fill(first(inds), lo), PinIndices(inds), fill(last(inds), hi))
+        indsnew = vcat(fill(first(inds), lo), inds, fill(last(inds), hi))
+        OffsetArray(indsnew, first(inds)-lo:last(inds)+hi)
     elseif border.style == :circular
         return modrange(extend(lo, inds, hi), inds)
     elseif border.style == :symmetric
-        I = [inds; reverse(inds)]
-        r = modrange(extend(lo, inds, hi), 1:2*length(inds))
+        I = OffsetArray([inds; reverse(inds)], (0:2*length(inds)-1)+first(inds))
+        r = modrange(extend(lo, inds, hi), indices(I, 1))
         return I[r]
     elseif border.style == :reflect
-        I = [inds; last(inds)-1:-1:first(inds)+1]
-        return I[modrange(extend(lo, inds, hi), 1:2*length(inds)-2)]
+        I = OffsetArray([inds; last(inds)-1:-1:first(inds)+1], (0:2*length(inds)-3)+first(inds))
+        return I[modrange(extend(lo, inds, hi), indices(I, 1))]
     else
         error("border style $(border.style) unrecognized")
     end
