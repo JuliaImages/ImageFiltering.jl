@@ -12,3 +12,7 @@ Read the documentation here:
 
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaImages.github.io/ImageFiltering.jl/stable)
 [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://JuliaImages.github.io/ImageFiltering.jl/latest)
+
+Packages with overlapping functionality:
+- [DSP](https://github.com/JuliaDSP/DSP.jl)
+- [RollingFunctions](https://github.com/JeffreySarnoff/RollingFunctions.jl)
