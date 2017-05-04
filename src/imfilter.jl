@@ -1,4 +1,15 @@
 # see below for imfilter docstring
+kernel_ndims(kernel::Tuple) = ndims(first(kernel))
+kernel_ndims(kernel::AbstractArray) = ndims(kernel)
+function assert_ndims(array, kernel)
+    n1, n2 = ndims(array), kernel_ndims(kernel)
+    if n1 != n2
+        error(
+            "Please make sure that array and kernel have same dimensionality.
+            Found Array: $n1, kernel: $n2"
+        )
+    end
+end
 
 # Step 1: if necessary, determine the output's element type
 @inline function imfilter(img::AbstractArray, kernel, args...)
@@ -140,6 +151,7 @@ function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKern
 end
 
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny, alg::Alg)
+    assert_ndims(img, kernel)
     local ret
     try
         ret = imfilter!(default_resource(alg_defaults(alg, out, kernel)), out, img, kernel, border)
