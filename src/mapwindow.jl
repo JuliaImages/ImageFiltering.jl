@@ -90,24 +90,110 @@ function _mapwindow{T,N}(f,
         offset = CartesianIndex(map(w->first(w)-1, window))
         # To allocate the output, we have to evaluate f once
         Rinner = CartesianRange(inner)
+        # Initialise the mode to zero and histogram consisting of 255 bins to zeros
+        mode =0
+        m_histogram=zeros(Int64,(256,))
+
         if !isempty(Rinner)
+            R2=last(Rinner).I[2]
+            L1=first(Rinner).I[1]
+            R1=first(Rinner).I[2]
+            L2=last(Rinner).I[1]
             Rwin = CartesianRange(map(+, window, first(Rinner).I))
             copy!(buf, Rbuf, img, Rwin)
-            out = similar(img, typeof(f(bufrs)))
+            out = similar(img, typeof(f(bufrs,m_histogram,mode,window)))
+            prev_mode= 0
             # Handle the interior
-            for I in Rinner
-                Rwin = CartesianRange(map(+, window, I.I))
-                copy!(buf, Rbuf, img, Rwin)
-                out[I] = f(bufrs)
+            m_histogram=zeros(Int64,(256,))
+            for i=L1:L2
+                if (i-L1)%2==0
+                    RinnerN= CartesianRange(CartesianIndex((i,R1)), CartesianIndex((i,R2)))
+                    for I in RinnerN
+                        Rwin = CartesianRange(map(+, window, I.I))
+                        copy!(buf, Rbuf, img, Rwin)
+                        if (I[2]== R2 && prev_mode==1)
+                            out[I] = f(bufrs,m_histogram,3,window)
+                            prev_mode=3
+                            continue
+                        elseif (I[2]==R1 && prev_mode==2) 
+                            out[I] = f(bufrs,m_histogram,4,window)
+                            prev_mode=4
+                            continue
+                        elseif prev_mode == 3
+                            out[I] = f(bufrs,m_histogram,5,window)
+                            prev_mode = 2
+                            continue
+                        elseif prev_mode == 4
+
+                            out[I] = f(bufrs,m_histogram,6,window)
+                            prev_mode = 1
+                            continue 
+                        elseif prev_mode == 0
+                            out[I] = f(bufrs,m_histogram,0,window)
+                            prev_mode=1
+                            continue
+                        elseif prev_mode == 1
+                            out[I] = f(bufrs,m_histogram,1,window)
+                            prev_mode=1
+                            continue
+                        elseif prev_mode ==2
+                            out[I] = f(bufrs,m_histogram,2,window)
+                            prev_mode=2
+                            continue
+                        end
+                    end
+
+                else
+
+                    for k= R2:-1:R1
+                        I=CartesianIndex((i,k))
+                        Rwin = CartesianRange(map(+, window, I.I))
+                        copy!(buf, Rbuf, img, Rwin)
+                        if (I[2]== R2 && prev_mode==1)
+                            out[I] = f(bufrs,m_histogram,3,window)
+                            prev_mode=3
+                            continue
+                        elseif (I[2]==R1 && prev_mode==2) 
+                            out[I] = f(bufrs,m_histogram,4,window)
+                            prev_mode=4
+                            continue
+                        elseif prev_mode == 3
+                            out[I] = f(bufrs,m_histogram,5,window)
+                            prev_mode = 2
+                            continue
+                        elseif prev_mode == 4
+                            out[I] = f(bufrs,m_histogram,6,window)
+                            prev_mode = 1
+                            continue 
+                        elseif prev_mode == 0
+                            out[I] = f(bufrs,m_histogram,0,window)
+                            prev_mode=2
+                            continue
+                        elseif prev_mode == 1
+                            out[I] = f(bufrs,m_histogram,1,window)
+                            prev_mode=1
+                            continue
+                        elseif prev_mode == 2
+                            out[I] = f(bufrs,m_histogram,2,window)
+                            prev_mode=2
+                            continue
+                        end
+                    end
+
+                end
+            
             end
         else
             copy_win!(buf, img, first(CartesianRange(inds)), border, offset)
-            out = similar(img, typeof(f(bufrs)))
+            out = similar(img, typeof(f(bufrs,m_histogram,mode,window)))
         end
         # Now pick up the edge points we skipped over above
         for I in EdgeIterator(inds, inner)
+            # Handle the edge points with mode 0
+            mode =0
+            m_histogram=zeros(Int64,(256,))
             copy_win!(buf, img, I, border, offset)
-            out[I] = f(bufrs)
+            out[I] = f(bufrs,m_histogram,mode,window)
         end
     else
         # TODO: implement :view
@@ -274,9 +360,146 @@ end
 @inline cyclecache(b, x) = b[1], (Base.tail(b)..., x)
 
 replace_function(f) = f
-replace_function(::typeof(median!)) = function(v)
+replace_function(::typeof(median!)) = function(v,m_histogram,mode,window)
+    # reshape the value of the window so that they are horizontal major which allows to do horizontal traversal
+    width=window[2].stop-window[2].start+1
+    height= window[1].stop-window[1].start+1    
+    v_reshape= reshape(v,(height,width))
+    p=zeros(eltype(v_reshape), (size(v_reshape,2),size(v_reshape,1)))
+    transpose!(p,v_reshape)
+    v= reshape(p,size(v))
+    m_index=-1
     inds = indices(v,1)
-    Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
+    if mode == 0
+        for i = first(inds):last(inds)
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]+=1
+        end
+        tempsum = 0
+        for i = 1:256
+            tempsum+= m_histogram[i]
+            if tempsum>= last(inds)/2
+                m_index=i-1
+                break
+            end
+        end
+        for i = first(inds):width:last(inds)
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]-=1
+        end
+        return convert(Float64,m_index)/255
+    elseif mode == 1
+        for i =  width:width:last(inds)
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]+=1
+        end
+        tempsum = 0
+        for i = 1:256
+            tempsum+= m_histogram[i]
+            if tempsum>= last(inds)/2
+                m_index=i-1
+                break
+            end
+        end
+        for i = first(inds):width:last(inds)
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]-=1
+        end
+        return convert(Float64,m_index)/255
+    elseif mode == 2
+        for i =  first(inds):width:last(inds)
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]+=1
+        end
+        tempsum = 0
+        for i = 1:256
+            tempsum+= m_histogram[i]
+            if tempsum>= last(inds)/2
+                m_index=i-1
+                break
+            end
+        end
+        for i = width:width:last(inds)
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]-=1
+        end
+        return convert(Float64,m_index)/255
+    elseif mode == 3 
+        for i =  width:width:last(inds)            
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]+=1
+        end
+        tempsum = 0
+        for i = 1:256
+            tempsum+= m_histogram[i]
+            if tempsum>= last(inds)/2
+                m_index=i-1
+                break
+            end
+        end
+        for i =  first(inds):first(inds)+width-1            
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]-=1
+        end
+        return convert(Float64,m_index)/255
+    elseif mode ==4
+        for i =  first(inds):width:last(inds)            
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]+=1
+        end
+        tempsum = 0
+        for i = 1:256
+            tempsum+= m_histogram[i]
+            if tempsum>= last(inds)/2
+                m_index=i-1
+                break
+            end
+        end
+        for i =  first(inds):first(inds)+width-1
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]-=1
+        end
+        return convert(Float64,m_index)/255
+    elseif mode ==5
+        for i =  last(inds)-width+1:last(inds)
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]+=1
+        end
+        tempsum = 0
+        for i = 1:256
+            tempsum+= m_histogram[i]
+            if m_histogram[i]<0
+                println("stop:",mode)
+            end
+            if tempsum>= last(inds)/2
+                m_index=i-1
+                break
+            end
+        end
+        for i =  width:width:last(inds)
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]-=1
+        end
+        return convert(Float64,m_index)/255
+    elseif mode ==6
+        for i =  last(inds)-width+1:last(inds)
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]+=1
+        end
+        tempsum = 0
+        for i = 1:256
+            tempsum+= m_histogram[i]
+            if tempsum>= last(inds)/2
+                m_index=i-1
+                break
+            end
+        end
+        for i =  first(inds):width:last(inds)
+            id= trunc(Int64,(v[i]*255))+1
+            m_histogram[id]-=1
+        end
+        return convert(Float64,m_index)/255
+    end
 end
 
 default_shape(::Any) = identity
