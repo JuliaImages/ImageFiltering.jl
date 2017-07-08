@@ -68,12 +68,19 @@ end
 
 mapwindow(f, img, window::AbstractArray, args...; kwargs...) = mapwindow(f, img, (window...,), args...; kwargs...)
 
+
+
 function mapwindow{T,N}(f,
                         img::AbstractArray{T,N},
                         window::Indices{N},
                         border::BorderSpecAny;
                         callmode=:copy!)
-    _mapwindow(replace_function(f), img, window, border, default_shape(f); callmode=callmode)
+    if(uses_histogram(f))
+        median_filter(replace_function(f), img, window, border, default_shape(f); callmode=callmode)
+    else
+        _mapwindow(replace_function(f), img, window, border, default_shape(f); callmode=callmode)
+    end 
+
 end
 function _mapwindow{T,N}(f,
                          img::AbstractArray{T,N},
@@ -90,7 +97,51 @@ function _mapwindow{T,N}(f,
         offset = CartesianIndex(map(w->first(w)-1, window))
         # To allocate the output, we have to evaluate f once
         Rinner = CartesianRange(inner)
+        if !isempty(Rinner)
+            Rwin = CartesianRange(map(+, window, first(Rinner).I))
+            copy!(buf, Rbuf, img, Rwin)
+            out = similar(img, typeof(f(bufrs)))
+            # Handle the interior
+            for I in Rinner
+                Rwin = CartesianRange(map(+, window, I.I))
+                copy!(buf, Rbuf, img, Rwin)
+                out[I] = f(bufrs)
+            end
+        else
+            copy_win!(buf, img, first(CartesianRange(inds)), border, offset)
+            out = similar(img, typeof(f(bufrs)))
+        end
+        # Now pick up the edge points we skipped over above
+        for I in EdgeIterator(inds, inner)
+            copy_win!(buf, img, I, border, offset)
+            out[I] = f(bufrs)
+        end
+    else
+        # TODO: implement :view
+        error("callmode $callmode not supported")
+    end
+    out
+end
+
+
+function median_filter{T,N}(f,
+                         img::AbstractArray{T,N},
+                         window::Indices{N},
+                         border::BorderSpecAny,
+                         shape=default_shape(f);
+                         callmode=:copy!)
+    inds = indices(img)
+    inner = _interior(inds, window)
+
+    if callmode == :copy!
+        buf = Array{T}(map(length, window))
+        bufrs = shape(buf)
+        Rbuf = CartesianRange(size(buf))
+        offset = CartesianIndex(map(w->first(w)-1, window))
+        # To allocate the output, we have to evaluate f once
+        Rinner = CartesianRange(inner)
         # Initialise the mode to zero and histogram consisting of 255 bins to zeros
+
         mode =0
         m_histogram=zeros(Int64,(256,))
 
@@ -196,12 +247,22 @@ function _mapwindow{T,N}(f,
             out[I] = f(bufrs,m_histogram,mode,window)
         end
     else
-        # TODO: implement :view
+            # TODO: implement :view
         error("callmode $callmode not supported")
     end
+
+
     out
 end
 
+function uses_histogram(::typeof(median!))
+    true
+end
+
+function uses_histogram(::Any)
+    false
+end
+    
 # For copying along the edge of the image
 function copy_win!{T,N}(buf::AbstractArray{T,N}, img, I, border::Pad, offset)
     win_inds = map(+, indices(buf), (I+offset).I)
@@ -228,6 +289,8 @@ function copy_win!{T,N}(buf::AbstractArray{T,N}, img, I, border::Fill, offset)
     end
     buf
 end
+
+
 
 ### Optimizations for particular window-functions
 
@@ -360,8 +423,11 @@ end
 @inline cyclecache(b, x) = b[1], (Base.tail(b)..., x)
 
 replace_function(f) = f
+
 replace_function(::typeof(median!)) = function(v,m_histogram,mode,window)
     # reshape the value of the window so that they are horizontal major which allows to do horizontal traversal
+
+
     width=window[2].stop-window[2].start+1
     height= window[1].stop-window[1].start+1    
     v_reshape= reshape(v,(height,width))
