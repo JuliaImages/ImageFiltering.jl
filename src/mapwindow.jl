@@ -134,88 +134,42 @@ function median_filter{T,N}(f,
     inds = indices(img)
     inner = _interior(inds, window)
     if callmode == :copy!
-        Rinner = CartesianRange(inner)
         buf = Array{T}(map(length, window))
         bufrs = shape(buf)
         Rbuf = CartesianRange(size(buf))
         offset = CartesianIndex(map(w->first(w)-1, window))
         # To allocate the output, we have to evaluate f once
-        R2=last(Rinner).I[2]
-        L1=first(Rinner).I[1]
-        R1=first(Rinner).I[2]
-        L2=last(Rinner).I[1]
+        Rinner = CartesianRange(inner)
         # Initialise the mode to zero and histogram consisting of 255 bins to zeros
-        mode =0
+        mode = 0
         m_histogram=zeros(Int64,(256,))
-        Rinner_new= CartesianRange(CartesianIndex((first(Rinner).I[3:end])),CartesianIndex((last(Rinner).I[3:end])))
         if !isempty(Rinner)
             out = similar(img, typeof(f(bufrs,m_histogram,mode,window)))
-            for I in Rinner_new
-                indice=I.I
-                prev_mode= 0
-                # Handle the interior
-                m_histogram=zeros(Int64,(256,))
-                for i=L1:L2
-                    if (i-L1)%2==0
-                        temp1=(i,R1)
-                        temp2=(i,R2)
-                        id1=(temp1...,indice...)
-                        id2=(temp2...,indice...)
-                        RinnerN= CartesianRange(CartesianIndex(id1), CartesianIndex(id2))
-                        for I in RinnerN
-                            
-                            Rwin = CartesianRange(map(+, window, I.I))                                
-                            copy!(buf, Rbuf, img, Rwin)
-                            if (I[2]== R2 && prev_mode==1)
-                                out[I] = f(bufrs,m_histogram,3,window)
-                                prev_mode=3
-                                continue
-                            elseif prev_mode == 4
-                                out[I] = f(bufrs,m_histogram,6,window)
-                                prev_mode = 1
-                                continue 
-
-                            elseif prev_mode == 0
-                                out[I] = f(bufrs,m_histogram,0,window)
-                                prev_mode=1
-                                continue
-                            elseif prev_mode == 1
-                                out[I] = f(bufrs,m_histogram,1,window)
-                                prev_mode=1
-                                continue
-                            end
-
-                        end
-
-                    else
-
-                        for k= R2:-1:R1
-                            I=CartesianIndex(tuple((i,k)...,indice...))
-                            Rwin = CartesianRange(map(+, window, I.I))
-                            copy!(buf, Rbuf, img, Rwin)
-                            if (I[2]==R1 && prev_mode==2) 
-                                out[I] = f(bufrs,m_histogram,4,window)
-                                prev_mode=4
-                                continue
-                            elseif prev_mode == 3
-                                out[I] = f(bufrs,m_histogram,5,window)
-                                prev_mode = 2
-                                continue
-                            elseif prev_mode == 0
-                                out[I] = f(bufrs,m_histogram,0,window)
-                                prev_mode=2
-                                continue
-                            elseif prev_mode == 2
-                                out[I] = f(bufrs,m_histogram,2,window)
-                                prev_mode=2
-                                continue
-                            end
-                        end
-
-                    end
+            Rwin = CartesianRange(map(+, window, first(Rinner).I))
+            copy!(buf, Rbuf, img, Rwin)
+            prev_mode=0
+            prev_col=1            
+            for I in Rinner
+                curr_col=I.I[2]
+                if(curr_col - prev_col!=0)
+                    m_histogram=zeros(Int64,(256,))
+                    prev_mode=0
                 end
-            end    
-
+                prev_col=curr_col
+                
+                Rwin = CartesianRange(map(+, window, I.I))                                
+                copy!(buf, Rbuf, img, Rwin)
+                if prev_mode == 0
+                    out[I] = f(bufrs,m_histogram,0,window)
+                    prev_mode=1
+                    continue
+                elseif prev_mode == 1
+                    out[I] = f(bufrs,m_histogram,1,window)
+                    prev_mode=1
+                    continue
+                end
+                
+            end
 
         else
             copy_win!(buf, img, first(CartesianRange(inds)), border, offset)
@@ -227,7 +181,6 @@ function median_filter{T,N}(f,
             mode =-1
             copy_win!(buf, img, I, border, offset)
             out[I] = f(bufrs,m_histogram,mode,window)
-            #out[I]=0
         end
             
     else
@@ -413,129 +366,67 @@ replace_function(::typeof(median!)) = function(v,m_histogram,mode,window)
         inds = indices(v,1)
         return Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
     else
-        # reshape the value of the window so that they are horizontal major which allows to do horizontal traversal
         window_size=size(v,1)
         dims = map(x->x.stop-x.start+1,window)
-        startp= ones(Int64,(size(dims,1),))
-        v_blob=reshape(v,dims)
-        blob_range=CartesianRange(CartesianIndex(tuple(startp...)),CartesianIndex(tuple(dims...)))
-        blob_range_new=CartesianRange(CartesianIndex(first(blob_range).I[3:end]),CartesianIndex(last(blob_range).I[3:end]))   
-        # Update the histogram according to     
-        for I in blob_range_new
-            indice=I.I
-            v=v_blob[:,:,indice...]
-            m_index=-1
-            inds = indices(v,1)
-            width=window[2].stop-window[2].start+1
-            height= window[1].stop-window[1].start+1    
-            v_reshape= reshape(v,(height,width))
-            p=zeros(eltype(v_reshape), (size(v_reshape,2),size(v_reshape,1)))
-            transpose!(p,v_reshape)
-            v= reshape(p,(size(v,1)*size(v,2),))
-            m_index=-1
-            inds = indices(v,1)
-                if mode == 0
-                    for i = first(inds):last(inds)
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]+=1
-                    end
-                elseif mode == 1
-                    for i =  width:width:last(inds)
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]+=1
-                    end
-                elseif mode == 2
-                    for i =  first(inds):width:last(inds)
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]+=1
-                    end
-                elseif mode == 3 
-                    for i =  width:width:last(inds)            
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]+=1
-                    end
-                elseif mode ==4
-                    for i =  first(inds):width:last(inds)            
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]+=1
-                    end
-                elseif mode ==5
-                    for i =  last(inds)-width+1:last(inds)
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]+=1
-                    end
-                elseif mode ==6
-                    for i =  last(inds)-width+1:last(inds)
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]+=1
-                    end
+        width=window[1].stop-window[1].start+1
+        inds = indices(v,1)
+        if mode == 0
+        # Update the histogram according to new entries
+            for i = first(inds):last(inds)
+                for j= i: dims[1]*dims[2]:last(inds)
+                    id= trunc(Int64,(v[j]*255))+1
+                    m_histogram[id]+=1
                 end
-            
-        end
-    # Find the median using histogram
-        tempsum = 0
-        m_index=-1
-        for i = 1:256
-            tempsum+= m_histogram[i]
-            if tempsum>= window_size/2
-                m_index=i-1
-                break
             end
-        end
-
-    # Clear histogram from useless past items
-        for I in blob_range_new
-            indice=I.I
-            v=v_blob[:,:,indice...]
-
-            width=window[2].stop-window[2].start+1
-            height= window[1].stop-window[1].start+1    
-            v_reshape= reshape(v,(height,width))
-            p=zeros(eltype(v_reshape), (size(v_reshape,2),size(v_reshape,1)))
-            transpose!(p,v_reshape)
-            v= reshape(p,(size(v,1)*size(v,2),))
-
-            inds = indices(v,1)
-                if mode == 0
-                    for i = first(inds):width:last(inds)
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]-=1
-                    end
-                elseif mode == 1
-                    for i = first(inds):width:last(inds)
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]-=1
-                    end
-                elseif mode == 2
-                    for i = width:width:last(inds)
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]-=1
-                    end
-                elseif mode == 3 
-                    for i =  first(inds):first(inds)+width-1            
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]-=1
-                    end
-                elseif mode ==4
-                    for i =  first(inds):first(inds)+width-1
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]-=1
-                    end
-                elseif mode ==5
-                    for i =  width:width:last(inds)
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]-=1
-                    end
-                elseif mode ==6
-                    for i =  first(inds):width:last(inds)
-                        id= trunc(Int64,(v[i]*255))+1
-                        m_histogram[id]-=1
-                    end
+        # Compute the median
+            tempsum = 0
+            m_index=-1
+            for i = 1:256
+                tempsum+= m_histogram[i]
+                if tempsum>= window_size/2
+                    m_index=i-1
+                    break
                 end
-        
+            end
+        # Clear the histogram from previous value
+            for i = first(inds):width:last(inds)
+                for j= i: dims[1]*dims[2]:last(inds)    
+                    id= trunc(Int64,(v[j]*255))+1
+                    m_histogram[id]-=1
+                end
+            end
+            return convert(Float64,m_index)/255
+
+        elseif mode == 1
+        # Update the histogram according to new entries
+            for i =  width:width:last(inds)
+                for j= i: dims[1]*dims[2]:last(inds)
+                    id= trunc(Int64,(v[j]*255))+1
+                    m_histogram[id]+=1
+                end
+            end
+        # Compute the median        
+            tempsum = 0
+            m_index=-1
+            for i = 1:256
+                tempsum+= m_histogram[i]
+                if tempsum>= window_size/2
+                    m_index=i-1
+                    break
+                end
+            end
+        # Clear the histogram from previous value
+            for i = first(inds):width:last(inds)
+                for j= i: dims[1]*dims[2]:last(inds)
+                    id= trunc(Int64,(v[j]*255))+1
+                    m_histogram[id]-=1
+                end
+            end
+            return convert(Float64,m_index)/255
         end
-        return convert(Float64,m_index)/255
+        
     end
+
         
 end
 
