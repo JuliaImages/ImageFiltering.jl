@@ -75,7 +75,7 @@ function mapwindow{T,N}(f,
                         window::Indices{N},
                         border::BorderSpecAny;
                         callmode=:copy!)
-    if(uses_histogram(f))
+    if(is_medianfilter(f))
         median_filter(replace_function(f), img, window, border, default_shape(f); callmode=callmode)
     else
         _mapwindow(replace_function(f), img, window, border, default_shape(f); callmode=callmode)
@@ -125,6 +125,8 @@ end
 
 
 
+# This is a implementation of Fast 2D median filter
+# http://ieeexplore.ieee.org/document/1163188/
 function median_filter{T,N}(f,
                          img::AbstractArray{T,N},
                          window::Indices{N},
@@ -151,7 +153,7 @@ function median_filter{T,N}(f,
             prev_col=1            
             for I in Rinner
                 curr_col=I.I[2]
-                if(curr_col - prev_col!=0)
+                if(column_change(curr_col,prev_col))
                     m_histogram=zeros(Int64,(256,))
                     prev_mode=0
                 end
@@ -159,10 +161,12 @@ function median_filter{T,N}(f,
                 
                 Rwin = CartesianRange(map(+, window, I.I))                                
                 copy!(buf, Rbuf, img, Rwin)
+                # Mode 0 corresponds to refilling the empty histogram with all the points in the window
                 if prev_mode == 0
                     out[I] = f(bufrs,m_histogram,0,window)
                     prev_mode=1
                     continue
+                # Mode 1 corresponds to adding only the new points to the histogram and removing the old ones
                 elseif prev_mode == 1
                     out[I] = f(bufrs,m_histogram,1,window)
                     prev_mode=1
@@ -190,11 +194,15 @@ function median_filter{T,N}(f,
     out
 end
 
-function uses_histogram(::typeof(median!))
+function column_change(curr_col,prev_col)
+    return (curr_col - prev_col!=0)
+end
+
+function is_medianfilter(::typeof(median!))
     true
 end
 
-function uses_histogram(::Any)
+function is_medianfilter(::Any)
     false
 end
     
