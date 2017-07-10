@@ -374,6 +374,7 @@ replace_function(::typeof(median!)) = function(v,m_histogram,mode,window)
         inds = indices(v,1)
         return Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
     else
+        
         window_size=size(v,1)
         dims = map(x->x.stop-x.start+1,window)
         width=window[1].stop-window[1].start+1
@@ -381,10 +382,13 @@ replace_function(::typeof(median!)) = function(v,m_histogram,mode,window)
         if mode == 0
         # Update the histogram according to new entries
             for i = first(inds):last(inds)
-                for j= i: dims[1]*dims[2]:last(inds)
-                    id= trunc(Int64,(v[j]*255))+1
-                    m_histogram[id]+=1
-                end
+                id= trunc(Int64,(v[i]*255))+1
+                m_histogram[id]+=1
+            end
+            counter=0
+
+            for i =1:256
+                counter+=m_histogram[i]
             end
         # Compute the median
             tempsum = 0
@@ -397,22 +401,34 @@ replace_function(::typeof(median!)) = function(v,m_histogram,mode,window)
                 end
             end
         # Clear the histogram from previous value
-            for i = first(inds):width:last(inds)
-                for j= i: dims[1]*dims[2]:last(inds)    
+            for i = first(inds):width:dims[1]*dims[2]
+                for j= i: dims[1]*dims[2]:last(inds)
+                    println(j)    
                     id= trunc(Int64,(v[j]*255))+1
                     m_histogram[id]-=1
+                    if(m_histogram[id]<0)
+                        println("stop")
+                    end
                 end
             end
             return convert(Float64,m_index)/255
 
         elseif mode == 1
         # Update the histogram according to new entries
-            for i =  width:width:last(inds)
+            for i =  width:width:dims[1]*dims[2]
                 for j= i: dims[1]*dims[2]:last(inds)
                     id= trunc(Int64,(v[j]*255))+1
                     m_histogram[id]+=1
                 end
             end
+            counter=0
+
+            for i =1:256
+                counter+=m_histogram[i]
+            end
+            println("mode:",mode)
+            println("counter:",counter)
+
         # Compute the median        
             tempsum = 0
             m_index=-1
@@ -424,10 +440,14 @@ replace_function(::typeof(median!)) = function(v,m_histogram,mode,window)
                 end
             end
         # Clear the histogram from previous value
-            for i = first(inds):width:last(inds)
+            for i = first(inds):width:dims[1]*dims[2]
                 for j= i: dims[1]*dims[2]:last(inds)
                     id= trunc(Int64,(v[j]*255))+1
                     m_histogram[id]-=1
+                    if(m_histogram[id]<0)
+                        println("stop")
+                    end
+
                 end
             end
             return convert(Float64,m_index)/255
