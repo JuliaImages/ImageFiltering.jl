@@ -391,7 +391,7 @@ replace_function(::typeof(median!)) = function(v,m_histogram,mode,window)
             m_index=-1
             for i = 1:256
                 tempsum+= m_histogram[i]
-                if tempsum>= window_size/2
+                if tempsum>=trunc(Int64,window_size/2)+1
                     m_index=i-1
                     break
                 end
@@ -418,7 +418,7 @@ replace_function(::typeof(median!)) = function(v,m_histogram,mode,window)
             m_index=-1
             for i = 1:256
                 tempsum+= m_histogram[i]
-                if tempsum>= window_size/2
+                if tempsum>= trunc(Int64,window_size/2)+1
                     m_index=i-1
                     break
                 end
