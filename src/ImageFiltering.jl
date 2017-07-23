@@ -7,7 +7,7 @@ using ColorVectorSpace  # for filtering RGB arrays
 using Compat
 using Base: Indices, tail, fill_to_length, @pure, depwarn
 
-export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, mapwindow, imgradients, padarray, centered, kernelfactors, reflect
+export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!,  median_direct!, median_histogram!, mapwindow, imgradients, padarray, centered, kernelfactors, reflect
 
 @compat FixedColorant{T<:Normed} = Colorant{T}
 @compat StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
@@ -68,7 +68,9 @@ include("imfilter.jl")
 include("specialty.jl")
 
 include("mapwindow.jl")
+
 using .MapWindow
+
 
 function __init__()
     # See ComputationalResources README for explanation
