@@ -44,10 +44,15 @@ and then `mapwindow(f, img, (m,n))` should filter at the 75th quantile.
 
 See also: [`imfilter`](@ref).
 """
+
+
 function median_direct!(v::AbstractVector)
     inds = indices(v,1)
     Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
 end
+
+# This is a implementation of Fast 2D median filter
+# http://ieeexplore.ieee.org/document/1163188/
 
 function median_histogram!(v::AbstractVector,m_histogram,mode,window)
 
@@ -150,8 +155,8 @@ mapwindow(f, img, window::AbstractArray, args...; kwargs...) = mapwindow(f, img,
 
 
 
-# This is a implementation of Fast 2D median filter
-# http://ieeexplore.ieee.org/document/1163188/
+
+# This dispatch takes input of type Union{AbstractArray{N0f8,N},AbstractArray{ColorTypes.Gray{N0f8},N}} and decides whether to use median_histogram or median_direct method
 
 function mapwindow{N}(f::Union{typeof(median!),typeof(median_histogram!)},
                          img::Union{AbstractArray{N0f8,N},AbstractArray{ColorTypes.Gray{N0f8},N}},
@@ -160,15 +165,15 @@ function mapwindow{N}(f::Union{typeof(median!),typeof(median_histogram!)},
                          shape=default_shape(f);
                          callmode=:copy!)
     f = replace_function(f,window)
-    img= map(x->Float64(x),img)
+    img_f= map(x->Float64(x),img)
     # This ensures different method of image traversal for median_direct
     if(typeof(f)==typeof(median_direct!))
-        return _mapwindow(median_direct!, img, window, border, default_shape(f); callmode=callmode)
+        return _mapwindow(median_direct!, img_f, window, border, default_shape(f); callmode=callmode)
     end
-    inds = indices(img)
+    inds = indices(img_f)
     inner = _interior(inds, window)
     if callmode == :copy!
-        buf = Array{eltype(img)}(map(length, window))
+        buf = Array{Float64}(map(length, window))
         bufrs = shape(buf)
         Rbuf = CartesianRange(size(buf))
         offset = CartesianIndex(map(w->first(w)-1, window))
@@ -178,9 +183,9 @@ function mapwindow{N}(f::Union{typeof(median!),typeof(median_histogram!)},
         mode = 0
         m_histogram=zeros(Int64,(256,))
         if !isempty(Rinner)
-            out = similar(img, typeof(f(bufrs,m_histogram,mode,window)))
+            out = similar(img_f, typeof(f(bufrs,m_histogram,mode,window)))
             Rwin = CartesianRange(map(+, window, first(Rinner).I))
-            copy!(buf, Rbuf, img, Rwin)
+            copy!(buf, Rbuf, img_f, Rwin)
             prev_mode=0
             prev_col=1            
             for I in Rinner
@@ -191,18 +196,18 @@ function mapwindow{N}(f::Union{typeof(median!),typeof(median_histogram!)},
                 end
                 prev_col=curr_col                
                 Rwin = CartesianRange(map(+, window, I.I))                                
-                copy!(buf, Rbuf, img, Rwin)
+                copy!(buf, Rbuf, img_f, Rwin)
                 # Mode 0 corresponds to refilling the empty histogram with all the points in the window
                 if prev_mode == 0
                     Rwin = CartesianRange(map(+, window, I.I))                                
-                    copy!(buf, Rbuf, img, Rwin)
+                    copy!(buf, Rbuf, img_f, Rwin)
                     out[I] = f(bufrs,m_histogram,0,window)
                     prev_mode=1
                     continue
                 # Mode 1 corresponds to adding only the new points to the histogram and removing the old ones
                 elseif prev_mode == 1
                     Rwin = CartesianRange(map(+, window, I.I))                                
-                    copy!(buf, Rbuf, img, Rwin)
+                    copy!(buf, Rbuf, img_f, Rwin)
                     out[I] = f(bufrs,m_histogram,1,window)
                     prev_mode=1
                     continue
@@ -211,14 +216,14 @@ function mapwindow{N}(f::Union{typeof(median!),typeof(median_histogram!)},
             end
 
         else
-            copy_win!(buf, img, first(CartesianRange(inds)), border, offset)
-            out = similar(img, typeof(f(bufrs,m_histogram,mode,window)))
+            copy_win!(buf, img_f, first(CartesianRange(inds)), border, offset)
+            out = similar(img_f, typeof(f(bufrs,m_histogram,mode,window)))
         end
         # Now pick up the edge points we skipped over above
         for I in EdgeIterator(inds, inner)
-            # Handle the edge points with mode -1
+            # Handle the edge points with mode -1 [finding median using simple sort] 
             mode =-1
-            copy_win!(buf, img, I, border, offset)
+            copy_win!(buf, img_f, I, border, offset)
             out[I] = f(bufrs,m_histogram,mode,window)
         end
             
@@ -226,6 +231,8 @@ function mapwindow{N}(f::Union{typeof(median!),typeof(median_histogram!)},
             # TODO: implement :view
             error("callmode $callmode not supported")
     end
+
+    out = map(x->convert(eltype(img),x),out)
     out
 end
 
