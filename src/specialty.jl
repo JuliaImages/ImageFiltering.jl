@@ -54,10 +54,10 @@ end
 isextended(ind) = length(ind) > 1
 
 # When all N gradients have been calculated, return the result
-_imgradients{T,N}(G::NTuple{N}, img::AbstractArray{T,N}, kernelfun::Function, extent, border) = G
+_imgradients(G::NTuple{N}, img::AbstractArray{T,N}, kernelfun::Function, extent, border) where {T,N} = G
 
 # Add the next dimension to G
-function _imgradients{T,M,N}(G::NTuple{M}, img::AbstractArray{T,N}, kernelfun::Function, extended, border)
+function _imgradients(G::NTuple{M}, img::AbstractArray{T,N}, kernelfun::Function, extended, border) where {T,M,N}
     d = M+1  # the dimension we're working on now
     kern = kernelfun(extended, d)
     _imgradients((G..., imfilter(img, kern, border)), img, kernelfun, extended, border)
@@ -81,8 +81,8 @@ Returns a 2D array `G` with the gradients as rows. The number of rows
 is the number of points at which the gradient was computed and the
 number of columns is the dimensionality of the array.
 """
-function imgradients{T,N}(img::AbstractArray{T,N}, points::AbstractVector,
-                          method=KernelFactors.ando3, border::AbstractString="replicate")
+function imgradients(img::AbstractArray{T,N}, points::AbstractVector,
+                     method=KernelFactors.ando3, border::AbstractString="replicate") where {T,N}
     extended = map(isextended, indices(img))
     npoints = length(points)
 

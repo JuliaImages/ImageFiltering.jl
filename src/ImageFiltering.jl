@@ -9,12 +9,12 @@ using Base: Indices, tail, fill_to_length, @pure, depwarn
 
 export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, mapwindow, imgradients, padarray, centered, kernelfactors, reflect
 
-@compat FixedColorant{T<:Normed} = Colorant{T}
-@compat StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
-@compat OffsetVector{T} = OffsetArray{T,1}
+FixedColorant{T<:Normed} = Colorant{T}
+StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
+OffsetVector{T} = OffsetArray{T,1}
 
 # Needed for type-stability
-function Base.transpose{T}(A::StaticOffsetArray{T,2})
+function Base.transpose(A::StaticOffsetArray{T,2}) where T
     inds1, inds2 = indices(A)
     OffsetArray(transpose(parent(A)), inds2, inds1)
 end
@@ -23,41 +23,41 @@ module Algorithm
     # deliberately don't export these, but it's expected that they
     # will be used as Algorithm.FFT(), etc.
     using Compat
-    @compat abstract type Alg end
-    "Filter using the Fast Fourier Transform" immutable FFT <: Alg end
-    "Filter using a direct algorithm" immutable FIR <: Alg end
-    "Cache-efficient filtering using tiles" immutable FIRTiled{N} <: Alg
+    abstract type Alg end
+    "Filter using the Fast Fourier Transform" struct FFT <: Alg end
+    "Filter using a direct algorithm" struct FIR <: Alg end
+    "Cache-efficient filtering using tiles" struct FIRTiled{N} <: Alg
         tilesize::Dims{N}
     end
-    "Filter with an Infinite Impulse Response filter" immutable IIR <: Alg end
-    "Filter with a cascade of mixed types (IIR, FIR)" immutable Mixed <: Alg end
+    "Filter with an Infinite Impulse Response filter" struct IIR <: Alg end
+    "Filter with a cascade of mixed types (IIR, FIR)" struct Mixed <: Alg end
 
     FIRTiled() = FIRTiled(())
 end
 using .Algorithm: Alg, FFT, FIR, FIRTiled, IIR, Mixed
 
-Alg{A<:Alg}(r::AbstractResource{A}) = r.settings
+Alg(r::AbstractResource{A}) where {A<:Alg} = r.settings
 
 include("utils.jl")
 include("kernelfactors.jl")
 using .KernelFactors: TriggsSdika, IIRFilter, ReshapedOneD, iterdims, kernelfactors
 
-@compat ReshapedVector{T,N,Npre,V<:AbstractVector} = ReshapedOneD{T,N,Npre,V}
-@compat ArrayType{T} = Union{AbstractArray{T}, ReshapedVector{T}}
-@compat ReshapedIIR{T,N,Npre,V<:IIRFilter} = ReshapedOneD{T,N,Npre,V}
-@compat AnyIIR{T} = Union{IIRFilter{T}, ReshapedIIR{T}}
-@compat ArrayLike{T} = Union{ArrayType{T}, AnyIIR{T}}
+ReshapedVector{T,N,Npre,V<:AbstractVector} = ReshapedOneD{T,N,Npre,V}
+ArrayType{T} = Union{AbstractArray{T}, ReshapedVector{T}}
+ReshapedIIR{T,N,Npre,V<:IIRFilter} = ReshapedOneD{T,N,Npre,V}
+AnyIIR{T} = Union{IIRFilter{T}, ReshapedIIR{T}}
+ArrayLike{T} = Union{ArrayType{T}, AnyIIR{T}}
 
 include("kernel.jl")
 using .Kernel
 using .Kernel: Laplacian, reflect
 
-@compat NDimKernel{N,K} = Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N}}
+NDimKernel{N,K} = Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N}}
 
 include("border.jl")
 
-@compat BorderSpec{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}
-@compat BorderSpecNoNa{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}
+BorderSpec{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}
+BorderSpecNoNa{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}
 const BorderSpecAny = Union{BorderSpec,NA,NoPad}
 
 const ProcessedKernel = Tuple

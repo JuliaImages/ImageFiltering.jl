@@ -122,15 +122,15 @@ constructed.
 
 See also: [`KernelFactors.gaussian`](@ref).
 """
-@inline gaussian{N}(σs::NTuple{N,Real}, ls::NTuple{N,Integer}) =
+@inline gaussian(σs::NTuple{N,Real}, ls::NTuple{N,Integer}) where {N} =
     broadcast(*, KernelFactors.gaussian(σs, ls)...)
 gaussian(σ::Tuple{Real}, l::Tuple{Integer}) = KernelFactors.gaussian(σ[1], l[1])
 gaussian(σ::Tuple{}, l::Tuple{}) = reshape([1])  # 0d
-gaussian{T<:Real,I<:Integer}(σs::AbstractVector{T}, ls::AbstractVector{I}) =
+gaussian(σs::AbstractVector{T}, ls::AbstractVector{I}) where {T<:Real,I<:Integer} =
     gaussian((σs...,), (ls...,))
 
-@inline gaussian{N}(σs::NTuple{N,Real}) = broadcast(*, KernelFactors.gaussian(σs)...)
-gaussian{T<:Real}(σs::AbstractVector{T}) = gaussian((σs...,))
+@inline gaussian(σs::NTuple{N,Real}) where {N} = broadcast(*, KernelFactors.gaussian(σs)...)
+gaussian(σs::AbstractVector{T}) where {T<:Real} = gaussian((σs...,))
 gaussian(σ::Tuple{Real}) = KernelFactors.gaussian(σ[1])
 gaussian(σ::Tuple{}) = reshape([1])
 
@@ -152,9 +152,9 @@ returned.
 
 See also: [`KernelFactors.IIRGaussian`](@ref).
 """
-DoG{N}(σps::NTuple{N,Real}, σms::NTuple{N,Real}, ls::NTuple{N,Integer}) =
+DoG(σps::NTuple{N,Real}, σms::NTuple{N,Real}, ls::NTuple{N,Integer}) where {N} =
     gaussian(σps, ls) - gaussian(σms, ls)
-function DoG{N}(σps::NTuple{N,Real})
+function DoG(σps::NTuple{N,Real}) where N
     σms = map(s->s*√2, σps)
     neg = gaussian(σms)
     l = map(length, indices(neg))
@@ -172,7 +172,7 @@ symmetric 2d kernel is returned.
 
 See also: [`KernelFactors.IIRGaussian`](@ref) and [`Kernel.Laplacian`](@ref).
 """
-function LoG{N}(σs::NTuple{N})
+function LoG(σs::NTuple{N}) where N
     w = CartesianIndex(map(n->(ceil(Int,8.5*n)>>1), σs))
     R = CartesianRange(-w, w)
     σ = SVector(σs)
@@ -188,11 +188,11 @@ function LoG{N}(σs::NTuple{N})
 end
 LoG(σ::Real) = LoG((σ,σ))
 
-immutable Laplacian{N}
+struct Laplacian{N}
     flags::NTuple{N,Bool}
     offsets::Vector{CartesianIndex{N}}
 
-    function (::Type{Laplacian{N}}){N}(flags::NTuple{N,Bool})
+    function Laplacian{N}(flags::NTuple{N,Bool}) where {N}
         offsets = Array{CartesianIndex{N}}(0)
         for i = 1:N
             if flags[i]
@@ -219,7 +219,7 @@ differentiation. (However, this variant is not inferrable.)
 The kernel is represented as an opaque type, but you can use
 `convert(AbstractArray, L)` to convert it into array format.
 """
-Laplacian{N}(flags::NTuple{N,Bool}) = Laplacian{N}(flags)
+Laplacian(flags::NTuple{N,Bool}) where {N} = Laplacian{N}(flags)
 Laplacian() = Laplacian((true,true))
 
 function Laplacian(dims, N::Int)
@@ -230,7 +230,7 @@ end
 
 Base.indices(L::Laplacian) = map(f->f ? (-1:1) : (0:0), L.flags)
 Base.isempty(L::Laplacian) = false
-function Base.convert{N}(::Type{AbstractArray}, L::Laplacian{N})
+function Base.convert(::Type{AbstractArray}, L::Laplacian{N}) where N
     A = fill!(OffsetArray{Int}(indices(L)), 0)
     for I in L.offsets
         A[I] = A[-I] = 1
@@ -238,7 +238,7 @@ function Base.convert{N}(::Type{AbstractArray}, L::Laplacian{N})
     A[ntuple(d->0, Val{N})...] = -2*length(L.offsets)
     A
 end
-_reshape{N}(L::Laplacian{N}, ::Type{Val{N}}) = L
+_reshape(L::Laplacian{N}, ::Type{Val{N}}) where {N} = L
 
 """
     reflect(kernel) --> reflectedkernel
