@@ -3,8 +3,12 @@ module MapWindow
 using DataStructures, TiledIteration
 using ..ImageFiltering: BorderSpecAny, Pad, Fill, borderinstance, _interior, padindex, imfilter
 using Base: Indices, tail
+using FixedPointNumbers,Colors
+using ImageCore:normedview
 
 export mapwindow
+export median_direct!
+export median_histogram!
 
 """
     mapwindow(f, img, window, [border="replicate"]) -> imgf
@@ -41,6 +45,83 @@ and then `mapwindow(f, img, (m,n))` should filter at the 75th quantile.
 
 See also: [`imfilter`](@ref).
 """
+
+
+function median_direct!(v::AbstractVector)
+    inds = indices(v,1)
+    Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
+end
+
+# This is a implementation of Fast 2D median filter extended for nD
+# http://ieeexplore.ieee.org/document/1163188/
+
+function median_histogram!(v::AbstractVector{UInt8},m_histogram,mode,window)
+
+    # Handle the boundary points with mode -1
+    if(mode==-1)
+        inds = indices(v,1)
+        return convert(eltype(v),Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering())))
+    else
+        window_size=size(v,1)
+        dims = map(x->last(x)-first(x)+1,window)
+        width = last(window[1])-first(window[1])+1
+        inds = indices(v,1)
+        if mode == 0
+            # Update the histogram according to new entries
+            for i = first(inds):last(inds)
+                id = v[i]+1;
+                m_histogram[id]+= 1
+            end
+            # Compute the median
+            tempsum = 0
+            m_index = -1
+            for i in linearindices(m_histogram)
+                tempsum+= m_histogram[i]
+                if tempsum>=trunc(Int64,window_size/2)+1
+                    m_index=i-1
+                    break
+                end
+            end
+            # Clear the histogram from previous value
+            for i = first(inds):width:dims[1]*dims[2]
+                for j = i: dims[1]*dims[2]:last(inds)
+                    id = v[j]+1
+                    m_histogram[id]-= 1
+                end
+            end
+            return convert(UInt8,m_index)         
+        elseif mode == 1
+            # Update the histogram according to new entries
+            for i =  width:width:dims[1]*dims[2]
+                for j= i: dims[1]*dims[2]:last(inds)
+                    id = v[j]+1
+                    m_histogram[id]+= 1
+                end
+            end
+            # Compute the median        
+            tempsum = 0
+            m_index=-1
+            for i in linearindices(m_histogram)
+                tempsum+= m_histogram[i]
+                if tempsum>= trunc(Int64,window_size/2)+1
+                    m_index = i-1
+                    break
+                end
+            end
+            # Clear the histogram from previous value
+            for i = first(inds):width:dims[1]*dims[2]
+                for j = i: dims[1]*dims[2]:last(inds)
+                    id = v[j]+1
+                    m_histogram[id]-= 1
+                end
+            end
+            return convert(UInt8,m_index)
+        end
+    end
+
+end
+
+
 function mapwindow(f, img::AbstractArray, window::Dims, args...; kwargs...)
     all(isodd(w) for w in window) || error("entries in window must be odd, got $window")
     halfsize = map(w->w>>1, window)
@@ -68,13 +149,109 @@ end
 
 mapwindow(f, img, window::AbstractArray, args...; kwargs...) = mapwindow(f, img, (window...,), args...; kwargs...)
 
+
+
+# This dispatch takes input of type Union{AbstractArray{N0f8,N},AbstractArray{ColorTypes.Gray{N0f8},N}} and decides whether to use median_histogram or median_direct method
+
+function mapwindow{N}(f::Union{typeof(median!),typeof(median_histogram!)},
+                         img::Union{AbstractArray{N0f8,N},AbstractArray{ColorTypes.Gray{N0f8},N}},
+                         window::Indices{N},
+                         border::BorderSpecAny,
+                         shape=default_shape(f);
+                         callmode=:copy!)
+    f = replace_function(f,window)
+    img_n=map(x->gray(x),img)
+    img_n=reinterpret.(img_n)
+    # This ensures different method of image traversal for median_direct
+    if(typeof(f) == typeof(median_direct!))
+        out = _mapwindow(median_direct!, img_n, window, border, default_shape(f); callmode=callmode)      
+        out = normedview(map(x->convert(UInt8,x),out))
+        return map(x->convert(eltype(img),x),out)
+    end
+    inds = indices(img_n)
+    inner = _interior(inds, window)
+    if callmode == :copy!
+        buf = Array{UInt8}(map(length, window))
+        bufrs = shape(buf)
+        Rbuf = CartesianRange(size(buf))
+        offset = CartesianIndex(map(w->first(w)-1, window))
+        # To allocate the output, we have to evaluate f once
+        Rinner = CartesianRange(inner)
+        # Initialise the mode to zero and histogram consisting of 255 bins to zeros
+        mode = 0
+        m_histogram=zeros(Int64,(256,))
+        if !isempty(Rinner)
+            out = similar(img_n, typeof(f(bufrs,m_histogram,mode,window)))
+            Rwin = CartesianRange(map(+, window, first(Rinner).I))
+            copy!(buf, Rbuf, img_n, Rwin)
+            prev_mode = 0
+            prev_col = 1            
+            for I in Rinner
+                curr_col=I.I[2]
+                if(column_change(curr_col,prev_col))
+                    m_histogram=zeros(Int64,(256,))
+                    prev_mode=0
+                end
+                prev_col = curr_col                
+                Rwin = CartesianRange(map(+, window, I.I))                                
+                copy!(buf, Rbuf, img_n, Rwin)
+                # Mode 0 corresponds to refilling the empty histogram with all the points in the window
+                if prev_mode == 0
+                    Rwin = CartesianRange(map(+, window, I.I))                                
+                    copy!(buf, Rbuf, img_n, Rwin)
+                    out[I] = f(bufrs,m_histogram,0,window)
+                    prev_mode=1
+                    continue
+                # Mode 1 corresponds to adding only the new points to the histogram and removing the old ones
+                elseif prev_mode == 1
+                    Rwin = CartesianRange(map(+, window, I.I))                                
+                    copy!(buf, Rbuf, img_n, Rwin)
+                    out[I] = f(bufrs,m_histogram,1,window)
+                    prev_mode=1                    
+                    continue
+                end
+                
+            end
+
+        else
+            copy_win!(buf, img_n, first(CartesianRange(inds)), border, offset)
+            out = similar(img_n, typeof(f(bufrs,m_histogram,mode,window)))
+        end
+        # Now pick up the edge points we skipped over above
+        for I in EdgeIterator(inds, inner)
+            # Handle the edge points with mode -1 [finding median using simple sort] 
+            mode =-1
+            copy_win!(buf, img_n, I, border, offset)
+            out[I] = f(bufrs,m_histogram,mode,window)
+        end
+            
+    else
+         # TODO: implement :view
+        error("callmode $callmode not supported")
+    end
+    out = normedview(out)
+    out = map(x->convert(eltype(img),x),out)
+    out
+end
+
+function mapwindow{T,N}(f::typeof(median!),
+                        img::AbstractArray{T,N},
+                        window::Indices{N},
+                        border::BorderSpecAny;
+                        callmode=:copy!)
+    _mapwindow(median_direct!, img, window, border, default_shape(f); callmode=callmode)
+    
+end
+
 function mapwindow{T,N}(f,
                         img::AbstractArray{T,N},
                         window::Indices{N},
                         border::BorderSpecAny;
                         callmode=:copy!)
     _mapwindow(replace_function(f), img, window, border, default_shape(f); callmode=callmode)
+    
 end
+
 function _mapwindow{T,N}(f,
                          img::AbstractArray{T,N},
                          window::Indices{N},
@@ -116,6 +293,14 @@ function _mapwindow{T,N}(f,
     out
 end
 
+
+
+function column_change(curr_col,prev_col)
+    return (curr_col - prev_col!=0)
+end
+
+
+    
 # For copying along the edge of the image
 function copy_win!{T,N}(buf::AbstractArray{T,N}, img, I, border::Pad, offset)
     win_inds = map(+, indices(buf), (I+offset).I)
@@ -142,6 +327,8 @@ function copy_win!{T,N}(buf::AbstractArray{T,N}, img, I, border::Fill, offset)
     end
     buf
 end
+
+
 
 ### Optimizations for particular window-functions
 
@@ -273,13 +460,21 @@ end
 # This is slightly faster than a circular buffer
 @inline cyclecache(b, x) = b[1], (Base.tail(b)..., x)
 
+
+replace_function(f,window) = replace_function(f) 
 replace_function(f) = f
-replace_function(::typeof(median!)) = function(v)
-    inds = indices(v,1)
-    Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
+
+function replace_function(::typeof(median!), window)
+    # The threshold is defined for changing the method of finding median [Using sorting or Using Histogram]
+    if prod(map(length, window)) <= 81
+        return median_direct!
+    end
+    median_histogram!
 end
 
+
 default_shape(::Any) = identity
-default_shape(::typeof(median!)) = vec
+default_shape(::Union{typeof(median!),typeof(median_direct!),typeof(median_histogram!)}) = vec
+
 
 end
