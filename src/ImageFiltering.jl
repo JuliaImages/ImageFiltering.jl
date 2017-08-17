@@ -60,8 +60,6 @@ include("border.jl")
 @compat BorderSpecNoNa{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}
 const BorderSpecAny = Union{BorderSpec,NA,NoPad}
 
-include("deprecated.jl")
-
 const ProcessedKernel = Tuple
 
 include("imfilter.jl")

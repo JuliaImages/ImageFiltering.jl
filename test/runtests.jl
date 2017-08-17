@@ -14,7 +14,5 @@ include("specialty.jl")
 include("gradient.jl")
 include("mapwindow.jl")
 include("basic.jl")
-info("Beginning of tests with deprecation warnings")
-include("deprecated.jl")
 
 nothing
