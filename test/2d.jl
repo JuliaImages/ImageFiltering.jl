@@ -35,8 +35,8 @@ end
 
 @testset "FIR/FFT" begin
     f32type(img) = f32type(eltype(img))
-    f32type{C<:Colorant}(::Type{C}) = base_colorant_type(C){Float32}
-    f32type{T<:Number}(::Type{T}) = Float32
+    f32type(::Type{C}) where {C<:Colorant} = base_colorant_type(C){Float32}
+    f32type(::Type{T}) where {T<:Number} = Float32
     zerona!(a) = (a[isnan.(a)] = zero(eltype(a)); a)
     zerona!(a, nanflag) = (a[nanflag] = zero(eltype(a)); a)
     ## Images for which the boundary conditions will be irrelevant
@@ -147,7 +147,7 @@ end
     # Dense kernel
     kern = [0.1 0.2; 0.4 0.5]
     kernel = OffsetArray(kern, -1:0, 1:2)
-    function target1{T}(img::AbstractArray{T}, kern, border)
+    function target1(img::AbstractArray{T}, kern, border) where T
         if border ∈ ("replicate", "symmetric")
             ret = float64.(zero(img))
             x = img[1,2]
@@ -167,7 +167,7 @@ end
             ret
         end
     end
-    function target1{T}(img::AbstractArray{T}, kern, ::NA)
+    function target1(img::AbstractArray{T}, kern, ::NA) where T
         ret = float64.(zero(img))
         x = img[1,2]
         ret[1,1] = kern[2,1]*x/(kern[2,1]+kern[2,2])

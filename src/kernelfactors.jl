@@ -7,9 +7,9 @@ using Base: tail, Indices, @pure, checkbounds_indices, throw_boundserror
 
 using Compat
 
-@compat abstract type IIRFilter{T} end
+abstract type IIRFilter{T} end
 
-Base.eltype{T}(kernel::IIRFilter{T}) = T
+Base.eltype(kernel::IIRFilter{T}) where {T} = T
 
 """
     ReshapedOneD{N,Npre}(data)
@@ -25,30 +25,30 @@ AbstractArray.
 ReshapedOneDs allow one to specify a "filtering dimension" for a
 1-dimensional filter.
 """
-immutable ReshapedOneD{T,N,Npre,V}  # not <: AbstractArray{T,N} (more general, incl. IIR)
+struct ReshapedOneD{T,N,Npre,V}  # not <: AbstractArray{T,N} (more general, incl. IIR)
     data::V
 
-    function (::Type{ReshapedOneD{T,N,Npre,V}}){T,N,Npre,V}(data::V)
+    function (::Type{ReshapedOneD{T,N,Npre,V}}){T_,N_,Npre_,V_}(data::V) where {T_,N_,Npre_,V_, T,N,Npre,V}
         ndims(V) == 1 || throw(DimensionMismatch("must be one dimensional, got $(ndims(V))"))
         new{T,N,Npre,V}(data)
     end
 end
 
-(::Type{ReshapedOneD{N,Npre}}){N,Npre,V}(data::V) = ReshapedOneD{eltype(data),N,Npre,V}(data)
+ReshapedOneD{N,Npre}(data::V) where {N,Npre,V} = ReshapedOneD{eltype(data),N,Npre,V}(data)
 # Convenient loop constructor that uses dummy NTuple{N,Bool} to keep
 # track of dimensions for type-stability
-@inline function ReshapedOneD{Npre,Npost}(pre::NTuple{Npre,Bool}, data, post::NTuple{Npost,Bool})
+@inline function ReshapedOneD(pre::NTuple{Npre,Bool}, data, post::NTuple{Npost,Bool}) where {Npre,Npost}
     total = (pre..., true, post...)
     _reshapedvector(total, pre, data)
 end
-_reshapedvector{N,Npre}(::NTuple{N,Bool}, ::NTuple{Npre,Bool}, data) = ReshapedOneD{eltype(data),N,Npre,typeof(data)}(data)
+_reshapedvector(::NTuple{N,Bool}, ::NTuple{Npre,Bool}, data) where {N,Npre} = ReshapedOneD{eltype(data),N,Npre,typeof(data)}(data)
 
 # Give ReshapedOneD many of the characteristics of AbstractArray
-Base.eltype{T}(A::ReshapedOneD{T}) = T
-Base.ndims{_,N}(A::ReshapedOneD{_,N}) = N
+Base.eltype(A::ReshapedOneD{T}) where {T} = T
+Base.ndims(A::ReshapedOneD{_,N}) where {_,N} = N
 Base.isempty(A::ReshapedOneD) = isempty(A.data)
 
-@inline Base.indices{_,N,Npre}(A::ReshapedOneD{_,N,Npre}) = Base.fill_to_length((Base.ntuple(d->0:0, Val{Npre})..., UnitRange(Base.indices1(A.data))), 0:0, Val{N})
+@inline Base.indices(A::ReshapedOneD{_,N,Npre}) where {_,N,Npre} = Base.fill_to_length((Base.ntuple(d->0:0, Val{Npre})..., UnitRange(Base.indices1(A.data))), 0:0, Val{N})
 
 Base.start(A::ReshapedOneD) = start(A.data)
 Base.next(A::ReshapedOneD, state) = next(A.data, state)
@@ -59,7 +59,7 @@ Base.done(A::ReshapedOneD, state) = done(A.data, state)
     @inbounds ret = A.data[i]
     ret
 end
-@inline function Base.getindex{T,N,Npre}(A::ReshapedOneD{T,N,Npre}, I::Vararg{Int,N})
+@inline function Base.getindex(A::ReshapedOneD{T,N,Npre}, I::Vararg{Int,N}) where {T,N,Npre}
     @boundscheck checkbounds_indices(Bool, indices(A), I) || throw_boundserror(A, I)
     @inbounds ret = A.data[I[Npre+1]]
     ret
@@ -68,41 +68,25 @@ end
     A[Base.IteratorsMD.flatten(I)...]
 end
 
-Base.convert{AA<:AbstractArray}(::Type{AA}, A::ReshapedOneD) = convert(AA, reshape(A.data, indices(A)))
+Base.convert(::Type{AA}, A::ReshapedOneD) where {AA<:AbstractArray} = convert(AA, reshape(A.data, indices(A)))
 
 import Base: ==
 ==(A::ReshapedOneD, B::ReshapedOneD) = convert(AbstractArray, A) == convert(AbstractArray, B)
 ==(A::ReshapedOneD, B::AbstractArray) = convert(AbstractArray, A) == B
 ==(A::AbstractArray, B::ReshapedOneD) = A == convert(AbstractArray, B)
 
-if VERSION < v"0.6.0-dev.1839"
-    import Base: .+, .-, .*, ./
-    for op in (:+, :-, :*, :/)
-        opdot = Symbol(:., op)
-        @eval begin
-            ($opdot)(A::ReshapedOneD, B::ReshapedOneD) = broadcast($op, A, B)
-            @inline ($opdot)(As::ReshapedOneD...) = broadcast($op, As...)
-        end
-    end
-    # for broadcasting
-    @pure Base.promote_eltype_op{S,T}(op, ::ReshapedOneD{S}, ::ReshapedOneD{T}) = Base.promote_op(op, S, T)
-    @pure Base.promote_eltype_op{S,T}(op, ::Type{S}, ::ReshapedOneD{T}) = Base.promote_op(op, S, T)
-else
-    import Base: +, -, *, /
-    for op in (:+, :-, :*, :/)
-        @eval begin
-            ($op)(A::ReshapedOneD, B::ReshapedOneD) =
-                broadcast($op, convert(AbstractArray, A), convert(AbstractArray, B))
-            @inline ($op)(As::ReshapedOneD...) =
-                broadcast($op, map(A->convert(AbstractArray, A), As)...)
-        end
+import Base: +, -, *, /
+for op in (:+, :-, :*, :/)
+    @eval begin
+        ($op)(A::ReshapedOneD, B::ReshapedOneD) =
+            broadcast($op, convert(AbstractArray, A), convert(AbstractArray, B))
+        @inline ($op)(As::ReshapedOneD...) =
+            broadcast($op, map(A->convert(AbstractArray, A), As)...)
     end
 end
-if VERSION >= v"0.6.0-dev.693"
-    Base.Broadcast.containertype{T<:ReshapedOneD}(::Type{T}) = Array
-end
+Base.Broadcast.containertype(::Type{T}) where {T<:ReshapedOneD} = Array
 
-_reshape{T,N}(A::ReshapedOneD{T,N}, ::Type{Val{N}}) = A
+_reshape(A::ReshapedOneD{T,N}, ::Type{Val{N}}) where {T,N} = A
 _vec(A::ReshapedOneD) = A.data
 Base.vec(A::ReshapedOneD) = A.data  # is this OK? (note indices won't nec. start with 1)
 nextendeddims(a::ReshapedOneD) = 1
@@ -122,18 +106,18 @@ to the trailing dimensions (not including the vector object wrapped in
 
 although the implementation differs for reason of type-stability.
 """
-function iterdims{_,N,Npre}(inds::Indices{N}, v::ReshapedOneD{_,N,Npre})
+function iterdims(inds::Indices{N}, v::ReshapedOneD{_,N,Npre}) where {_,N,Npre}
     indspre, ind, indspost = _iterdims((), (), inds, v)
     CartesianRange(indspre), ind, CartesianRange(indspost)
 end
 @inline function _iterdims(indspre, ::Tuple{}, inds, v)
     _iterdims((indspre..., inds[1]), (), tail(inds), v)  # consume inds and push to indspre
 end
-@inline function _iterdims{_,N,Npre}(indspre::NTuple{Npre}, ::Tuple{}, inds, v::ReshapedOneD{_,N,Npre})
+@inline function _iterdims(indspre::NTuple{Npre}, ::Tuple{}, inds, v::ReshapedOneD{_,N,Npre}) where {_,N,Npre}
     indspre, inds[1], tail(inds)   # return the "central" and trailing dimensions
 end
 
-function indexsplit{_,N}(I::CartesianIndex{N}, v::ReshapedOneD{_,N})
+function indexsplit(I::CartesianIndex{N}, v::ReshapedOneD{_,N}) where {_,N}
     ipre, i, ipost = _iterdims((), (), I.I, v)
     CartesianIndex(ipre), i, CartesianIndex(ipost)
 end
@@ -160,7 +144,7 @@ end
 Return a factored Sobel filter for computing the gradient in `N` dimensions along axis `d`.
 If `extended[dim]` is false, `kern` will have size 1 along that dimension.
 """
-function sobel{N}(extended::NTuple{N,Bool}, d)
+function sobel(extended::NTuple{N,Bool}, d) where N
     gradfactors(extended, d, [-1, 0, 1]/2, [1, 2, 1]/4)
 end
 
@@ -177,7 +161,7 @@ end
 Return a factored Prewitt filter for computing the gradient in `N` dimensions along axis `d`.
 If `extended[dim]` is false, `kern` will have size 1 along that dimension.
 """
-function prewitt{N}(extended::NTuple{N,Bool}, d)
+function prewitt(extended::NTuple{N,Bool}, d) where N
     gradfactors(extended, d, [-1, 0, 1]/2, [1, 1, 1]/3)
 end
 
@@ -209,7 +193,7 @@ Return a factored Ando filter (size 3) for computing the gradient in
 `N` dimensions along axis `d`.  If `extended[dim]` is false, `kern`
 will have size 1 along that dimension.
 """
-function ando3{N}(extended::NTuple{N,Bool}, d)
+function ando3(extended::NTuple{N,Bool}, d) where N
     gradfactors(extended, d, [-1.0, 0.0, 1.0]/2, 2*[0.112737, 0.274526, 0.112737])
 end
 
@@ -234,7 +218,7 @@ Return a factored Ando filter (size 4) for computing the gradient in
 `N` dimensions along axis `d`.  If `extended[dim]` is false, `kern`
 will have size 1 along that dimension.
 """
-function ando4{N}(extended::NTuple{N,Bool}, d)
+function ando4(extended::NTuple{N,Bool}, d) where N
     if N == 2 && all(extended)
         return ando4()[d]
     else
@@ -263,7 +247,7 @@ Return a factored Ando filter (size 5) for computing the gradient in
 `N` dimensions along axis `d`.  If `extended[dim]` is false, `kern`
 will have size 1 along that dimension.
 """
-function ando5{N}(extended::NTuple{N,Bool}, d)
+function ando5(extended::NTuple{N,Bool}, d) where N
     if N == 2 && all(extended)
         return ando5()[d]
     else
@@ -295,16 +279,16 @@ factors, with standard deviation `σd` along dimension `d`. Optionally
 provide the kernel length `l`, which must be a tuple of the same
 length.
 """
-gaussian{N}(σs::NTuple{N,Real}, ls::NTuple{N,Integer}) =
+gaussian(σs::NTuple{N,Real}, ls::NTuple{N,Integer}) where {N} =
     kernelfactors( map((σ,l)->gaussian(σ,l), σs, ls) )
-gaussian{N}(σs::NTuple{N,Real}) = kernelfactors(map(σ->gaussian(σ), σs))
+gaussian(σs::NTuple{N,Real}) where {N} = kernelfactors(map(σ->gaussian(σ), σs))
 
 gaussian(σs::AbstractVector, ls::AbstractVector) = gaussian((σs...,), (ls...,))
 gaussian(σs::AbstractVector) = gaussian((σs...,))
 
 #### IIR
 
-immutable TriggsSdika{T,k,l,L} <: IIRFilter{T}
+struct TriggsSdika{T,k,l,L} <: IIRFilter{T}
     a::SVector{k,T}
     b::SVector{l,T}
     scale::T
@@ -312,7 +296,7 @@ immutable TriggsSdika{T,k,l,L} <: IIRFilter{T}
     asum::T
     bsum::T
 
-    (::Type{TriggsSdika{T,k,l,L}}){T,k,l,L}(a, b, scale, M) =
+    TriggsSdika{T,k,l,L}(a, b, scale, M) where {T,k,l,L} =
         new{T,k,l,L}(a, b, scale, M, sum(a), sum(b))
 end
 """
@@ -330,7 +314,7 @@ B. Triggs and M. Sdika, "Boundary conditions for Young-van Vliet
 recursive filtering". IEEE Trans. on Sig. Proc. 54: 2365-2367
 (2006).
 """
-TriggsSdika{T,k,l,L}(a::SVector{k,T}, b::SVector{l,T}, scale, M::SMatrix{l,k,T,L}) = TriggsSdika{T,k,l,L}(a, b, scale, M)
+TriggsSdika(a::SVector{k,T}, b::SVector{l,T}, scale, M::SMatrix{l,k,T,L}) where {T,k,l,L} = TriggsSdika{T,k,l,L}(a, b, scale, M)
 
 """
     TriggsSdika(ab, scale)
@@ -338,7 +322,7 @@ TriggsSdika{T,k,l,L}(a::SVector{k,T}, b::SVector{l,T}, scale, M::SMatrix{l,k,T,L
 Create a symmetric Triggs-Sdika filter (with `a = b = ab`). `M` is
 calculated for you. Only length 3 filters are currently supported.
 """
-function TriggsSdika{T}(a::SVector{3,T}, scale)
+function TriggsSdika(a::SVector{3,T}, scale) where T
     a1, a2, a3 = a[1], a[2], a[3]
     Mdenom = (1+a1-a2+a3)*(1-a1-a2-a3)*(1+a2+(a1-a3)*a3)
     M = @SMatrix([-a3*a1+1-a3^2-a2     (a3+a1)*(a2+a3*a1)  a3*(a1+a3*a2);
@@ -348,7 +332,7 @@ function TriggsSdika{T}(a::SVector{3,T}, scale)
 end
 Base.vec(kernel::TriggsSdika) = kernel
 Base.ndims(kernel::TriggsSdika) = 1
-Base.ndims{T<:TriggsSdika}(::Type{T}) = 1
+Base.ndims(::Type{T}) where {T<:TriggsSdika} = 1
 Base.indices1(kernel::TriggsSdika) = 0:0
 Base.indices(kernel::TriggsSdika) = (Base.indices1(kernel),)
 Base.isempty(kernel::TriggsSdika) = false
@@ -374,7 +358,7 @@ which case `Float64` will be chosen).
 I. T. Young, L. J. van Vliet, and M. van Ginkel, "Recursive Gabor
 Filtering". IEEE Trans. Sig. Proc., 50: 2798-2805 (2002).
 """
-function IIRGaussian{T}(::Type{T}, σ::Real; emit_warning::Bool = true)
+function IIRGaussian(::Type{T}, σ::Real; emit_warning::Bool = true) where T
     if emit_warning && σ < 1 && σ != 0
         warn("σ is too small for accuracy")
     end
@@ -393,23 +377,23 @@ function IIRGaussian{T}(::Type{T}, σ::Real; emit_warning::Bool = true)
 end
 IIRGaussian(σ::Real; emit_warning::Bool = true) = IIRGaussian(iirgt(σ), σ; emit_warning=emit_warning)
 
-function IIRGaussian{T,N}(::Type{T}, σs::NTuple{N,Real}; emit_warning::Bool = true)
+function IIRGaussian(::Type{T}, σs::NTuple{N,Real}; emit_warning::Bool = true) where {T,N}
     iirg(T, (), σs, tail(ntuple(d->true, Val{N})), emit_warning)
 end
 IIRGaussian(σs::Tuple; emit_warning::Bool = true) = IIRGaussian(iirgt(σs), σs; emit_warning=emit_warning)
 
 IIRGaussian(σs::AbstractVector; kwargs...) = IIRGaussian((σs...,); kwargs...)
-IIRGaussian{T}(::Type{T}, σs::AbstractVector; kwargs...) = IIRGaussian(T, (σs...,); kwargs...)
+IIRGaussian(::Type{T}, σs::AbstractVector; kwargs...) where {T} = IIRGaussian(T, (σs...,); kwargs...)
 
 iirgt(σ::AbstractFloat) = typeof(σ)
 iirgt(σ::Real) = Float64
 iirgt(σs::Tuple) = promote_type(map(iirgt, σs)...)
 
-@inline function iirg{T}(::Type{T}, pre, σs, post, emit_warning)
+@inline function iirg(::Type{T}, pre, σs, post, emit_warning) where T
     kern = ReshapedOneD(pre, IIRGaussian(T, σs[1]; emit_warning=emit_warning), post)
     (kern, iirg(T, (pre..., post[1]), tail(σs), tail(post), emit_warning)...)
 end
-iirg{T}(::Type{T}, pre, σs::Tuple{Real}, ::Tuple{}, emit_warning) =
+iirg(::Type{T}, pre, σs::Tuple{Real}, ::Tuple{}, emit_warning) where {T} =
     (ReshapedOneD(pre, IIRGaussian(T, σs[1]; emit_warning=emit_warning), ()),)
 
 ###### Utilities
@@ -427,7 +411,7 @@ If passed a tuple of general arrays, it is assumed that each is shaped
 appropriately along its "leading" dimensions; the dimensionality of each is
 "extended" to `N = length(factors)`, appending 1s to the size as needed.
 """
-kernelfactors{N}(factors::NTuple{N,AbstractVector}) = _kernelfactors((), ntuple(d->true,Val{N}), (), factors)
+kernelfactors(factors::NTuple{N,AbstractVector}) where {N} = _kernelfactors((), ntuple(d->true,Val{N}), (), factors)
 
 _kernelfactors(pre, post, out, ::Tuple{}) = out
 @inline function _kernelfactors(pre, post, out, factors)
@@ -439,9 +423,9 @@ _kernelfactors(pre, post, out, ::Tuple{}) = out
 end
 
 # A variant in which we just need to fill out to N dimensions
-kernelfactors{N}(factors::NTuple{N,AbstractArray}) = map(f->_reshape(f, Val{N}), factors)
+kernelfactors(factors::NTuple{N,AbstractArray}) where {N} = map(f->_reshape(f, Val{N}), factors)
 
-function gradfactors{N}(extended::NTuple{N,Bool}, d::Int, k1, k2)
+function gradfactors(extended::NTuple{N,Bool}, d::Int, k1, k2) where N
     kernelfactors(ntuple(i -> kdim(extended[i], i==d ? k1 : k2), Val{N}))
 end
 

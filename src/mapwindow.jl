@@ -68,19 +68,19 @@ end
 
 mapwindow(f, img, window::AbstractArray, args...; kwargs...) = mapwindow(f, img, (window...,), args...; kwargs...)
 
-function mapwindow{T,N}(f,
-                        img::AbstractArray{T,N},
-                        window::Indices{N},
-                        border::BorderSpecAny;
-                        callmode=:copy!)
+function mapwindow(f,
+                   img::AbstractArray{T,N},
+                   window::Indices{N},
+                   border::BorderSpecAny;
+                   callmode=:copy!) where {T,N}
     _mapwindow(replace_function(f), img, window, border, default_shape(f); callmode=callmode)
 end
-function _mapwindow{T,N}(f,
-                         img::AbstractArray{T,N},
-                         window::Indices{N},
-                         border::BorderSpecAny,
-                         shape=default_shape(f);
-                         callmode=:copy!)
+function _mapwindow(f,
+                    img::AbstractArray{T,N},
+                    window::Indices{N},
+                    border::BorderSpecAny,
+                    shape=default_shape(f);
+                    callmode=:copy!) where {T,N}
     inds = indices(img)
     inner = _interior(inds, window)
     if callmode == :copy!
@@ -117,7 +117,7 @@ function _mapwindow{T,N}(f,
 end
 
 # For copying along the edge of the image
-function copy_win!{T,N}(buf::AbstractArray{T,N}, img, I, border::Pad, offset)
+function copy_win!(buf::AbstractArray{T,N}, img, I, border::Pad, offset) where {T,N}
     win_inds = map(+, indices(buf), (I+offset).I)
     win_img_inds = map(intersect, indices(img), win_inds)
     padinds = map((inner,outer)->padindex(border, inner, outer), win_img_inds, win_inds)
@@ -127,13 +127,13 @@ end
 docopy!(buf, img, padinds::NTuple{1}) = buf[:] = view(img, padinds[1])
 docopy!(buf, img, padinds::NTuple{2}) = buf[:,:] = view(img, padinds[1], padinds[2])
 docopy!(buf, img, padinds::NTuple{3}) = buf[:,:,:] = view(img, padinds[1], padinds[2], padinds[3])
-@inline function docopy!{N}(buf, img, padinds::NTuple{N})
+@inline function docopy!(buf, img, padinds::NTuple{N}) where N
     @show N
     colons = ntuple(d->Colon(), Val{N})
     buf[colons...] = view(img, padinds...)
 end
 
-function copy_win!{T,N}(buf::AbstractArray{T,N}, img, I, border::Fill, offset)
+function copy_win!(buf::AbstractArray{T,N}, img, I, border::Fill, offset) where {T,N}
     R = CartesianRange(indices(img))
     Ioff = I+offset
     for J in CartesianRange(indices(buf))
@@ -154,11 +154,11 @@ mapwindow(::typeof(extrema), A::AbstractVector, window::Integer) = extrema_filte
 # http://arxiv.org/abs/cs.DS/0610046
 
 # Monotonic wedge
-immutable Wedge{T}
+struct Wedge{T}
     L::CircularDeque{T}
     U::CircularDeque{T}
 end
-(::Type{Wedge{T}}){T}(n::Integer) = Wedge(CircularDeque{T}(n), CircularDeque{T}(n))
+Wedge{T}(n::Integer) where {T} = Wedge(CircularDeque{T}(n), CircularDeque{T}(n))
 
 function Base.push!(W::Wedge, i::Integer)
     push!(W.L, i)
@@ -196,13 +196,13 @@ Calculate the running min/max over a window of width `window[d]` along
 dimension `d`, centered on the current point. The returned array has
 the same indices as the input `A`.
 """
-function extrema_filter{T,N}(A::AbstractArray{T,N}, window::NTuple{N,Integer})
+function extrema_filter(A::AbstractArray{T,N}, window::NTuple{N,Integer}) where {T,N}
     _extrema_filter!([(a,a) for a in A], window...)
 end
 extrema_filter(A::AbstractArray, window::AbstractArray) = extrema_filter(A, (window...,))
 extrema_filter(A::AbstractArray, window) = error("`window` must have the same number of entries as dimensions of `A`")
 
-extrema_filter{T,N}(A::AbstractArray{T,N}, window::Integer) = extrema_filter(A, ntuple(d->window, Val{N}))
+extrema_filter(A::AbstractArray{T,N}, window::Integer) where {T,N} = extrema_filter(A, ntuple(d->window, Val{N}))
 
 function _extrema_filter!(A::Array, w1, w...)
     if w1 > 1
@@ -221,7 +221,7 @@ _extrema_filter!(A::Array) = A
 #     facilitate multidimensional processing
 #   - output for all points of the array, handling the edges as max-min
 #     over halfwindow on either side
-function _extrema_filter1!{T}(A::AbstractArray{Tuple{T,T}}, window::Int, cache)
+function _extrema_filter1!(A::AbstractArray{Tuple{T,T}}, window::Int, cache) where T
     # Initialise the internal wedges
     # U[1], L[1] are the location of the global (within the window) maximum and minimum
     # U[2], L[2] are the maximum and minimum over (U1, end] and (L1, end], respectively
