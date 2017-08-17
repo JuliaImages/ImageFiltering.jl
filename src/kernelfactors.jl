@@ -28,7 +28,7 @@ ReshapedOneDs allow one to specify a "filtering dimension" for a
 struct ReshapedOneD{T,N,Npre,V}  # not <: AbstractArray{T,N} (more general, incl. IIR)
     data::V
 
-    function (::Type{ReshapedOneD{T,N,Npre,V}}){T_,N_,Npre_,V_}(data::V) where {T_,N_,Npre_,V_, T,N,Npre,V}
+    function ReshapedOneD{T,N,Npre,V}(data::V) where {T,N,Npre,V}
         ndims(V) == 1 || throw(DimensionMismatch("must be one dimensional, got $(ndims(V))"))
         new{T,N,Npre,V}(data)
     end

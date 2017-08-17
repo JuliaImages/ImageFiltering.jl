@@ -192,7 +192,7 @@ struct Laplacian{N}
     flags::NTuple{N,Bool}
     offsets::Vector{CartesianIndex{N}}
 
-    function (::Type{Laplacian{N}}){N_}(flags::NTuple{N,Bool}) where {N_, N}
+    function Laplacian{N}(flags::NTuple{N,Bool}) where {N}
         offsets = Array{CartesianIndex{N}}(0)
         for i = 1:N
             if flags[i]
