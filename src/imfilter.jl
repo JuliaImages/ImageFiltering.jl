@@ -9,6 +9,9 @@ end
 @inline function imfilter(::Type{T}, img::AbstractArray, kernel::Union{ArrayLike,Laplacian}, args...) where T
     imfilter(T, img, factorkernel(kernel), args...)
 end
+@inline function imfilter(::Type{T}, img::AbstractArray{TI}, kernel::AbstractArray{TK}, args...) where {T<:Integer,TI<:Integer,TK<:Integer}
+    imfilter(T, img, (kernel,), args...)
+end
 
 # Step 3: if necessary, fill in the default border
 function imfilter(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, args...) where T
