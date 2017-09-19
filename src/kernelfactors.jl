@@ -106,7 +106,7 @@ to the trailing dimensions (not including the vector object wrapped in
 
 although the implementation differs for reason of type-stability.
 """
-function iterdims(inds::Indices{N}, v::ReshapedOneD{_,N,Npre}) where {_,N,Npre}
+function iterdims(inds::Indices{N}, v::ReshapedOneD{T,N,Npre}) where {T,N,Npre}
     indspre, ind, indspost = _iterdims((), (), inds, v)
     CartesianRange(indspre), ind, CartesianRange(indspost)
 end
