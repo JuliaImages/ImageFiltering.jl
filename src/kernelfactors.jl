@@ -73,7 +73,7 @@ Base.eltype(A::ReshapedOneD{T}) where {T} = T
 Base.ndims(A::ReshapedOneD{_,N}) where {_,N} = N
 Base.isempty(A::ReshapedOneD) = isempty(A.data)
 
-@inline Base.indices(A::ReshapedOneD{_,N,Npre}) where {_,N,Npre} = Base.fill_to_length((Base.ntuple(d->0:0, Val{Npre})..., UnitRange(Base.indices1(A.data))), 0:0, Val{N})
+@inline Base.indices(A::ReshapedOneD{_,N,Npre}) where {_,N,Npre} = Base.fill_to_length((Base.ntuple(d->0:0, Val(Npre))..., UnitRange(Base.indices1(A.data))), 0:0, Val(N))
 
 Base.start(A::ReshapedOneD) = start(A.data)
 Base.next(A::ReshapedOneD, state) = next(A.data, state)
@@ -111,7 +111,7 @@ for op in (:+, :-, :*, :/)
 end
 Base.Broadcast.containertype(::Type{T}) where {T<:ReshapedOneD} = Array
 
-_reshape(A::ReshapedOneD{T,N}, ::Type{Val{N}}) where {T,N} = A
+_reshape(A::ReshapedOneD{T,N}, ::Val{N}) where {T,N} = A
 _vec(A::ReshapedOneD) = A.data
 Base.vec(A::ReshapedOneD) = A.data  # is this OK? (note indices won't nec. start with 1)
 nextendeddims(a::ReshapedOneD) = 1
@@ -483,7 +483,7 @@ Base.indices(kernel::TriggsSdika) = (Base.indices1(kernel),)
 Base.isempty(kernel::TriggsSdika) = false
 
 iterdims(inds::Indices{1}, kern::TriggsSdika) = (), inds[1], ()
-_reshape(kern::TriggsSdika, ::Type{Val{1}}) = kern
+_reshape(kern::TriggsSdika, ::Val{1}) = kern
 
 # Note that there's a sign reversal between Young & Triggs.
 """
@@ -523,7 +523,7 @@ end
 IIRGaussian(σ::Real; emit_warning::Bool = true) = IIRGaussian(iirgt(σ), σ; emit_warning=emit_warning)
 
 function IIRGaussian(::Type{T}, σs::NTuple{N,Real}; emit_warning::Bool = true) where {T,N}
-    iirg(T, (), σs, tail(ntuple(d->true, Val{N})), emit_warning)
+    iirg(T, (), σs, tail(ntuple(d->true, Val(N))), emit_warning)
 end
 IIRGaussian(σs::Tuple; emit_warning::Bool = true) = IIRGaussian(iirgt(σs), σs; emit_warning=emit_warning)
 
@@ -556,7 +556,7 @@ If passed a tuple of general arrays, it is assumed that each is shaped
 appropriately along its "leading" dimensions; the dimensionality of each is
 "extended" to `N = length(factors)`, appending 1s to the size as needed.
 """
-kernelfactors(factors::NTuple{N,AbstractVector}) where {N} = _kernelfactors((), ntuple(d->true,Val{N}), (), factors)
+kernelfactors(factors::NTuple{N,AbstractVector}) where {N} = _kernelfactors((), ntuple(d->true,Val(N)), (), factors)
 
 _kernelfactors(pre, post, out, ::Tuple{}) = out
 @inline function _kernelfactors(pre, post, out, factors)
@@ -568,10 +568,10 @@ _kernelfactors(pre, post, out, ::Tuple{}) = out
 end
 
 # A variant in which we just need to fill out to N dimensions
-kernelfactors(factors::NTuple{N,AbstractArray}) where {N} = map(f->_reshape(f, Val{N}), factors)
+kernelfactors(factors::NTuple{N,AbstractArray}) where {N} = map(f->_reshape(f, Val(N)), factors)
 
 function gradfactors(extended::NTuple{N,Bool}, d::Int, k1, k2) where N
-    kernelfactors(ntuple(i -> kdim(extended[i], i==d ? k1 : k2), Val{N}))
+    kernelfactors(ntuple(i -> kdim(extended[i], i==d ? k1 : k2), Val(N)))
 end
 
 kdim(keep::Bool, k) = keep ? centered(k) : OffsetArray([one(eltype(k))], 0:0)
