@@ -16,7 +16,7 @@ centered(A::AbstractArray) = OffsetArray(A, map(n->-((n+1)>>1), size(A)))
 dummyind(::Base.OneTo) = Base.OneTo(1)
 dummyind(::AbstractUnitRange) = 0:0
 
-dummykernel(inds::Indices{N}) where {N} = similar(dims->ones(ntuple(d->1,Val{N})), map(dummyind, inds))
+dummykernel(inds::Indices{N}) where {N} = similar(dims->ones(ntuple(d->1,Val(N))), map(dummyind, inds))
 
 nextendeddims(inds::Indices) = sum(ind->length(ind)>1, inds)
 nextendeddims(a::AbstractArray) = nextendeddims(indices(a))
@@ -30,9 +30,9 @@ checkextended(a::AbstractArray, n) = checkextended(indices(a), n)
 
 ranges(R::CartesianRange) = map(colon, R.start.I, R.stop.I)
 
-_reshape(A::OffsetArray{_,N}, ::Type{Val{N}}) where {_,N} = A
-_reshape(A::OffsetArray, ::Type{Val{N}}) where {N} = OffsetArray(reshape(parent(A), Val{N}), fill_to_length(A.offsets, -1, Val{N}))
-_reshape(A::AbstractArray, ::Type{Val{N}}) where {N} = reshape(A, Val{N})
+_reshape(A::OffsetArray{_,N}, ::Val{N}) where {_,N} = A
+_reshape(A::OffsetArray, ::Val{N}) where {N} = OffsetArray(reshape(parent(A), Val(N)), fill_to_length(A.offsets, -1, Val(N)))
+_reshape(A::AbstractArray, ::Val{N}) where {N} = reshape(A, Val(N))
 
 _vec(a::AbstractVector) = a
 _vec(a::AbstractArray) = (checkextended(a, 1); a)
@@ -44,11 +44,11 @@ function _vec(a::OffsetArray)
     OffsetArray(vec(parent(a)), inds[i])
 end
 
-samedims(::Type{Val{N}}, kernel) where {N} = _reshape(kernel, Val{N})
-samedims(::Type{Val{N}}, kernel::Tuple) where {N} = map(k->_reshape(k, Val{N}), kernel)
-samedims(::AbstractArray{T,N}, kernel) where {T,N} = samedims(Val{N}, kernel)
+samedims(::Val{N}, kernel) where {N} = _reshape(kernel, Val(N))
+samedims(::Val{N}, kernel::Tuple) where {N} = map(k->_reshape(k, Val(N)), kernel)
+samedims(::AbstractArray{T,N}, kernel) where {T,N} = samedims(Val(N), kernel)
 
-_tail(R::CartesianRange{CartesianIndex{0}}) = R
+@compat _tail(R::CartesianRange{0}) = R
 _tail(R::CartesianRange) = CartesianRange(CartesianIndex(tail(R.start.I)),
                                           CartesianIndex(tail(R.stop.I)))
 

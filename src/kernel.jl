@@ -178,10 +178,10 @@ function LoG(σs::NTuple{N}) where N
     σ = SVector(σs)
     C = 1/(prod(σ)*(2π)^(N/2))
     σ2 = σ.^2
-    σ2i = sum(1./σ2)
+    σ2i = sum(1.0/σ2)
     function df(I::CartesianIndex, σ2, σ2i)
         x = SVector(I.I)
-        xσ = x.^2./σ2
+        xσ = x.^2.0/σ2
         (sum(xσ./σ2) - σ2i) * exp(-sum(xσ)/2)
     end
     centered([C*df(I, σ2, σ2i) for I in R])
@@ -235,7 +235,7 @@ function Base.convert(::Type{AbstractArray}, L::Laplacian{N}) where N
     for I in L.offsets
         A[I] = A[-I] = 1
     end
-    A[ntuple(d->0, Val{N})...] = -2*length(L.offsets)
+    A[ntuple(d->0, Val(N))...] = -2*length(L.offsets)
     A
 end
 _reshape(L::Laplacian{N}, ::Type{Val{N}}) where {N} = L

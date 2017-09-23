@@ -92,8 +92,8 @@ Pad the input image by `lo` pixels at the lower edge, and `hi` pixels at the upp
 """
 Pad(lo::Dims, hi::Dims) = Pad(:replicate, lo, hi)
 Pad(style::Symbol, lo::Tuple{}, hi::Tuple{}) = Pad{0}(style, lo, hi)
-Pad(style::Symbol, lo::Dims{N}, hi::Tuple{}) where {N} = Pad(style, lo, ntuple(d->0,Val{N}))
-Pad(style::Symbol, lo::Tuple{}, hi::Dims{N}) where {N} = Pad(style, ntuple(d->0,Val{N}), hi)
+Pad(style::Symbol, lo::Dims{N}, hi::Tuple{}) where {N} = Pad(style, lo, ntuple(d->0,Val(N)))
+Pad(style::Symbol, lo::Tuple{}, hi::Dims{N}) where {N} = Pad(style, ntuple(d->0,Val(N)), hi)
 Pad(style::Symbol, lo::AbstractVector{Int}, hi::AbstractVector{Int}) = Pad(style, (lo...,), (hi...,))
 
 Pad(style::Symbol, inds::Indices) = Pad(style, map(lo,inds), map(hi,inds))
@@ -220,8 +220,8 @@ for T in (:Inner, :NA)
         (::Type{$T})(both::Int...) = $T(both, both)
         (::Type{$T})(both::Dims{N}) where {N} = $T(both, both)
         (::Type{$T})(lo::Tuple{}, hi::Tuple{}) = $T{0}(lo, hi)
-        (::Type{$T})(lo::Dims{N}, hi::Tuple{}) where {N} = $T{N}(lo, ntuple(d->0,Val{N}))
-        (::Type{$T})(lo::Tuple{}, hi::Dims{N}) where {N} = $T{N}(ntuple(d->0,Val{N}), hi)
+        (::Type{$T})(lo::Dims{N}, hi::Tuple{}) where {N} = $T{N}(lo, ntuple(d->0,Val(N)))
+        (::Type{$T})(lo::Tuple{}, hi::Dims{N}) where {N} = $T{N}(ntuple(d->0,Val(N)), hi)
         (::Type{$T})(inds::Indices{N}) where {N} = $T{N}(map(lo,inds), map(hi,inds))
         (::Type{$T{N}})(lo::AbstractVector, hi::AbstractVector) where {N} = $T{N}((lo...,), (hi...,))
         (::Type{$T})(lo::AbstractVector, hi::AbstractVector) = $T((lo...,), (hi...,)) # not inferrable
@@ -300,11 +300,11 @@ function padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer
     elseif border.style == :circular
         return modrange(extend(lo, inds, hi), inds)
     elseif border.style == :symmetric
-        I = OffsetArray([inds; reverse(inds)], (0:2*length(inds)-1)+first(inds))
+        I = OffsetArray([inds; reverse(inds)], plus((0:2*length(inds)-1), first(inds)))
         r = modrange(extend(lo, inds, hi), indices(I, 1))
         return I[r]
     elseif border.style == :reflect
-        I = OffsetArray([inds; last(inds)-1:-1:first(inds)+1], (0:2*length(inds)-3)+first(inds))
+        I = OffsetArray([inds; last(inds)-1:-1:first(inds)+1], plus((0:2*length(inds)-3), first(inds)))
         return I[modrange(extend(lo, inds, hi), indices(I, 1))]
     else
         error("border style $(border.style) unrecognized")
@@ -371,7 +371,7 @@ arraytype(A::BitArray, ::Type{Bool}) = BitArray
 interior(A, kernel) = _interior(indices(A), indices(kernel))
 interior(A, factkernel::Tuple) = _interior(indices(A), accumulate_padding(indices(factkernel[1]), tail(factkernel)...))
 function _interior(indsA::NTuple{N}, indsk) where N
-    indskN = fill_to_length(indsk, 0:0, Val{N})
+    indskN = fill_to_length(indsk, 0:0, Val(N))
     map(intersect, indsA, shrink(indsA, indsk))
 end
 

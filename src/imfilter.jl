@@ -538,7 +538,7 @@ end
 function __imfilter_inbounds!(r, out, A::OffsetArray, kern::OffsetArray, border, R, z)
     off, k = CartesianIndex(kern.offsets), parent(kern)
     o, O = safehead(off), safetail(off)
-    Rnew = CartesianRange(R.start+off, R.stop+off)
+    Rnew = CartesianRange(map(plus, R.indices, off.I))
     Rk = CartesianRange(indices(k))
     offA, pA = CartesianIndex(A.offsets), parent(A)
     oA, OA = safehead(offA), safetail(offA)
@@ -734,9 +734,9 @@ function filtfft(A::AbstractArray{C}, krn) where C<:Colorant
     Avf = irfft(rfft(Av, dims).*conj(rfft(kernrs, dims)), length(indices(Av, dims[1])), dims)
     colorview(base_colorant_type(C){eltype(Avf)}, Avf)
 end
-channelview_dims(A::AbstractArray{C,N}) where {C<:Colorant,N} = channelview(A), ntuple(d->d+1, Val{N})
+channelview_dims(A::AbstractArray{C,N}) where {C<:Colorant,N} = channelview(A), ntuple(d->d+1, Val(N))
 if ImageCore.squeeze1
-    channelview_dims(A::AbstractArray{C,N}) where {C<:ImageCore.Color1,N} = channelview(A), ntuple(identity, Val{N})
+    channelview_dims(A::AbstractArray{C,N}) where {C<:ImageCore.Color1,N} = channelview(A), ntuple(identity, Val(N))
 end
 
 function kreshape(::Type{C}, krn::FFTView) where C<:Colorant
@@ -810,8 +810,7 @@ function _imfilter_inplace_tuple!(r, out, img, kernel, Rbegin, inds, Rend, borde
                              out,
                              out,
                              tail(kernel),
-                             CartesianRange(CartesianIndex((Rbegin.start.I..., first(ind))),
-                                            CartesianIndex((Rbegin.stop.I...,  last(ind)))),
+                             CartesianRange(Rbegin.indices..., ind),
                              tail(inds),
                              _tail(Rend),
                              border)
@@ -1088,7 +1087,7 @@ function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,TriggsSd
     function imfilter_inplace!(r, a, kern, border)
         imfilter!(r, a, a, (kern,), border)
     end
-    filtdims = ntuple(d->imfilter_inplace!(r, similar(dims->ones(dims), inds[d]), kernels[d], border), Val{N})
+    filtdims = ntuple(d->imfilter_inplace!(r, similar(dims->ones(dims), inds[d]), kernels[d], border), Val(N))
     normalize_dims!(A, filtdims)
 end
 function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,ReshapedIIR}, border) where N
@@ -1097,7 +1096,7 @@ end
 
 function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,Any}, border) where N
     inds = indices(A)
-    filtdims = ntuple(d->imfilter(r, similar(dims->ones(dims), inds[d]), _vec(kernels[d]), border), Val{N})
+    filtdims = ntuple(d->imfilter(r, similar(dims->ones(dims), inds[d]), _vec(kernels[d]), border), Val(N))
     normalize_dims!(A, filtdims)
 end
 
@@ -1144,16 +1143,15 @@ alg_defaults(alg::Alg, out, kernel) = alg
 
 ## Faster Cartesian iteration
 # Splitting out the first dimension saves a branch
-safetail(R::CartesianRange) = CartesianRange(CartesianIndex(tail(R.start.I)),
-                                             CartesianIndex(tail(R.stop.I)))
-safetail(R::CartesianRange{CartesianIndex{1}}) = CartesianRange(())
-safetail(R::CartesianRange{CartesianIndex{0}}) = CartesianRange(())
+safetail(R::CartesianRange) = CartesianRange(tail(R.indices))
+@compat safetail(R::CartesianRange{1}) = CartesianRange(())
+@compat safetail(R::CartesianRange{0}) = CartesianRange(())
 safetail(I::CartesianIndex) = CartesianIndex(tail(I.I))
 safetail(::CartesianIndex{1}) = CartesianIndex(())
 safetail(::CartesianIndex{0}) = CartesianIndex(())
 
-safehead(R::CartesianRange) = R.start[1]:R.stop[1]
-safehead(R::CartesianRange{CartesianIndex{0}}) = CartesianRange(())
+safehead(R::CartesianRange) = R.indices[1]
+@compat safehead(R::CartesianRange{0}) = CartesianRange(())
 safehead(I::CartesianIndex) = I[1]
 safehead(::CartesianIndex{0}) = CartesianIndex(())
 
