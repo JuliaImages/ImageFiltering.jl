@@ -267,7 +267,7 @@ in each direction from the center. `l` must be odd.
 function gaussian(σ::Real, l = 4*ceil(Int,σ)+1)
     isodd(l) || throw(ArgumentError("length must be odd"))
     w = l>>1
-    g = [exp(-x^2/(2*σ^2)) for x=-w:w]
+    g = σ == 0 ? [exp(0/(2*oftype(σ, 1)^2))] : [exp(-x^2/(2*σ^2)) for x=-w:w]
     centered(g/sum(g))
 end
 

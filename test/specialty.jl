@@ -179,6 +179,9 @@ using Base.Test
         for k = (Kernel.gaussian((2,3)), Kernel.gaussian([2,3]), Kernel.gaussian([2,3], [9,7]))
             @test sum(k) ≈ 1
         end
+        # Bug noticed in Images issue #674
+        k = KernelFactors.gaussian((3, 3, 0))
+        @test k[3].data == OffsetArray([1.0], 0:0)
     end
 
     @testset "DoG" begin
