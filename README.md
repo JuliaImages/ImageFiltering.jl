@@ -18,4 +18,4 @@ Packages with overlapping functionality that also offer something extra:
 
 Packages that appear to perform just a subset of what ImageFiltering does:
 - [RollingFunctions](https://github.com/JeffreySarnoff/RollingFunctions.jl)
-- [LocalFilters](https://github.com/emmt/LocalFilters.jl)
+- [LocalFilters](https://github.com/emmt/LocalFilters.jl) (see [ImageMorphology](https://github.com/JuliaImages/ImageMorphology.jl) for the morphological operations of JuliaImages)
