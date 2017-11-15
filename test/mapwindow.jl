@@ -100,9 +100,13 @@ using ImageFiltering, Base.Test
             (median!, randn(10), (-1:1,), (1:2:8,)),
             (mean, randn(10), (-1:1,), (1:2:8,)),
             (mean, randn(10,5), (-1:1,0:0), (1:2:8,1:3)),
+            (mean, randn(10,5), (-1:1,0:0), (Base.OneTo(2),1:3)),
         ]
-        border = ImageFiltering.borderinstance("replicate")
-        @test mapwindow(f,img,window,border,imginds) == groundtruth(f,img,window,border,imginds)
+        border = "replicate"
+        @test groundtruth(f,img,window,border,imginds) == @inferred mapwindow(f,img,window,border,imginds)
     end
+    @test mapwindow(mean, randn(10), (3,), "replicate", 2:2:7) isa Array
+    @test mapwindow(mean, randn(10), (3,), "replicate", 2:7) isa OffsetArray
+    @test mapwindow(mean, randn(10), (3,)) isa Array
 end
 nothing
