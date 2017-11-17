@@ -105,8 +105,11 @@ using ImageFiltering, Base.Test
         border = "replicate"
         @test groundtruth(f,img,window,border,imginds) == @inferred mapwindow(f,img,window,border,imginds)
     end
-    @test mapwindow(mean, randn(10), (3,), "replicate", 2:2:7) isa Array
-    @test mapwindow(mean, randn(10), (3,), "replicate", 2:7) isa OffsetArray
-    @test mapwindow(mean, randn(10), (3,)) isa Array
+    for (inds, args) ∈ [((Base.OneTo(3),), ("replicate", 2:2:7)),
+                        ((2:7,), ("replicate", 2:7)),
+                        ((Base.OneTo(10),), ())
+                       ]
+        @test inds == indices(mapwindow(mean, randn(10), (3,), args...))
+    end
 end
 nothing
