@@ -7,7 +7,10 @@ using ColorVectorSpace  # for filtering RGB arrays
 using Compat
 using Base: Indices, tail, fill_to_length, @pure, depwarn
 
-export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm, imfilter, imfilter!, mapwindow, imgradients, padarray, centered, kernelfactors, reflect
+export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm,
+imfilter, imfilter!,
+mapwindow, mapwindow!,
+imgradients, padarray, centered, kernelfactors, reflect
 
 FixedColorant{T<:Normed} = Colorant{T}
 StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}

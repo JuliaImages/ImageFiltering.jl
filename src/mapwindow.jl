@@ -1,10 +1,11 @@
 module MapWindow
 
 using DataStructures, TiledIteration
-using ..ImageFiltering: BorderSpecAny, Pad, Fill, borderinstance, _interior, padindex, imfilter
+using ..ImageFiltering: BorderSpecAny, Pad, Fill, Inner,
+borderinstance, _interior, padindex, imfilter
 using Base: Indices, tail
 
-export mapwindow
+export mapwindow, mapwindow!
 
 """
     mapwindow(f, img, window, [border="replicate"], [imginds=indices(img)]) -> imgf
@@ -49,16 +50,48 @@ and then `mapwindow(f, img, (m,n))` should filter at the 75th quantile.
 
 See also: [`imfilter`](@ref).
 """
-function mapwindow(f, img, window, border="replicate", imginds=indices(img); callmode=:copy!)
-    _mapwindow_kernel(replace_function(f),
+function mapwindow(f, img, window, border="replicate",
+                   imginds=default_imginds(img, window, border); callmode=:copy!)
+    if callmode != :copy!
+        error("Only callmode=:copy! is currently supported")
+    end
+    _mapwindow(f,
               img,
               resolve_window(window),
               resolve_border(border),
-              resolve_imginds(imginds),
-              default_shape(f);
-              callmode=callmode)
+              resolve_imginds(imginds))
 end
 
+function default_imginds(img, window, border)
+    indices(img)
+end
+function default_imginds(img, window, border::Inner)
+    imginds = indices(img)
+    win = resolve_window(window)
+    indind = _indices_of_interiour_indices(imginds, imginds, win)
+    map((II, r) -> r[II], indind, imginds)
+end
+
+function _mapwindow(f, img, window, border, imginds)
+    out = allocate_output(f, img, window, border, imginds)
+    mapwindow_kernel!(f, out, img, window, border, imginds)
+end
+"""
+    mapwindow!(f, out, img, window, border="replicate", imginds=indices(img))
+
+Variant of [mapwindow](@ref), with preallocated output.
+If `out` and `img` have overlapping memory regions, behaviour is undefined.
+"""
+function mapwindow!(f, out, img, window, border="replicate",
+                    imginds=default_imginds(img, window, border))
+    @assert callmode == :copy!
+    mapwindow_kernel!(f,
+              out,
+              img,
+              resolve_window(window),
+              resolve_border(border),
+              resolve_imginds(imginds))
+end
 function resolve_window(window::Dims)
     all(isodd(w) for w in window) || error("entries in window must be odd, got $window")
     halfsize = map(w->w>>1, window)
@@ -165,47 +198,64 @@ function _indices_of_interiour_indices(fullimginds, imginds, kerinds)
     map(_indices_of_interiour_range, fullimginds, imginds, kerinds)
 end
 
-# replace median by ... outside of _mapwindow_kernel
-function _mapwindow_kernel(f,
+function allocate_output(f, img, window, border, imginds)
+    T = compute_output_eltype(f, img, window, border, imginds)
+    outinds = compute_output_indices(imginds)
+    similar(img, T, outinds)
+end
+
+function allocate_buffer(f, img, window)
+    T = eltype(img)
+    buf = Array{T}(map(length, window))
+    bufrs = default_shape(f)(buf)
+    buf, bufrs
+end
+
+function compute_output_eltype(f, img, window, border, imginds)
+    buf, bufrs = allocate_buffer(f, img, window)
+    make_buffer_values_realistic!(buf, img, window, border, imginds)
+    typeof(f(bufrs))
+end
+
+function make_buffer_values_realistic!(buf, img, window, border::Inner, imginds)
+    buf
+end
+
+function make_buffer_values_realistic!(buf, img, window, border, imginds)
+    Iimg = CartesianIndex(map(first, imginds))
+    offset = CartesianIndex(map(w->first(w)-1, window))
+    copy_win!(buf, img, Iimg, border, offset)
+end
+
+function mapwindow_kernel!(f,
+                    out::AbstractArray{S,N},
                     img::AbstractArray{T,N},
                     window::NTuple{N,AbstractUnitRange},
                     border::BorderSpecAny,
-                    imginds::NTuple{N, Range},
-                    shape=default_shape(f);
-                    callmode::Symbol=:copy!) where {T,N}
+                    imginds::NTuple{N, Range}) where {S,T,N}
     
-    if callmode != :copy!
-        # TODO: implement :view
-        error("callmode $callmode not supported")
-    end
-    outinds = compute_output_indices(imginds)
-    @assert map(length, imginds) == map(length, outinds)
+    @assert map(length, imginds) == map(length, indices(out))
     
     indind_full = map(r -> Base.OneTo(length(r)), imginds)
     indind_inner = _indices_of_interiour_indices(indices(img), imginds, window)
     Rindind_full = CartesianRange(indind_full)
     Rindind_inner = CartesianRange(indind_inner)
     
-    outindtrafo = _IndexTransformer(outinds)
+    outindtrafo = _IndexTransformer(indices(out))
     imgindtrafo = _IndexTransformer(imginds)
     
-    buf = Array{T}(map(length, window))
-    bufrs = shape(buf)
+    buf, bufrs = allocate_buffer(f, img, window)
     Rbuf = CartesianRange(size(buf))
-    # To allocate the output, we have to evaluate f once on realistic values
-    Iimg = imgindtrafo[first(Rindind_full)]
-    offset = CartesianIndex(map(w->first(w)-1, window))
-    copy_win!(buf, img, Iimg, border, offset)
-    out = similar(img, typeof(f(bufrs)), outinds)
     for II ∈ Rindind_inner
         Iimg = imgindtrafo[II]
         Iout = outindtrafo[II]
         Rwin = CartesianRange(map(+, window, Iimg.I))
         copy!(buf, Rbuf, img, Rwin)
-        @inbounds out[Iout] = f(bufrs)
+        out[Iout] = f(bufrs)
     end
     # Now pick up the edge points we skipped over above
     Rindind_edge = EdgeIterator(Rindind_full, Rindind_inner)
+    offset = CartesianIndex(map(w->first(w)-1, window))
     for II ∈ Rindind_edge
         Iimg = imgindtrafo[II]
         Iout = outindtrafo[II]
@@ -214,6 +264,7 @@ function _mapwindow_kernel(f,
     end
     out
 end
+
 
 # For copying along the edge of the image
 function copy_win!(buf::AbstractArray{T,N}, img, I, border::Pad, offset) where {T,N}
@@ -371,12 +422,6 @@ end
 
 # This is slightly faster than a circular buffer
 @inline cyclecache(b, x) = b[1], (Base.tail(b)..., x)
-
-replace_function(f) = f
-replace_function(::typeof(median!)) = function(v)
-    inds = indices(v,1)
-    Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
-end
 
 default_shape(::Any) = identity
 default_shape(::typeof(median!)) = vec
