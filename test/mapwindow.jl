@@ -102,8 +102,12 @@ using ImageFiltering, Base.Test
             (mean, randn(10,5), (-1:1,0:0), (1:2:8,1:3)),
             (mean, randn(10,5), (-1:1,0:0), (Base.OneTo(2),1:3)),
         ]
+
         border = "replicate"
-        @test groundtruth(f,img,window,border,imginds) == @inferred mapwindow(f,img,window,border,imginds)
+        expected = groundtruth(f,img,window,border,imginds)
+        @test expected == @inferred mapwindow(f,img,window,border,imginds)
+        out = similar(expected)
+        @test expected == @inferred mapwindow!(f,out,img,window,border,imginds)
     end
     for (inds, args) ∈ [((Base.OneTo(3),), ("replicate", 2:2:7)),
                         ((2:7,), ("replicate", 2:7)),

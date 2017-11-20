@@ -84,7 +84,6 @@ If `out` and `img` have overlapping memory regions, behaviour is undefined.
 """
 function mapwindow!(f, out, img, window, border="replicate",
                     imginds=default_imginds(img, window, border))
-    @assert callmode == :copy!
     mapwindow_kernel!(f,
               out,
               img,
