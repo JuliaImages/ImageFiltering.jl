@@ -7,7 +7,7 @@ using Base: Indices, tail
 export mapwindow
 
 """
-    mapwindow(f, img, window, [border="replicate"]) -> imgf
+    mapwindow(f, img, window, [border="replicate"], [imginds=indices(img)]) -> imgf
 
 Apply `f` to sliding windows of `img`, with window size or indices
 specified by `window`. For example, `mapwindow(median!, img, window)`
@@ -29,6 +29,14 @@ AbstractUnitRanges, in which case the specified ranges are used for
 `border` specifies how the edges of `img` should be handled; see
 `imfilter` for details.
 
+Finally `imginds` allows to omit unnecessary computations, if you want to do things
+like `mapwindow` on a subimage, or a strided variant of mapwindow.
+It works as follows:
+```julia
+mapwindow(f, img, window, border, (2:5, 1:2:7)) == mapwindow(f,img,window,border)[2:5, 1:2:7]
+```
+Except more efficiently because it omits computation of the unused values.
+
 For functions that can only take `AbstractVector` inputs, you might have to
 first specialize `default_shape`:
 
@@ -41,77 +49,168 @@ and then `mapwindow(f, img, (m,n))` should filter at the 75th quantile.
 
 See also: [`imfilter`](@ref).
 """
-function mapwindow(f, img::AbstractArray, window::Dims, args...; kwargs...)
+function mapwindow(f, img, window, border="replicate", imginds=indices(img); callmode=:copy!)
+    _mapwindow_kernel(replace_function(f),
+              img,
+              resolve_window(window),
+              resolve_border(border),
+              resolve_imginds(imginds),
+              default_shape(f);
+              callmode=callmode)
+end
+
+function resolve_window(window::Dims)
     all(isodd(w) for w in window) || error("entries in window must be odd, got $window")
     halfsize = map(w->w>>1, window)
-    mapwindow(f, img, map(h->-h:h, halfsize), args...; kwargs...)
+    map(h -> -h:h,halfsize)
 end
-function mapwindow(f, img::AbstractVector, window::Integer, args...; kwargs...)
+function resolve_window(window::Integer)
     isodd(window) || error("window must be odd, got $window")
     h = window>>1
-    mapwindow(f, img, (-h:h,), args...; kwargs...)
+    -h:h
+end
+resolve_window(window::AbstractArray) = resolve_window((window...,))
+resolve_window(window::AbstractUnitRange) = (window,)
+resolve_window(window::Indices) = window
+
+resolve_border(border::AbstractString) = borderinstance(border)
+resolve_border(border::BorderSpecAny) = border
+
+resolve_imginds(r::Range) = (r,)
+resolve_imginds(imginds) = imginds
+
+abstract type _IndexTransformer end
+
+struct _AffineTransformer{N} <: _IndexTransformer
+    offset::NTuple{N,Int}
+    stride::NTuple{N,Int}
+end
+@inline function Base.getindex(t::_AffineTransformer, inds::CartesianIndex)
+    CartesianIndex(t.offset .+ t.stride .* inds.I)
 end
 
-mapwindow(f, img::AbstractArray, window::Indices; kwargs...) =
-    mapwindow(f, img, window, "replicate"; kwargs...)
-mapwindow(f, img::AbstractVector, window::AbstractUnitRange; kwargs...) =
-    mapwindow(f, img, (window,); kwargs...)
-
-function mapwindow(f, img::AbstractArray, window::Indices, border::AbstractString;
-                   kwargs...)
-    mapwindow(f, img, window, borderinstance(border); kwargs...)
+struct _OffsetTransformer{N} <: _IndexTransformer
+    offset::NTuple{N,Int}
 end
-function mapwindow(f, img::AbstractVector, window::AbstractUnitRange, border::AbstractString;
-                   kwargs...)
-    mapwindow(f, img, (window,), border; kwargs...)
+@inline function Base.getindex(t::_OffsetTransformer, inds::CartesianIndex)
+    CartesianIndex(t.offset .+ inds.I)
 end
 
-mapwindow(f, img, window::AbstractArray, args...; kwargs...) = mapwindow(f, img, (window...,), args...; kwargs...)
+struct _IdentityTransformer <: _IndexTransformer end
+@inline Base.getindex(t::_IdentityTransformer, inds) = inds
 
-function mapwindow(f,
-                   img::AbstractArray{T,N},
-                   window::Indices{N},
-                   border::BorderSpecAny;
-                   callmode=:copy!) where {T,N}
-    _mapwindow(replace_function(f), img, window, border, default_shape(f); callmode=callmode)
+function _IndexTransformer(ranges)
+    stride = map(step, ranges)
+    offset1 = map(first, ranges)
+    offset = offset1 .- stride
+    _AffineTransformer(offset, stride)
 end
-function _mapwindow(f,
-                    img::AbstractArray{T,N},
-                    window::Indices{N},
-                    border::BorderSpecAny,
-                    shape=default_shape(f);
-                    callmode=:copy!) where {T,N}
-    inds = indices(img)
-    inner = _interior(inds, window)
-    if callmode == :copy!
-        buf = Array{T}(map(length, window))
-        bufrs = shape(buf)
-        Rbuf = CartesianRange(size(buf))
-        offset = CartesianIndex(map(w->first(w)-1, window))
-        # To allocate the output, we have to evaluate f once
-        Rinner = CartesianRange(inner)
-        if !isempty(Rinner)
-            Rwin = CartesianRange(map(+, window, first(Rinner).I))
-            copy!(buf, Rbuf, img, Rwin)
-            out = similar(img, typeof(f(bufrs)))
-            # Handle the interior
-            for I in Rinner
-                Rwin = CartesianRange(map(+, window, I.I))
-                copy!(buf, Rbuf, img, Rwin)
-                out[I] = f(bufrs)
-            end
-        else
-            copy_win!(buf, img, first(CartesianRange(inds)), border, offset)
-            out = similar(img, typeof(f(bufrs)))
-        end
-        # Now pick up the edge points we skipped over above
-        for I in EdgeIterator(inds, inner)
-            copy_win!(buf, img, I, border, offset)
-            out[I] = f(bufrs)
-        end
+
+function _IndexTransformer(ranges::NTuple{N,Base.OneTo}) where {N}
+    _IdentityTransformer()
+end
+
+function _IndexTransformer(ranges::NTuple{N,AbstractUnitRange}) where {N}
+    offset1 = map(first, ranges)
+    offset = offset1 .- 1
+    _OffsetTransformer(offset)
+end
+
+compute_output_range(r::AbstractUnitRange) = r
+compute_output_range(r::Range) = Base.OneTo(length(r))
+
+function compute_output_indices(imginds)
+    ranges = map(compute_output_range, imginds)
+    # Base.similar does not like if some but not all ranges are Base.OneTo
+    homogenize(ranges)
+end
+homogenize(ranges::NTuple{N, Range}) where {N}   = map(r-> first(r):step(r):last(r), ranges)
+homogenize(ranges::NTuple{N, AbstractUnitRange}) where{N} = map(r-> first(r):last(r), ranges)
+homogenize(ranges::NTuple{N, Base.OneTo}) where {N} = ranges
+
+# Return indices of elements of `r` that are also elements of `full`.
+function _intersectionindices(full::AbstractUnitRange, r::Range)
+    r_sub = intersect(full, r)
+    if isempty(r_sub)
+        ret = 1:0
     else
+        ret = _indexof(r,first(r_sub)):_indexof(r,last(r_sub))
+    end
+    @assert intersect(full, r) == r[ret]
+    ret
+end
+
+function _indexof(r::Range, x)
+    T = eltype(r)
+    @assert x ∈ r
+    i = one(T) + T((x - first(r)) / step(r))
+    @assert r[i] == x
+    i
+end
+
+function _indices_of_interiour_range(
+        fullimgr::AbstractUnitRange, 
+        imgr::Range,
+        kerr::Range)
+    kmin, kmax = extrema(kerr)
+    idx1 = _intersectionindices(fullimgr, kmin + imgr)
+    idx2 = _intersectionindices(fullimgr, kmax + imgr)
+    idx = intersect(idx1, idx2)
+    @assert imgr[idx] + kmin ⊆ fullimgr
+    @assert imgr[idx] + kmax ⊆ fullimgr
+    idx
+end
+
+function _indices_of_interiour_indices(fullimginds, imginds, kerinds)
+    map(_indices_of_interiour_range, fullimginds, imginds, kerinds)
+end
+
+# replace median by ... outside of _mapwindow_kernel
+function _mapwindow_kernel(f,
+                    img::AbstractArray{T,N},
+                    window::NTuple{N,AbstractUnitRange},
+                    border::BorderSpecAny,
+                    imginds::NTuple{N, Range},
+                    shape=default_shape(f);
+                    callmode::Symbol=:copy!) where {T,N}
+    
+    if callmode != :copy!
         # TODO: implement :view
         error("callmode $callmode not supported")
+    end
+    outinds = compute_output_indices(imginds)
+    @assert map(length, imginds) == map(length, outinds)
+    
+    indind_full = map(r -> Base.OneTo(length(r)), imginds)
+    indind_inner = _indices_of_interiour_indices(indices(img), imginds, window)
+    Rindind_full = CartesianRange(indind_full)
+    Rindind_inner = CartesianRange(indind_inner)
+    
+    outindtrafo = _IndexTransformer(outinds)
+    imgindtrafo = _IndexTransformer(imginds)
+    
+    buf = Array{T}(map(length, window))
+    bufrs = shape(buf)
+    Rbuf = CartesianRange(size(buf))
+    # To allocate the output, we have to evaluate f once on realistic values
+    Iimg = imgindtrafo[first(Rindind_full)]
+    offset = CartesianIndex(map(w->first(w)-1, window))
+    copy_win!(buf, img, Iimg, border, offset)
+    out = similar(img, typeof(f(bufrs)), outinds)
+    for II ∈ Rindind_inner
+        Iimg = imgindtrafo[II]
+        Iout = outindtrafo[II]
+        Rwin = CartesianRange(map(+, window, Iimg.I))
+        copy!(buf, Rbuf, img, Rwin)
+        @inbounds out[Iout] = f(bufrs)
+    end
+    # Now pick up the edge points we skipped over above
+    Rindind_edge = EdgeIterator(Rindind_full, Rindind_inner)
+    for II ∈ Rindind_edge
+        Iimg = imgindtrafo[II]
+        Iout = outindtrafo[II]
+        copy_win!(buf, img, Iimg, border, offset)
+        out[Iout] = f(bufrs)
     end
     out
 end
