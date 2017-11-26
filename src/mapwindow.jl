@@ -2,7 +2,7 @@ module MapWindow
 
 using DataStructures, TiledIteration
 using ..ImageFiltering: BorderSpecAny, Pad, Fill, Inner,
-borderinstance, _interior, padindex, imfilter
+    borderinstance, _interior, padindex, imfilter
 using Base: Indices, tail
 
 export mapwindow, mapwindow!
@@ -55,7 +55,7 @@ function mapwindow(f, img, window, border="replicate",
     if callmode != :copy!
         error("Only callmode=:copy! is currently supported")
     end
-    _mapwindow(resolve_f(f),
+    _mapwindow(replace_function(f),
               img,
               resolve_window(window),
               resolve_border(border),
@@ -85,7 +85,7 @@ If `out` and `img` have overlapping memory regions, behaviour is undefined.
 """
 function mapwindow!(f, out, img, window, border="replicate",
                     imginds=default_imginds(img, window, border))
-    mapwindow_kernel!(resolve_f(f),
+    mapwindow_kernel!(replace_function(f),
               out,
               img,
               resolve_window(window),
@@ -100,8 +100,8 @@ function median_fast!(v)
     Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
 end
 
-resolve_f(f) = f
-resolve_f(::typeof(median!)) = median_fast!
+replace_function(f) = f
+replace_function(::typeof(median!)) = median_fast!
 
 function resolve_window(window::Dims)
     all(isodd(w) for w in window) || error("entries in window must be odd, got $window")

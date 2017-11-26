@@ -94,7 +94,7 @@ using ImageFiltering, Base.Test
 
     # resolve_f
     replace_me(x) = 1
-    ImageFiltering.MapWindow.resolve_f(::typeof(replace_me)) = x -> 2
+    ImageFiltering.MapWindow.replace_function(::typeof(replace_me)) = x -> 2
     @test mapwindow!(replace_me, randn(3), randn(3), (1,)) == [2,2,2]
 
     function groundtruth(f, A, window::Tuple, border, imginds)
