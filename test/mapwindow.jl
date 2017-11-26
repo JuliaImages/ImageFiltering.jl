@@ -92,6 +92,11 @@ using ImageFiltering, Base.Test
                                          1 3 3 3 2]
     end
 
+    # resolve_f
+    replace_me(x) = 1
+    ImageFiltering.MapWindow.resolve_f(::typeof(replace_me)) = x -> 2
+    @test mapwindow!(replace_me, randn(3), randn(3), (1,)) == [2,2,2]
+
     function groundtruth(f, A, window::Tuple, border, imginds)
         mapwindow(f,A,window,border)[imginds...]
     end
@@ -123,5 +128,6 @@ using ImageFiltering, Base.Test
     @test res_48 == img_48[indices(res_48)...]
     inds_48 = 2:2:8
     @test mapwindow(first, img_48, (0:2,), Inner(), inds_48) == img_48[inds_48]
+
 
 end

@@ -55,7 +55,7 @@ function mapwindow(f, img, window, border="replicate",
     if callmode != :copy!
         error("Only callmode=:copy! is currently supported")
     end
-    _mapwindow(f,
+    _mapwindow(resolve_f(f),
               img,
               resolve_window(window),
               resolve_border(border),
@@ -76,6 +76,7 @@ function _mapwindow(f, img, window, border, imginds)
     out = allocate_output(f, img, window, border, imginds)
     mapwindow_kernel!(f, out, img, window, border, imginds)
 end
+
 """
     mapwindow!(f, out, img, window, border="replicate", imginds=indices(img))
 
@@ -84,13 +85,24 @@ If `out` and `img` have overlapping memory regions, behaviour is undefined.
 """
 function mapwindow!(f, out, img, window, border="replicate",
                     imginds=default_imginds(img, window, border))
-    mapwindow_kernel!(f,
+    mapwindow_kernel!(resolve_f(f),
               out,
               img,
               resolve_window(window),
               resolve_border(border),
               resolve_imginds(imginds))
 end
+
+function median_fast!(v)
+    # median! calls partialsort! which has keyword arguments. Keyword arguments are slow.
+    # This replaces median! with a more efficient implementation free of keyword arguments.
+    inds = indices(v,1)
+    Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
+end
+
+resolve_f(f) = f
+resolve_f(::typeof(median!)) = median_fast!
+
 function resolve_window(window::Dims)
     all(isodd(w) for w in window) || error("entries in window must be odd, got $window")
     halfsize = map(w->w>>1, window)
@@ -217,7 +229,8 @@ function compute_output_eltype(f, img, window, border, imginds)
 end
 
 function make_buffer_values_realistic!(buf, img, window, border::Inner, imginds)
-    buf
+    x = oneunit(eltype(img))
+    fill!(buf, x)
 end
 
 function make_buffer_values_realistic!(buf, img, window, border, imginds)
@@ -423,6 +436,7 @@ end
 @inline cyclecache(b, x) = b[1], (Base.tail(b)..., x)
 
 default_shape(::Any) = identity
-default_shape(::typeof(median!)) = vec
+default_shape(::typeof(median_fast!)) = vec
+
 
 end
