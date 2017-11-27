@@ -92,6 +92,11 @@ using ImageFiltering, Base.Test
                                          1 3 3 3 2]
     end
 
+    # resolve_f
+    replace_me(x) = 1
+    ImageFiltering.MapWindow.replace_function(::typeof(replace_me)) = x -> 2
+    @test mapwindow!(replace_me, randn(3), randn(3), (1,)) == [2,2,2]
+
     function groundtruth(f, A, window::Tuple, border, imginds)
         mapwindow(f,A,window,border)[imginds...]
     end
@@ -102,8 +107,12 @@ using ImageFiltering, Base.Test
             (mean, randn(10,5), (-1:1,0:0), (1:2:8,1:3)),
             (mean, randn(10,5), (-1:1,0:0), (Base.OneTo(2),1:3)),
         ]
+
         border = "replicate"
-        @test groundtruth(f,img,window,border,imginds) == @inferred mapwindow(f,img,window,border,imginds)
+        expected = groundtruth(f,img,window,border,imginds)
+        @test expected == @inferred mapwindow(f,img,window,border,imginds)
+        out = similar(expected)
+        @test expected == @inferred mapwindow!(f,out,img,window,border,imginds)
     end
     for (inds, args) ∈ [((Base.OneTo(3),), ("replicate", 2:2:7)),
                         ((2:7,), ("replicate", 2:7)),
@@ -111,5 +120,14 @@ using ImageFiltering, Base.Test
                        ]
         @test inds == indices(mapwindow(mean, randn(10), (3,), args...))
     end
+
+    img_48 = 10*collect(1:10)
+    @test mapwindow(first, img_48, (1,), Inner()) == img_48
+    res_48 = mapwindow(first, img_48, (0:1,), Inner())
+    @test indices(res_48) === (1:9,)
+    @test res_48 == img_48[indices(res_48)...]
+    inds_48 = 2:2:8
+    @test mapwindow(first, img_48, (0:2,), Inner(), inds_48) == img_48[inds_48]
+
+
 end
-nothing
