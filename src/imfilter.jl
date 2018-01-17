@@ -98,7 +98,7 @@ You can also dispatch to different implementations by passing in a
 resource `r` as defined by the ComputationalResources package.  For
 example,
 
-    imfilter(ArrayFire(), img, kernel)
+    imfilter(ArrayFireLibs(), img, kernel)
 
 would request that the computation be performed on the GPU using the
 ArrayFire libraries.
