@@ -9,9 +9,10 @@ using Base.Test, Compat  # Compat for ones(x, T)
             (map(v->RGB(v,0,0), y.*ones(x, Float64)), RGB(1,0,0), RGB(0,0,0)))
     for (img, ey, ex) in img_grads
         for kernelfunc in (KernelFactors.ando3, KernelFactors.sobel, KernelFactors.prewitt,
-                           KernelFactors.ando4, KernelFactors.ando5,
+                           KernelFactors.ando4, KernelFactors.ando5, KernelFactors.bickley,
+                           KernelFactors.scharr,
                            Kernel.ando3, Kernel.sobel, Kernel.prewitt,
-                           Kernel.ando4, Kernel.ando5)
+                           Kernel.ando4, Kernel.ando5, Kernel.scharr, Kernel.bickley)
             gy, gx = @inferred(imgradients(img, kernelfunc, Inner()))
             for val in gy
                 @test abs(val - ey) < 1e-4
@@ -24,7 +25,9 @@ using Base.Test, Compat  # Compat for ones(x, T)
         end
         for funcpairs in ((Kernel.ando3, KernelFactors.ando3),
                           (Kernel.sobel, KernelFactors.sobel),
-                          (Kernel.prewitt, KernelFactors.prewitt))
+                          (Kernel.prewitt, KernelFactors.prewitt),
+                          (Kernel.scharr, KernelFactors.scharr),
+                          (Kernel.bickley, KernelFactors.bickley))
             fk, fkf = funcpairs
             ky, kx = fk()
             gmy, gmx = imfilter(img, ky), imfilter(img, kx)
@@ -49,7 +52,9 @@ using Base.Test, Compat  # Compat for ones(x, T)
                               (ones(y) .* x .* ones(z), 0, 1, 0),
                               (ones(y) .* ones(x) .* z, 0, 0, 1))
         for kernelfunc in (KernelFactors.ando3, KernelFactors.sobel, KernelFactors.prewitt,
-                           Kernel.ando3, Kernel.sobel, Kernel.prewitt)
+                           KernelFactors.scharr, KernelFactors.bickley,
+                           Kernel.ando3, Kernel.sobel, Kernel.prewitt,
+                           Kernel.scharr, Kernel.bickley)
             gy, gx, gz = @inferred(imgradients(img, kernelfunc, Inner()))
             for val in gy
                 @test abs(val - ey) < 1e-4
