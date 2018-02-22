@@ -1,3 +1,18 @@
+"""
+`KernelFactors` is a module implementing separable filtering kernels,
+each stored in terms of their factors. The following kernels are
+supported:
+
+  - `sobel`
+  - `prewitt`
+  - `ando3`, `ando4`, and `ando5` (the latter in 2d only)
+  - `scharr`
+  - `bickley`
+  - `gaussian`
+  - `IIRGaussian` (approximate gaussian filtering, fast even for large σ)
+
+See also: [`Kernel`](@ref).
+"""
 module KernelFactors
 
 using StaticArrays, OffsetArrays
@@ -6,6 +21,16 @@ import ..ImageFiltering: _reshape, _vec, nextendeddims
 using Base: tail, Indices, @pure, checkbounds_indices, throw_boundserror
 
 using Compat
+
+# We would like to do `using ..ImageFiltering.Kernel` but we cannot because
+# `kernelfactors.jl` is included before  `kernel.jl` in the ImageFiltering.jl
+# file. Hence, ImageFiltering.Kernel does not yet exist when this module is
+# loaded. The reason we want to have the Kernel module defined is so that that
+# Documenter.jl (the documentation system) can parse a reference such as `See
+# also: [`Kernel.ando3`](@ref)`. With the more general `using ImageFiltering`,
+# we seem to sidestep this scope problem, although I don't actually understand
+# the mechanism form why this works. - ZS
+using ImageFiltering
 
 abstract type IIRFilter{T} end
 
@@ -127,10 +152,16 @@ end
 ## gradients
 
 """
+```julia
     kern1, kern2 = sobel()
-
-Factored Sobel filters for dimensions 1 and 2 of a two-dimensional
+```
+Return factored  Sobel filters for dimensions 1 and 2 of a two-dimensional
 image. Each is a 2-tuple of one-dimensional filters.
+
+# Citation
+P.-E. Danielsson and O. Seger, "Generalized and separable sobel operators," in  *Machine Vision for Three-Dimensional Scenes*,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. [doi:10.1016/b978-0-12-266722-0.50016-6](http://dx.doi.org/doi:10.1016/b978-0-12-266722-0.50016-6)
+
+See also: [`Kernel.sobel`](@ref)  and [`ImageFiltering.imgradients`](@ref).
 """
 function sobel()
     f1 = centered(SVector( 1.0, 2.0, 1.0)/4)
@@ -139,16 +170,31 @@ function sobel()
 end
 
 """
+```julia
     kern = sobel(extended::NTuple{N,Bool}, d)
+```
+Return a factored Sobel filter for computing the gradient in `N` dimensions
+along axis `d`. If `extended[dim]` is false, `kern` will have size 1 along that
+dimension.
 
-Return a factored Sobel filter for computing the gradient in `N` dimensions along axis `d`.
-If `extended[dim]` is false, `kern` will have size 1 along that dimension.
+See also: [`Kernel.sobel`](@ref) and [`ImageFiltering.imgradients`](@ref).
 """
 function sobel(extended::NTuple{N,Bool}, d) where N
     gradfactors(extended, d, [-1, 0, 1]/2, [1, 2, 1]/4)
 end
 
-"`kern1, kern2 = prewitt()` returns factored Prewitt filters for dimensions 1 and 2 of your image"
+"""
+```julia
+    kern1, kern2 = prewitt()
+```
+Return factored Prewitt filters for dimensions 1 and 2 of your image.
+Each is a 2-tuple of one-dimensional filters.
+
+# Citation
+J. M. Prewitt, "Object enhancement and extraction," *Picture processing and Psychopictorics*, vol. 10, no. 1, pp. 15–19, 1970.
+
+See also: [`Kernel.prewitt`](@ref) and [`ImageFiltering.imgradients`](@ref).
+"""
 function prewitt()
     f1 = centered(SVector( 1.0, 1.0, 1.0)/3)
     f2 = centered(SVector(-1.0, 0.0, 1.0)/2)
@@ -156,13 +202,87 @@ function prewitt()
 end
 
 """
+```julia
     kern = prewitt(extended::NTuple{N,Bool}, d)
+```
+Return a factored Prewitt filter for computing the gradient in `N` dimensions
+along axis `d`. If `extended[dim]` is false, `kern` will have size 1 along that
+dimension.
 
-Return a factored Prewitt filter for computing the gradient in `N` dimensions along axis `d`.
-If `extended[dim]` is false, `kern` will have size 1 along that dimension.
+See also: [`Kernel.prewitt`](@ref) and [`ImageFiltering.imgradients`](@ref).
 """
 function prewitt(extended::NTuple{N,Bool}, d) where N
     gradfactors(extended, d, [-1, 0, 1]/2, [1, 1, 1]/3)
+end
+
+
+"""
+```julia
+    kern1, kern2 = scharr()
+```
+Return factored Scharr filters for dimensions 1 and 2 of your image.  Each is a
+2-tuple of one-dimensional filters.
+
+# Citation
+H. Scharr and  J. Weickert, "An anisotropic diffusion algorithm with optimized rotation invariance," *Mustererkennung 2000*, pp. 460–467, 2000. [doi:10.1007/978-3-642-59802-9_58](http://dx.doi.org/doi:10.1007/978-3-642-59802-9_58)
+
+
+See also: [`Kernel.scharr`](@ref) and [`ImageFiltering.imgradients`](@ref).
+"""
+function scharr()
+    f1 = centered(SVector( 3.0/32.0, 5.0/16.0, 3.0/32.0)*2)
+    f2 = centered(SVector(-1.0, 0.0, 1.0)/2)
+    return kernelfactors((f2, f1)), kernelfactors((f1, f2))
+end
+
+"""
+```julia
+    kern = scharr(extended::NTuple{N,Bool}, d)
+```
+Return a factored Scharr filter for computing the gradient in `N` dimensions
+along axis `d`. If `extended[dim]` is false, `kern` will have size 1 along that
+dimension.
+
+See also: [`Kernel.scharr`](@ref) and [`ImageFiltering.imgradients`](@ref).
+"""
+function scharr(extended::NTuple{N,Bool}, d) where N
+    # The first factor is the central difference, and since we assume a pixel
+    # spacing of one, we divide by 2.
+    gradfactors(extended, d, [-1.0, 0.0, 1.0]/2,[3.0/32.0, 5.0/16.0, 3.0/32.0]*2,)
+end
+
+"""
+```julia
+    kern1, kern2 = bickley()
+```
+Return factored Bickley filters for dimensions 1 and 2 of your image.  Each is
+a 2-tuple of one-dimensional filters.
+
+# Citation
+W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](http://dx.doi.org/doi:10.1137/12087092x)
+
+See also: [`Kernel.bickley`](@ref) and [`ImageFiltering.imgradients`](@ref).
+"""
+function bickley()
+    f1 = centered(SVector( 1.0/12.0, 1.0/3.0, 1.0/12.0)*2)
+    f2 = centered(SVector(-1.0, 0.0, 1.0)/2)
+    return kernelfactors((f2, f1)), kernelfactors((f1, f2))
+end
+
+"""
+```julia
+    kern = bickley(extended::NTuple{N,Bool}, d)
+```
+Return a factored Bickley filter for computing the gradient in `N` dimensions
+along axis `d`. If `extended[dim]` is false, `kern` will have size 1 along that
+dimension.
+
+See also: [`Kernel.bickley`](@ref) and [`ImageFiltering.imgradients`](@ref).
+"""
+function bickley(extended::NTuple{N,Bool}, d) where N
+    # The first factor is the central difference, and since we assume a pixel
+    # spacing of one, we divide by 2.
+    gradfactors(extended, d, [-1.0, 0.0, 1.0]/2, [1.0/12.0, 1.0/3.0, 1.0/12.0]*2)
 end
 
 # Consistent Gradient Operators
@@ -175,10 +295,16 @@ end
 #       ando4 and ando5.
 
 """
-`kern1, kern2 = ando3()` returns optimal 3x3 gradient filters for dimensions 1 and 2 of your image, as defined in
-Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March 2000.
+```julia
+    kern1, kern2 = ando3()
+```
+Return a factored form of Ando's "optimal" ``3 \\times 3`` gradient filters for dimensions 1 and 2 of your image.
 
-See also: [`Kernel.ando3`](@ref), [`KernelFactors.ando4`](@ref), [`KernelFactors.ando5`](@ref).
+# Citation
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
+
+See also: [`Kernel.ando3`](@ref),[`KernelFactors.ando4`](@ref),
+[`KernelFactors.ando5`](@ref) and [`ImageFiltering.imgradients`](@ref).
 """
 function ando3()
     f1 = centered(2*SVector(0.112737, 0.274526, 0.112737))
@@ -187,23 +313,31 @@ function ando3()
 end
 
 """
+```julia
     kern = ando3(extended::NTuple{N,Bool}, d)
-
+```
 Return a factored Ando filter (size 3) for computing the gradient in
 `N` dimensions along axis `d`.  If `extended[dim]` is false, `kern`
 will have size 1 along that dimension.
+
+See also: [`KernelFactors.ando4`](@ref), [`KernelFactors.ando5`](@ref) and
+[`ImageFiltering.imgradients`](@ref).
 """
 function ando3(extended::NTuple{N,Bool}, d) where N
     gradfactors(extended, d, [-1.0, 0.0, 1.0]/2, 2*[0.112737, 0.274526, 0.112737])
 end
 
 """
-`kern1, kern2 = ando4()` returns separable approximations of the
-optimal 4x4 filters for dimensions 1 and 2 of your image, as defined
-in Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3,
-March 2000.
+```julia
+    kern1, kern2 = ando4()
+```
+Return separable approximations of Ando's "optimal" 4x4 filters for dimensions 1
+and 2 of your image.
 
-See also: [`Kernel.ando4`](@ref).
+# Citation
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
+
+See also: [`Kernel.ando4`](@ref) and [`ImageFiltering.imgradients`](@ref).
 """
 function ando4()
     f1 = centered(SVector( 0.0919833,  0.408017, 0.408017, 0.0919833))
@@ -212,11 +346,17 @@ function ando4()
 end
 
 """
+```julia
     kern = ando4(extended::NTuple{N,Bool}, d)
-
+```
 Return a factored Ando filter (size 4) for computing the gradient in
 `N` dimensions along axis `d`.  If `extended[dim]` is false, `kern`
 will have size 1 along that dimension.
+
+# Citation
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
+
+See also: [`Kernel.ando4`](@ref) and [`ImageFiltering.imgradients`](@ref).
 """
 function ando4(extended::NTuple{N,Bool}, d) where N
     if N == 2 && all(extended)
@@ -227,22 +367,27 @@ function ando4(extended::NTuple{N,Bool}, d) where N
 end
 
 """
-`kern1, kern2 = ando5_sep()` returns separable approximations of the
-optimal 5x5 gradient filters for dimensions 1 and 2 of your image, as defined
-in Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3,
-March 2000.
+```julia
+    kern1, kern2 = ando5()
+```
+Return a separable approximations of Ando's "optimal" 5x5 gradient filters for
+dimensions 1 and 2 of your image.
 
-See also: [`Kernel.ando5`](@ref).
+# Citation
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
+
+See also: [`Kernel.ando5`](@ref) and [`ImageFiltering.imgradients`](@ref).
 """
 function ando5()
     f1 = centered(SVector( 0.0357338, 0.248861, 0.43081, 0.248861, 0.0357338))
-    f2 = centered(0.784406*SVector(-0.137424, -0.362576, 0.0,     0.362576, 0.137424))
+    f2 = centered(0.784406*SVector(-0.137424, -0.362576, 0.0, 0.362576, 0.137424))
     return kernelfactors((f2, f1)), kernelfactors((f1, f2))
 end
 
 """
+```julia
     kern = ando5(extended::NTuple{N,Bool}, d)
-
+```
 Return a factored Ando filter (size 5) for computing the gradient in
 `N` dimensions along axis `d`.  If `extended[dim]` is false, `kern`
 will have size 1 along that dimension.

@@ -1,7 +1,32 @@
+"""
+`Kernel` is a module implementing filtering kernels of full
+dimensionality. The following kernels are supported:
+
+  - `sobel`
+  - `prewitt`
+  - `ando3`, `ando4`, and `ando5`
+  - `scharr`
+  - `bickley`
+  - `gaussian`
+  - `DoG` (Difference-of-Gaussian)
+  - `LoG` (Laplacian-of-Gaussian)
+  - `Laplacian`
+
+See also: [`KernelFactors`](@ref).
+"""
 module Kernel
 
 using StaticArrays, OffsetArrays
 using ..ImageFiltering: centered, KernelFactors
+
+# We would like to do `using ..ImageFiltering.imgradients` so that that
+# Documenter.jl (the documentation system) can parse a reference such as `See
+# also: [`ImageFiltering.imgradients`](@ref)`. However, imgradients is not yet
+# in scope because of the order in which include files are included into
+# ImageFiltering.jl. With the more general `using ImageFiltering`, we seem to
+# sidestep the scope problem, although I don't actually understand the mechanism
+# form why this works. - ZS
+using ImageFiltering
 import ..ImageFiltering: _reshape
 
 function product2d(kf)
@@ -10,63 +35,82 @@ function product2d(kf)
 end
 
 """
+```julia
     diff1, diff2 = sobel()
+```
 
-Return kernels for two-dimensional gradient compution using the Sobel
-operator. `diff1` computes the gradient along the first (y) dimension,
-and `diff2` computes the gradient along the second (x) dimension.
+Return ``3 \\times 3`` kernels for two-dimensional gradient compution using the
+Sobel operator. The `diff1` kernel computes the gradient along the y-axis (first
+dimension), and the `diff2` kernel computes the gradient along the x-axis
+(second dimension).
 
-See also: [`KernelFactors.sobel`](@ref), [`Kernel.prewitt`](@ref), [`Kernel.ando3`](@ref).
+# Citation
+P.-E. Danielsson and O. Seger, "Generalized and separable sobel operators," in  *Machine Vision for Three-Dimensional Scenes*,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. [doi:10.1016/b978-0-12-266722-0.50016-6](http://dx.doi.org/doi:10.1016/b978-0-12-266722-0.50016-6)
+
+See also: [`KernelFactors.sobel`](@ref), [`Kernel.prewitt`](@ref),
+[`Kernel.ando3`](@ref), [`Kernel.scharr`](@ref), [`Kernel.bickley`](@ref) and
+[`imgradients`](@ref).
 """
 sobel() = product2d(KernelFactors.sobel())
 
 sobel(extended, d) = (broadcast(*, KernelFactors.sobel(extended, d)...),)
 
 """
+```julia
     diff1, diff2 = prewitt()
+```
 
-Return kernels for two-dimensional gradient compution using the
-Prewitt operator.  `diff1` computes the gradient along the first (y)
-dimension, and `diff2` computes the gradient along the second (x)
-dimension.
+Return ``3 \\times 3`` kernels for two-dimensional gradient compution using the
+Prewitt operator.  The `diff1` kernel computes the gradient along the y-axis
+(first dimension), and the `diff2` kernel computes the gradient along the
+x-axis (second dimension).
 
-See also: [`KernelFactors.prewitt`](@ref), [`Kernel.sobel`](@ref), [`Kernel.ando3`](@ref).
+# Citation
+J. M. Prewitt, "Object enhancement and extraction," *Picture processing and Psychopictorics*, vol. 10, no. 1, pp. 15–19, 1970.
+
+See also: [`KernelFactors.prewitt`](@ref), [`Kernel.sobel`](@ref),
+[`Kernel.ando3`](@ref), [`Kernel.scharr`](@ref),[`Kernel.bickley`](@ref) and
+[`ImageFiltering.imgradients`](@ref).
 """
 prewitt() = product2d(KernelFactors.prewitt())
 
 prewitt(extended, d) = (broadcast(*, KernelFactors.prewitt(extended, d)...),)
 
 """
+```julia
     diff1, diff2 = ando3()
+```
 
-Return 3x3 kernels for two-dimensional gradient compution using the
-optimal "Ando" filters.  `diff1` computes the gradient along the
-y-axis (first dimension), and `diff2` computes the gradient along the
-x-axis (second dimension).
+Return ``3 \\times 3`` for two-dimensional gradient compution using  Ando's
+"optimal" filters. The `diff1` kernel computes the gradient along the y-axis
+(first dimension), and the `diff2` kernel computes the gradient along the x-axis
+(second dimension).
 
 # Citation
-Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
-2000
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
 
-See also: [`KernelFactors.ando3`](@ref), [`Kernel.ando4`](@ref), [`Kernel.ando5`](@ref).
+See also: [`KernelFactors.ando3`](@ref), [`Kernel.ando4`](@ref),
+[`Kernel.ando5`](@ref) and  [`ImageFiltering.imgradients`](@ref).
 """
 ando3() = product2d(KernelFactors.ando3())
 
 ando3(extended, d) = (broadcast(*, KernelFactors.ando3(extended, d)...),)
 
 """
+```julia
     diff1, diff2 = ando4()
+```
 
-Return 4x4 kernels for two-dimensional gradient compution using the
-optimal "Ando" filters.  `diff1` computes the gradient along the
-y-axis (first dimension), and `diff2` computes the gradient along the
-x-axis (second dimension).
+Return ``4 \\times 4`` kernels for two-dimensional gradient compution using
+Ando's "optimal" filters.  The `diff1` kernel computes the gradient along the
+y-axis (first dimension), and  the `diff2` kernel computes the gradient along
+the x-axis (second dimension).
 
 # Citation
-Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
-2000
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
 
-See also: [`KernelFactors.ando4`](@ref), [`Kernel.ando3`](@ref), [`Kernel.ando5`](@ref).
+See also: [`KernelFactors.ando4`](@ref), [`Kernel.ando3`](@ref),
+[`Kernel.ando5`](@ref) and [`ImageFiltering.imgradients`](@ref).
 """
 function ando4()
     f = centered(@SMatrix [ -0.022116 -0.025526  0.025526  0.022116
@@ -82,18 +126,20 @@ function ando4(extended::Tuple{Bool,Bool}, d)
 end
 
 """
+```julia
     diff1, diff2 = ando5()
+```
 
-Return 5x5 kernels for two-dimensional gradient compution using the
-optimal "Ando" filters.  `diff1` computes the gradient along the
-y-axis (first dimension), and `diff2` computes the gradient along the
+Return ``5 \\times 5`` kernels for two-dimensional gradient compution using
+Ando's "optimal" filters. The `diff1` kernel computes the gradient along the
+y-axis (first dimension), and the `diff2` kernel computes the gradient along the
 x-axis (second dimension).
 
 # Citation
-Ando Shigeru, IEEE Trans. Pat. Anal. Mach. Int., vol. 22 no 3, March
-2000
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
 
-See also: [`KernelFactors.ando5`](@ref), [`Kernel.ando3`](@ref), [`Kernel.ando4`](@ref).
+See also: [`KernelFactors.ando5`](@ref), [`Kernel.ando3`](@ref),
+[`Kernel.ando4`](@ref) and  [`ImageFiltering.imgradients`](@ref).
 """
 function ando5()
     f = centered(@SMatrix [ -0.003776 -0.010199  0.0  0.010199  0.003776
@@ -108,6 +154,48 @@ function ando5(extended::Tuple{Bool,Bool}, d)
     all(extended) || error("all dimensions must be extended")
     (ando5()[d],)
 end
+
+"""
+```julia
+    diff1, diff2 = scharr()
+```
+
+Return ``3 \\times 3`` kernels for two-dimensional gradient compution using the Scharr
+operator. The `diff1` kernel computes the gradient along the y-axis (first dimension),
+and the `diff2` kernel  computes the gradient along the x-axis (second dimension).
+
+# Citation
+H. Scharr and  J. Weickert, "An anisotropic diffusion algorithm with optimized rotation invariance," *Mustererkennung 2000*, pp. 460–467, 2000. [doi:10.1007/978-3-642-59802-9_58](http://dx.doi.org/doi:10.1007/978-3-642-59802-9_58)
+
+See also: [`KernelFactors.scharr`](@ref), [`Kernel.prewitt`](@ref),
+[`Kernel.ando3`](@ref), [`Kernel.bickley`](@ref) and
+[`ImageFiltering.imgradients`](@ref).
+"""
+scharr() = product2d(KernelFactors.scharr())
+
+scharr(extended, d) = (broadcast(*, KernelFactors.scharr(extended, d)...),)
+
+"""
+```julia
+    diff1, diff2 = bickley()
+```
+
+Return ``3 \\times 3`` kernels for two-dimensional gradient compution using the
+Bickley operator. The `diff1` kernel computes the gradient along the y-axis
+(first dimension), and the `diff2` kernel computes the gradient along the x-axis
+(second dimension).
+
+# Citation
+W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](http://dx.doi.org/doi:10.1137/12087092x)
+
+
+See also: [`KernelFactors.bickley`](@ref), [`Kernel.prewitt`](@ref),
+[`Kernel.ando3`](@ref),  [`Kernel.scharr`](@ref) and
+[`ImageFiltering.imgradients`](@ref).
+"""
+bickley() = product2d(KernelFactors.bickley())
+
+bickley(extended, d) = (broadcast(*, KernelFactors.bickley(extended, d)...),)
 
 """
     gaussian((σ1, σ2, ...), [(l1, l2, ...]) -> g

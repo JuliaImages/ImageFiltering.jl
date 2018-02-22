@@ -53,7 +53,7 @@ ArrayLike{T} = Union{ArrayType{T}, AnyIIR{T}}
 
 include("kernel.jl")
 using .Kernel
-using .Kernel: Laplacian, reflect
+using .Kernel: Laplacian, reflect, ando3, ando4, ando5, scharr, bickley, prewitt, sobel
 
 NDimKernel{N,K} = Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N}}
 
@@ -79,36 +79,5 @@ function __init__()
     # end
     pop!(LOAD_PATH)
 end
-
-"""
-`KernelFactors` is a module implementing separable filtering kernels,
-each stored in terms of their factors. The following kernels are
-supported:
-
-  - `sobel`
-  - `prewitt`
-  - `ando3`, `ando4`, and `ando5` (the latter in 2d only)
-  - `gaussian`
-  - `IIRGaussian` (approximate gaussian filtering, fast even for large σ)
-
-See also: [`Kernel`](@ref).
-"""
-KernelFactors
-
-"""
-`Kernel` is a module implementing filtering kernels of full
-dimensionality. The following kernels are supported:
-
-  - `sobel`
-  - `prewitt`
-  - `ando3`, `ando4`, and `ando5`
-  - `gaussian`
-  - `DoG` (Difference-of-Gaussian)
-  - `LoG` (Laplacian-of-Gaussian)
-  - `Laplacian`
-
-See also: [`KernelFactors`](@ref).
-"""
-Kernel
 
 end # module
