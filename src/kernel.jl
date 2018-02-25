@@ -11,6 +11,7 @@ dimensionality. The following kernels are supported:
   - `DoG` (Difference-of-Gaussian)
   - `LoG` (Laplacian-of-Gaussian)
   - `Laplacian`
+  - `gabor`
 
 See also: [`KernelFactors`](@ref).
 """
@@ -295,7 +296,7 @@ end
 """
     Laplacian((true,true,false,...))
     Laplacian(dims, N)
-    Lacplacian()
+    Laplacian()
 
 Laplacian kernel in `N` dimensions, taking derivatives along the
 directions marked as `true` in the supplied tuple. Alternatively, one
@@ -327,6 +328,54 @@ function Base.convert(::Type{AbstractArray}, L::Laplacian{N}) where N
     A
 end
 _reshape(L::Laplacian{N}, ::Type{Val{N}}) where {N} = L
+
+
+"""
+    gabor(k_size,σ,θ,λ,γ,ψ) -> k
+
+Constructs a 2 Dimensional Gabor kernel where 
+    k_size is the size of the kernel;
+    σ is the standard deviation of the Gaussian envelope;
+    θ represents the orientation of the normal to the parallel stripes of a Gabor function;
+    λ represents the wavelength of the sinusoidal factor;
+    γ is the spatial aspect ratio, and specifies the ellipticity of the support of the Gabor function;
+    ψ is the phase offset.
+"""
+function gabor(k_size::Integer, σ::Real, θ::Real, λ::Real, γ::Real, ψ::Real)
+
+    σx = σ
+    σy = σ/γ
+    nstds = 3
+    c = cos(θ)
+    s = sin(θ)
+
+    if(k_size > 0)
+        xmax = floor(Int64,k_size/2)
+        ymax = floor(Int64,k_size/2)
+    else
+        xmax = round(Int64,max(abs(nstds*σx*c),abs(nstds*σy*s)))
+        ymax = round(Int64,max(abs(nstds*σx*s),abs(nstds*σy*c)))
+    end
+    xmin = -xmax
+    ymin = -ymax
+        
+    kernel = Array{Float64}(ymax - ymin + 1, xmax - xmin + 1)
+    scale = Float64(1)
+    ex = -0.5/(σx*σx)
+    ey = -0.5/(σy*σy)
+    cscale = 2*π/λ
+    
+    for y = ymin:ymax
+        for x = xmin:xmax
+            xr = x*c + y*s
+            yr = -x*s + y*c
+            v = scale*exp(ex*xr*xr + ey*yr*yr)*cos(cscale*xr + ψ)
+            kernel[ymax-y+1,xmax-x+1] = v
+        end
+    end
+
+    return kernel
+end
 
 """
     reflect(kernel) --> reflectedkernel
