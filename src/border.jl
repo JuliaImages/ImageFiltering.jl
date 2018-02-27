@@ -16,11 +16,12 @@ NoPad() = NoPad(nothing)
 Indicates that no padding should be applied to the input array, or that you have already pre-padded the input image. Passing a `border` object allows you to preserve "memory" of a border choice; it can be retrieved by indexing with `[]`.
 
 # Example
+The commands
 
     np = NoPad(Pad(:replicate))
     imfilter!(out, img, kernel, np)
 
-runs filtering directly, skipping any padding steps.  Every entry of
+run filtering directly, skipping any padding steps.  Every entry of
 `out` must be computable using in-bounds operations on `img` and
 `kernel`.
 """
@@ -29,29 +30,104 @@ NoPad
 Base.getindex(np::NoPad) = np.border
 
 """
-`Pad` is a type that stores choices about padding. Instances must set `style`, a
-Symbol specifying the boundary conditions of the image, one of:
+```julia
+    struct Pad{N} <: AbstractBorder
+        style::Symbol
+        lo::Dims{N}    # number to extend by on the lower edge for each dimension
+        hi::Dims{N}    # number to extend by on the upper edge for each dimension
+    end
+```
 
-- `:replicate` (repeat edge values to infinity)
-- `:circular` (image edges "wrap around")
-- `:symmetric` (the image reflects relative to a position between pixels)
-- `:reflect` (the image reflects relative to the edge itself)
+`Pad` is a type that designates the form of padding which should be used to
+extrapolate pixels beyond the boundary of an image. Instances must set `style`,
+a Symbol specifying the boundary conditions of the image.
 
-The default value is `:replicate`.
+# Output
 
-It's worth emphasizing that padding is most straightforwardly specified as a string,
+The type `Pad` specifying how the boundary of an image should be padded.
 
-    imfilter(img, kernel, "replicate")
+# Details
+When representing a spatial two-dimensional image filtering operation as a
+discrete convolution between the image and a ``D \\times D `` filter, the
+results are undefined for pixels closer than ``D`` pixels from the border of the
+image. To define the operation near and at the border, one needs a scheme for
+extrapolating pixels beyond the edge. The `Pad` type allows one to specify the
+necessary extrapolation scheme.
 
-rather than
+The type facilitates the padding of one, two or multi-dimensional images.
 
-    imfilter(img, kernel, Pad(:replicate))
+You can specify a different amount of padding at the lower and upper borders of
+each dimension of the image (top, left, bottom and right in two dimensions).
+
+## Options
+Some valid `style` options are described below. As an indicative example of each
+option the results of the padding are illustrated on an image consisting of a
+row of six pixels which are specified alphabetically: ``\\boxed{a \\, b \\, c
+\\,d \\, e \\, f}``. We show the effects of padding only on the left and right
+border, but analogous consequences hold for the top and bottom border.
+
+
+### `:replicate` (Default)
+
+The border pixels extend beyond the image boundaries.
+```math
+\\boxed{
+\\begin{array}{l|c|r}
+  a\\, a\\, a\\, a  &  a \\, b \\, c \\, d \\, e \\, f & f \\, f \\, f \\, f
+\\end{array}
+}
+```
+See also: [`Fill`](@ref), [`padarray`](@ref), [`Inner`](@ref) and
+[`NoPad`](@ref)
+
+### `:circular`
+
+The border pixels wrap around. For instance, indexing beyond the left border
+returns values starting from the right border.
+```math
+\\boxed{
+\\begin{array}{l|c|r}
+  c\\, d\\, e\\, f  &  a \\, b \\, c \\, d \\, e \\, f & a \\, b \\, c \\, d
+\\end{array}
+}
+```
+See also: [`Fill`](@ref), [`padarray`](@ref), [`Inner`](@ref) and
+[`NoPad`](@ref)
+
+### `:symmetric`
+The border pixels reflect relative to a position between pixels. That is, the
+border pixel is omitted when mirroring.
+```math
+\\boxed{
+\\begin{array}{l|c|r}
+  e\\, d\\, c\\, b  &  a \\, b \\, c \\, d \\, e \\, f & e \\, d \\, c \\, b
+\\end{array}
+}
+```
+See also: [`Fill`](@ref),[`padarray`](@ref), [`Inner`](@ref) and
+[`NoPad`](@ref)
+
+### `:reflect`
+The border pixels reflect relative to the edge itself.
+```math
+\\boxed{
+\\begin{array}{l|c|r}
+  d\\, c\\, b\\, a  &  a \\, b \\, c \\, d \\, e \\, f & f \\, e \\, d \\, c
+\\end{array}
+}
+```
+See also: [`Fill`](@ref),[`padarray`](@ref), [`Inner`](@ref) and
+[`NoPad`](@ref)
+
+---
+
 """
 struct Pad{N} <: AbstractBorder
     style::Symbol
     lo::Dims{N}    # number to extend by on the lower edge for each dimension
     hi::Dims{N}    # number to extend by on the upper edge for each dimension
 end
+
 
 Pad{N}(style, lo::AbstractVector, hi::AbstractVector) where {N} =
     Pad{N}(style, (lo...), (hi...))
@@ -70,25 +146,57 @@ end
 borderinstance(b::AbstractBorder) = b
 
 """
+```julia
     Pad(style::Symbol, m, n, ...)
+    Pad(style::Symbol, (m,n))
+```
 
-Pad the input image symmetrically, `m` pixels at the lower and upper edge of dimension 1, `n` pixels for dimension 2, and so forth.
+Construct an instance of [`Pad`](@ref) such that the image is prepended and appended symmetrically with `m` pixels at the lower and upper edge of dimension 1, `n` pixels for dimension 2, and so forth.
+
+#### Usage illustration
+Use `Pad(:replicate,2,4)` to designate that the top and bottom border should be
+replicated by two pixels, and the left and right border by four pixels.
+
+Use `Pad(:circular,(0,3))` to designate that the top and bottom border should
+not be padded, and that the left and right border should wrap around by three
+pixels.
+
+---
+
 """
 Pad(style::Symbol, both::Int...) = Pad(style, both, both)
 Pad(both::Int...) = Pad(:replicate, both, both)
-
-"""
-    Pad(style::Symbol, (m,n))
-
-Pad the input image symmetrically, `m` pixels at the lower and upper edge of dimension 1, `n` pixels for dimension 2.
-"""
 Pad(style::Symbol, both::Dims) = Pad(style, both, both)
+
+"""
+```julia
+    Pad(both::Dims)
+```
+Construct an instance of [`Pad`](@ref) with default `:replicate` extrapolation, where the tuple `both` specifies the number of pixels which will be prepended and appended for each dimension.
+
+#### Usage illustration
+Use `Pad((5,5))` to designate that the top, bottom, left and right border should
+be replicated by five pixels.
+
+---
+
+"""
 Pad(both::Dims) = Pad(:replicate, both, both)
 
 """
+```julia
     Pad(style::Symbol, lo::Dims, hi::Dims)
+```
+Construct an instance of [`Pad`](@ref) such that the image is prepended by `lo` pixels  and appended by `hi` pixels  in each dimension.
 
-Pad the input image by `lo` pixels at the lower edge, and `hi` pixels at the upper edge.
+#### Usage illustration
+
+Use `Pad(:replicate,(1,2),(3,4))` to designate that the top and bottom border
+should be replicated by one and two pixels, and that the left and right border
+should be replicated by three and four pixels.
+
+---
+
 """
 Pad(lo::Dims, hi::Dims) = Pad(:replicate, lo, hi)
 Pad(style::Symbol, lo::Tuple{}, hi::Tuple{}) = Pad{0}(style, lo, hi)
@@ -99,10 +207,20 @@ Pad(style::Symbol, lo::AbstractVector{Int}, hi::AbstractVector{Int}) = Pad(style
 Pad(style::Symbol, inds::Indices) = Pad(style, map(lo,inds), map(hi,inds))
 
 """
+```julia
     Pad(style, kernel)
     Pad(style)(kernel)
+```
+Construct an instance of [`Pad`](@ref) by designating the value `val` and a filter array `kernel` which will be used to determine the amount of padding from the `indices` of `kernel`.
 
-Given a filter array `kernel`, determine the amount of padding from the `indices` of `kernel`.
+#### Usage illustration
+
+Use `Pad(:circular,Kernel.sobel())` to specify a `:circular` border style and
+the minimal amount of padding necessary to ensure that convolution with
+[`Kernel.sobel`](@ref) will be defined at the borders of an image.
+
+---
+
 """
 (p::Pad{0})(kernel) = Pad(p.style, calculate_padding(kernel))
 (p::Pad{0})(kernel, img, ::Alg) = p(kernel)
@@ -135,13 +253,404 @@ end
 _padindices(border, ::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
 
 """
+```julia
     padarray([T], img, border) --> imgpadded
-
+```
 Generate a padded image from an array `img` and a specification
 `border` of the boundary conditions and amount of padding to
-add. `border` can be a `Pad`, `Fill`, or `Inner` object.
+add.
 
-Optionally provide the element type `T` of `imgpadded`.
+# Output
+
+An expansion of the input image in which additional pixels are derived
+from the border of the input image using the extrapolation scheme specified by
+`border`.
+
+# Details
+
+The function supports one, two or multi-dimensional images. You can specify the
+element type `T` of the output image.
+
+## Options
+Valid `border` options are described below.
+
+### `Pad`
+The type `Pad` designates the form of padding which should be used to
+extrapolate pixels beyond the boundary of an image. Instances must set `style`,
+a Symbol specifying the boundary conditions of the image.
+
+Symbol must be on one of:
+- `:replicate` (repeat edge values to infinity),
+- `:circular` (image edges "wrap around"),
+- `:symmetric` (the image reflects relative to a position between pixels),
+- `:reflect` (the image reflects relative to the edge itself).
+
+Refer to the documentation of [`Pad`](@ref) for more details and examples for
+each option.
+
+### `Fill`
+The type `Fill` designates a particular value which will be used to
+extrapolate pixels beyond the boundary of an image. Refer to the documentation
+of [`Fill`](@ref) for more details and illustrations.
+
+# 2D Examples
+Each example is based on the input array
+```math
+\\mathbf{A} =
+\\boxed{
+\\begin{matrix}
+ 1  & 2  &  3  &  4 & 5  & 6 \\\\
+ 2  & 4  &  6  &  8 & 10 & 12 \\\\
+ 3  & 6  &  9  & 12 & 15 & 18 \\\\
+ 4  & 8  & 12  & 16 & 20 & 24 \\\\
+ 5  & 10 & 15  & 20 & 25 & 30 \\\\
+ 6  & 12 & 18  & 24 & 30 & 36
+ \\end{matrix}}.
+```
+## Examples with `Pad`
+The command `padarray(A, Pad(:replicate,4,4))` yields
+```math
+\\boxed{
+\\begin{array}{ccccccccccccc}
+1 & 1 & 1 & 1 &         1   &          2   &          3   &          4   &          5   &          6   &  6  &  6  &  6  &  6 \\\\
+1 & 1 & 1 & 1 &         1   &          2   &          3   &          4   &          5   &          6   &  6  &  6  &  6  &  6 \\\\
+1 & 1 & 1 & 1 &         1   &          2   &          3   &          4   &          5   &          6   &  6  &  6  &  6  &  6 \\\\
+1 & 1 & 1 & 1 &         1   &          2   &          3   &          4   &          5   &          6   &  6  &  6  &  6  &  6 \\\\
+1 & 1 & 1 & 1 &  \\boxed{1}  &   \\boxed{2}  &   \\boxed{3}  &   \\boxed{4}  &   \\boxed{5}  &   \\boxed{6}  &  6  &  6  &  6  &  6 \\\\
+2 & 2 & 2 & 2 &  \\boxed{2}  &   \\boxed{4}  &   \\boxed{6}  &   \\boxed{8}  &  \\boxed{10}  &  \\boxed{12}  & 12  & 12  & 12  & 12 \\\\
+3 & 3 & 3 & 3 &  \\boxed{3}  &   \\boxed{6}  &   \\boxed{9}  &  \\boxed{12}  &  \\boxed{15}  &  \\boxed{18}  & 18  & 18  & 18  & 18 \\\\
+4 & 4 & 4 & 4 &  \\boxed{4}  &   \\boxed{8}  &  \\boxed{12}  &  \\boxed{16}  &  \\boxed{20}  &  \\boxed{24}  & 24  & 24  & 24  & 24 \\\\
+5 & 5 & 5 & 5 &  \\boxed{5}  &  \\boxed{10}  &  \\boxed{15}  &  \\boxed{20}  &  \\boxed{25}  &  \\boxed{30}  & 30  & 30  & 30  & 30 \\\\
+6 & 6 & 6 & 6 &  \\boxed{6}  &  \\boxed{12}  &  \\boxed{18}  &  \\boxed{24}  &  \\boxed{30}  &  \\boxed{36}  & 36  & 36  & 36  & 36 \\\\
+6 & 6 & 6 & 6 &         6   &         12   &         18   &         24   &         30   &         36   & 36  & 36  & 36  & 36 \\\\
+6 & 6 & 6 & 6 &         6   &         12   &         18   &         24   &         30   &         36   & 36  & 36  & 36  & 36 \\\\
+6 & 6 & 6 & 6 &         6   &         12   &         18   &         24   &         30   &         36   & 36  & 36  & 36  & 36 \\\\
+6 & 6 & 6 & 6 &         6   &         12   &         18   &         24   &         30   &         36   & 36  & 36  & 36  & 36
+ \\end{array}
+}.
+```
+
+The command `padarray(A, Pad(:circular,4,4))` yields
+```math
+\\boxed{
+\\begin{array}{ccccccccccccc}
+9  & 12 & 15 & 18 &         3  &         6   &         9   &         12  &          15  &         18  & 3 &  6 &  9 & 12 \\\\
+12 & 16 & 20 & 24 &         4  &         8   &        12   &         16  &          20  &         24  & 4 &  8 & 12 & 16 \\\\
+15 & 20 & 25 & 30 &         5  &        10   &        15   &         20  &          25  &         30  & 5 & 10 & 15 & 20 \\\\
+18 & 24 & 30 & 36 &         6  &        12   &        18   &         24  &          30  &         36  & 6 & 12 & 18 & 24 \\\\
+3  &  4 &  5 &  6 &  \\boxed{1} &  \\boxed{2}  &  \\boxed{3}  &  \\boxed{4}  &  \\boxed{5}   &  \\boxed{6}  & 1 &  2 &  3 &  4 \\\\
+6  &  8 & 10 & 12 &  \\boxed{2} &  \\boxed{4}  &  \\boxed{6}  &  \\boxed{8}  &  \\boxed{10}  &  \\boxed{12} & 2 &  4 &  6 &  8 \\\\
+9  & 12 & 15 & 18 &  \\boxed{3} &  \\boxed{6}  &  \\boxed{9}  &  \\boxed{12} &  \\boxed{15}  &  \\boxed{18} & 3 &  6 &  9 & 12 \\\\
+12 & 16 & 20 & 24 &  \\boxed{4} &  \\boxed{8}  &  \\boxed{12} &  \\boxed{16} &  \\boxed{20}  &  \\boxed{24} & 4 &  8 & 12 & 16 \\\\
+15 & 20 & 25 & 30 &  \\boxed{5} &  \\boxed{10} &  \\boxed{15} &  \\boxed{20} &  \\boxed{25}  &  \\boxed{30} & 5 & 10 & 15 & 20 \\\\
+18 & 24 & 30 & 36 &  \\boxed{6} &  \\boxed{12} &  \\boxed{18} &  \\boxed{24} &  \\boxed{30}  &  \\boxed{36} & 6 & 12 & 18 & 24 \\\\
+3  &  4 &  5 &  6 &         1  &          2  &          3  &          4  &           5  &          6  & 1 &  2 &  3 &  4 \\\\
+6  &  8 & 10 & 12 &         2  &          4  &          6  &          8  &          10  &         12  & 2 &  4 &  6 &  8 \\\\
+9  & 12 & 15 & 18 &         3  &          6  &          9  &         12  &          15  &         18  & 3 &  6 &  9 & 12 \\\\
+12 & 16 & 20 & 24 &         4  &          8  &         12  &         16  &          20  &         24  & 4 &  8 & 12 & 16
+\\end{array}
+}.
+```
+The command `padarray(A, Pad(:symmetric,4,4))` yields
+```math
+\\boxed{
+\\begin{array}{ccccccccccccc}
+16 & 12 &  8 & 4 &         4  &          8  &         12  &          16 &          20 &         24  & 24 & 20 & 16 & 12 \\\\
+12 &  9 &  6 & 3 &         3  &          6  &         9   &          12 &          15 &         18  & 18 & 15 & 12 &  9 \\\\
+ 8 &  6 &  4 & 2 &         2  &          4  &         6   &          8  &          10 &         12  & 12 & 10 &  8 &  6 \\\\
+ 4 &  3 &  2 & 1 &         1  &          2  &         3   &          4  &          5  &         6   &  6 &  5 &  4 &  3 \\\\
+ 4 &  3 &  2 & 1 &  \\boxed{1} &   \\boxed{2} &  \\boxed{3}  &   \\boxed{4} &  \\boxed{5}  &  \\boxed{6}  &  6 &  5 &  4 &  3 \\\\
+ 8 &  6 &  4 & 2 &  \\boxed{2} &   \\boxed{4} &  \\boxed{6}  &   \\boxed{8} &  \\boxed{10} &  \\boxed{12} & 12 & 10 &  8 &  6 \\\\
+12 &  9 &  6 & 3 &  \\boxed{3} &   \\boxed{6} &  \\boxed{9}  &  \\boxed{12} &  \\boxed{15} &  \\boxed{18} & 18 & 15 & 12 &  9 \\\\
+16 & 12 &  8 & 4 &  \\boxed{4} &   \\boxed{8} &  \\boxed{12} &  \\boxed{16} &  \\boxed{20} &  \\boxed{24} & 24 & 20 & 16 & 12 \\\\
+20 & 15 & 10 & 5 &  \\boxed{5} &  \\boxed{10} &  \\boxed{15} &  \\boxed{20} &  \\boxed{25} &  \\boxed{30} & 30 & 25 & 20 & 15 \\\\
+24 & 18 & 12 & 6 &  \\boxed{6} &  \\boxed{12} &  \\boxed{18} &  \\boxed{24} &  \\boxed{30} &  \\boxed{36} & 36 & 30 & 24 & 18 \\\\
+24 & 18 & 12 & 6 &         6  &         12  &         18  &         24  &         30  &         36  & 36 & 30 & 24 & 18 \\\\
+20 & 15 & 10 & 5 &         5  &         10  &         15  &         20  &         25  &         30  & 30 & 25 & 20 & 15 \\\\
+16 & 12 &  8 & 4 &         4  &          8  &         12  &         16  &         20  &         24  & 24 & 20 & 16 & 12 \\\\
+12 &  9 &  6 & 3 &         3  &          6  &          9  &         12  &         15  &         18  & 18 & 15 & 12 &  9
+\\end{array}
+}.
+```
+
+The command `padarray(A, Pad(:reflect,4,4))` yields
+```math
+\\boxed{
+\\begin{array}{ccccccccccccc}
+25 & 20 & 15 & 10 &         5  &         10  &         15   &         20  &          25  &         30  & 25 & 20 & 15 & 10 \\\\
+20 & 16 & 12 &  8 &         4  &         8   &         12   &         16  &          20  &         24  & 20 & 16 & 12 &  8 \\\\
+15 & 12 &  9 &  6 &         3  &         6   &          9   &         12  &          15  &         18  & 15 & 12 &  9 &  6 \\\\
+10 &  8 &  6 &  4 &         2  &         4   &          6   &         8   &          10  &         12  & 10 &  8 &  6 &  4 \\\\
+5  &  4 &  3 &  2 &  \\boxed{1} &  \\boxed{2}  &   \\boxed{3}  &  \\boxed{4}  &   \\boxed{5}  &  \\boxed{6}  &  5 &  4 &  3 &  2 \\\\
+10 &  8 &  6 &  4 &  \\boxed{2} &  \\boxed{4}  &   \\boxed{6}  &  \\boxed{8}  &   \\boxed{10} &  \\boxed{12} & 10 &  8 &  6 &  4 \\\\
+15 & 12 &  9 &  6 &  \\boxed{3} &  \\boxed{6}  &   \\boxed{9}  &  \\boxed{12} &   \\boxed{15} &  \\boxed{18} & 15 & 12 &  9 &  6 \\\\
+20 & 16 & 12 &  8 &  \\boxed{4} &  \\boxed{8}  &   \\boxed{12} &  \\boxed{16} &   \\boxed{20} &  \\boxed{24} & 20 & 16 & 12 &  8 \\\\
+25 & 20 & 15 & 10 &  \\boxed{5} &  \\boxed{10} &   \\boxed{15} &  \\boxed{20} &   \\boxed{25} &  \\boxed{30} & 25 & 20 & 15 & 10 \\\\
+30 & 24 & 18 & 12 &  \\boxed{6} &  \\boxed{12} &   \\boxed{18} &  \\boxed{24} &   \\boxed{30} &  \\boxed{36} & 30 & 24 & 18 & 12 \\\\
+25 & 20 & 15 & 10 &         5  &         10  &          15  &         20  &          25  &         30  & 25 & 20 & 15 & 10 \\\\
+20 & 16 & 12 &  8 &         4  &         8   &          12  &         16  &          20  &         24  & 20 & 16 & 12 &  8 \\\\
+15 & 12 &  9 &  6 &         3  &         6   &           9  &         12  &          15  &         18  & 15 & 12 &  9 &  6 \\\\
+10 &  8 &  6 &  4 &         2  &         4   &           6  &          8  &          10  &         12  & 10 &  8 &  6 &  4
+\\end{array}
+}.
+```
+## Examples with `Fill`
+
+The command `padarray(A, Fill(0,(4,4),(4,4)))` yields
+```math
+\\boxed{
+\\begin{array}{ccccccccccccc}
+0 & 0 & 0 & 0 &         0  &         0   &         0   &         0   &         0   &          0   & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &         0  &         0   &         0   &         0   &         0   &          0   & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &         0  &         0   &         0   &         0   &         0   &          0   & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &         0  &         0   &         0   &         0   &         0   &          0   & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &  \\boxed{1} &  \\boxed{2}  &  \\boxed{3}  &  \\boxed{4}  &  \\boxed{5}  &   \\boxed{6}  & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &  \\boxed{2} &  \\boxed{4}  &  \\boxed{6}  &  \\boxed{8}  &  \\boxed{10} &   \\boxed{12} & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &  \\boxed{3} &  \\boxed{6}  &  \\boxed{9}  &  \\boxed{12} &  \\boxed{15} &   \\boxed{18} & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &  \\boxed{4} &  \\boxed{8}  &  \\boxed{12} &  \\boxed{16} &  \\boxed{20} &   \\boxed{24} & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &  \\boxed{5} &  \\boxed{10} &  \\boxed{15} &  \\boxed{20} &  \\boxed{25} &   \\boxed{30} & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &  \\boxed{6} &  \\boxed{12} &  \\boxed{18} &  \\boxed{24} &  \\boxed{30} &   \\boxed{36} & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &         0  &         0   &         0   &         0   &         0   &          0   & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &         0  &         0   &         0   &         0   &         0   &          0   & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &         0  &         0   &         0   &         0   &         0   &          0   & 0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 &         0  &         0   &         0   &         0   &         0   &          0   & 0 & 0 & 0 & 0
+\\end{array}
+}.
+```
+# 3D Examples
+Each example is based on a multi-dimensional array ``\\mathsf{A} \\in\\mathbb{R}^{2 \\times 2 \\times 2}`` given by
+
+```math
+\\mathsf{A}(:,:,1) =
+\\boxed{
+\\begin{array}{cc}
+1 & 2 \\\\
+3 & 4
+\\end{array}}
+\\quad
+\\text{and}
+\\quad
+\\mathsf{A}(:,:,2) =
+\\boxed{
+\\begin{array}{cc}
+5 & 6 \\\\
+7 & 8
+\\end{array}}.
+```
+Note that each example will yield a new multi-dimensional array ``\\mathsf{A}'
+\\in \\mathbb{R}^{4 \\times 4 \\times 4}`` of type `OffsetArray`, where prepended
+dimensions may be negative or start from zero.
+
+## Examples with `Pad`
+
+The command `padarray(A,Pad(:replicate,1,1,1))` yields
+```math
+\\begin{aligned}
+\\mathsf{A}'(:,:,0) & =
+\\boxed{
+\\begin{array}{cccc}
+1 & 1 & 2 & 2 \\\\
+1 & 1 & 2 & 2 \\\\
+3 & 3 & 4 & 4 \\\\
+3 & 3 & 4 & 4
+\\end{array}}
+&
+\\mathsf{A}'(:,:,1) & =
+\\boxed{
+\\begin{array}{cccc}
+1 &         1  &         2  & 2 \\\\
+1 &  \\boxed{1} &  \\boxed{2} & 2 \\\\
+3 &  \\boxed{3} &  \\boxed{4} & 4 \\\\
+3 &         3  &         4  & 4
+\\end{array}} \\\\
+\\mathsf{A}'(:,:,2) & =
+\\boxed{
+\\begin{array}{cccc}
+5 &         5  &         6  & 6 \\\\
+5 &  \\boxed{5} &  \\boxed{6} & 6 \\\\
+7 &  \\boxed{7} &  \\boxed{8} & 8 \\\\
+7 &         7  &         8  & 8
+\\end{array}}
+&
+\\mathsf{A}'(:,:,3) & =
+\\boxed{
+\\begin{array}{cccc}
+5 & 5 & 6 & 6 \\\\
+5 & 5 & 6 & 6 \\\\
+7 & 7 & 8 & 8 \\\\
+7 & 7 & 8 & 8
+\\end{array}}
+\\end{aligned}
+.
+```
+
+The command `padarray(A,Pad(:circular,1,1,1))` yields
+```math
+\\begin{aligned}
+\\mathsf{A}'(:,:,0) & =
+\\boxed{
+\\begin{array}{cccc}
+8 & 7 & 8 & 7 \\\\
+6 & 5 & 6 & 5 \\\\
+8 & 7 & 8 & 7 \\\\
+6 & 5 & 6 & 5
+\\end{array}}
+&
+\\mathsf{A}'(:,:,1) & =
+\\boxed{
+\\begin{array}{cccc}
+4 &         3  &         4  & 3 \\\\
+2 &  \\boxed{1} &  \\boxed{2} & 1 \\\\
+4 &  \\boxed{3} &  \\boxed{4} & 3 \\\\
+2 &         1  &         2  & 1
+\\end{array}} \\\\
+\\mathsf{A}'(:,:,2) & =
+\\boxed{
+\\begin{array}{cccc}
+8 &         7  &         8  & 7 \\\\
+6 &  \\boxed{5} &  \\boxed{6} & 5 \\\\
+8 &  \\boxed{7} &  \\boxed{8} & 7 \\\\
+6 &         5  &         6  & 5
+\\end{array}}
+&
+\\mathsf{A}'(:,:,3) & =
+\\boxed{
+\\begin{array}{cccc}
+4 & 3 & 4 & 3 \\\\
+2 & 1 & 2 & 1 \\\\
+4 & 3 & 4 & 3 \\\\
+2 & 1 & 2 & 1
+\\end{array}}
+\\end{aligned}
+.
+```
+
+The command `padarray(A,Pad(:symmetric,1,1,1))` yields
+```math
+\\begin{aligned}
+\\mathsf{A}'(:,:,0) & =
+\\boxed{
+\\begin{array}{cccc}
+1 & 1 & 2 & 2 \\\\
+1 & 1 & 2 & 2 \\\\
+3 & 3 & 4 & 4 \\\\
+3 & 3 & 4 & 4
+\\end{array}}
+&
+\\mathsf{A}'(:,:,1) & =
+\\boxed{
+\\begin{array}{cccc}
+1 &         1  &         2  & 2 \\\\
+1 &  \\boxed{1} &  \\boxed{2} & 2 \\\\
+2 &  \\boxed{3} &  \\boxed{4} & 4 \\\\
+2 &         3  &         4  & 4
+\\end{array}} \\\\
+\\mathsf{A}'(:,:,2) & =
+\\boxed{
+\\begin{array}{cccc}
+5 &         5  &         6  & 6 \\\\
+5 &  \\boxed{5} &  \\boxed{6} & 6 \\\\
+7 &  \\boxed{7} &  \\boxed{8} & 8 \\\\
+7 &         7  &         8  & 8
+\\end{array}}
+&
+\\mathsf{A}'(:,:,3) & =
+\\boxed{
+\\begin{array}{cccc}
+5 & 5 & 6 & 6 \\\\
+5 & 5 & 6 & 6 \\\\
+7 & 7 & 8 & 8 \\\\
+7 & 7 & 8 & 8
+\\end{array}}
+\\end{aligned}
+.
+```
+
+The command `padarray(A,Pad(:reflect,1,1,1))` yields
+```math
+\\begin{aligned}
+\\mathsf{A}'(:,:,0) & =
+\\boxed{
+\\begin{array}{cccc}
+8 & 7 & 8 & 7 \\\\
+6 & 5 & 6 & 5 \\\\
+8 & 7 & 8 & 7 \\\\
+6 & 5 & 6 & 5
+\\end{array}}
+&
+\\mathsf{A}'(:,:,1) & =
+\\boxed{
+\\begin{array}{cccc}
+4 &         3  &         4  & 3 \\\\
+2 &  \\boxed{1} &  \\boxed{2} & 1 \\\\
+4 &  \\boxed{3} &  \\boxed{4} & 3 \\\\
+2 &         1  &         2  & 1
+\\end{array}} \\\\
+\\mathsf{A}'(:,:,2) & =
+\\boxed{
+\\begin{array}{cccc}
+8 &         7  &         8  & 7 \\\\
+6 &  \\boxed{5} &  \\boxed{6} & 5 \\\\
+8 &  \\boxed{7} &  \\boxed{8} & 7 \\\\
+6 &         5  &         6  & 5
+\\end{array}}
+&
+\\mathsf{A}'(:,:,3) & =
+\\boxed{
+\\begin{array}{cccc}
+4 & 3 & 4 & 3 \\\\
+2 & 1 & 2 & 1 \\\\
+4 & 3 & 4 & 3 \\\\
+2 & 1 & 2 & 1
+\\end{array}}
+\\end{aligned}
+.
+```
+## Examples with `Fill`
+
+The command `padarray(A,Fill(0,(1,1,1)))` yields
+```math
+\\begin{aligned}
+\\mathsf{A}'(:,:,0) & =
+\\boxed{
+\\begin{array}{cccc}
+0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0
+\\end{array}}
+&
+\\mathsf{A}'(:,:,1) & =
+\\boxed{
+\\begin{array}{cccc}
+0 &         0  &         0  & 0 \\\\
+0 &  \\boxed{1} &  \\boxed{2} & 0 \\\\
+0 &  \\boxed{3} &  \\boxed{4} & 0 \\\\
+0 &         0  &         0  & 0
+\\end{array}} \\\\
+\\mathsf{A}'(:,:,2) & =
+\\boxed{
+\\begin{array}{cccc}
+0 &         0  &         0  & 0 \\\\
+0 &  \\boxed{5} &  \\boxed{6} & 0 \\\\
+0 &  \\boxed{7} &  \\boxed{8} & 0 \\\\
+0 &         0  &         0  & 0
+\\end{array}}
+&
+\\mathsf{A}'(:,:,3) & =
+\\boxed{
+\\begin{array}{cccc}
+0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0 \\\\
+0 & 0 & 0 & 0
+\\end{array}}
+\\end{aligned}
+.
+```
+
+---
+
 """
 padarray(img::AbstractArray, border::Pad)  = padarray(eltype(img), img, border)
 function padarray(::Type{T}, img::AbstractArray, border::Pad) where T
@@ -182,7 +691,7 @@ Base.ndims(::Pad{N}) where {N} = N
     Inner()
     Inner(lo, hi)
 
-Indicate that edges are to be discarded in filtering, only the interior of the result it to be returned.
+Indicate that edges are to be discarded in filtering, only the interior of the result is to be returned.
 
 # Example:
 
@@ -236,16 +745,55 @@ padarray(::Type{T}, img::AbstractArray{T}, border::Inner) where {T} = copy(img)
 padarray(::Type{T}, img::AbstractArray, border::Inner) where {T} = copy!(similar(Array{T}, indices(img)), img)
 
 """
-    Fill(val)
-    Fill(val, lo, hi)
+```julia
+    struct Fill{T,N} <: AbstractBorder
+        value::T
+        lo::Dims{N}
+        hi::Dims{N}
+    end
+```
 
-Pad the edges of the image with a constant value, `val`.
+`Fill` is a type that designates a particular value which will be used to
+extrapolate pixels beyond the boundary of an image.
 
-Optionally supply the extent of the padding, see `Pad`.
+# Output
 
-# Example:
+The type `Fill` specifying the value with which the boundary of the image should
+be padded.
 
-    imfilter(img, kernel, Fill(zero(eltype(img))))
+# Details
+When representing a two-dimensional spatial image filtering operation as a
+discrete convolution between an image and a ``D \\times D `` filter, the
+results are undefined for pixels closer than ``D`` pixels from the border of the
+image. To define the operation near and at the border, one needs a scheme for
+extrapolating pixels beyond the edge. The `Fill` type allows one to specify a
+particular value which will be used in the extrapolation. For more elaborate
+extrapolation schemes refer to the documentation of  [`Pad`](@ref).
+
+The type facilitates the padding of one, two or multi-dimensional images.
+
+You can specify a different amount of padding at the lower and upper borders of
+each dimension of the image (top, left, bottom and right in two dimensions).
+
+# Example
+As an indicative illustration consider an image consisting of a
+row of six pixels which are specified alphabetically: ``\\boxed{a \\, b \\, c \\,
+d \\, e \\, f}``. We show the effects of padding with a constant value
+``m`` only on the left and right
+border, but analogous consequences hold for the top and bottom border.
+
+```math
+\\boxed{
+\\begin{array}{l|c|r}
+  m\\, m\\, m\\, m  &  a \\, b \\, c \\, d \\, e \\, f & m \\, m \\, m \\, m
+\\end{array}
+}
+```
+See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref) and
+[`NoPad`](@ref)
+
+---
+
 """
 struct Fill{T,N} <: AbstractBorder
     value::T
@@ -256,11 +804,84 @@ struct Fill{T,N} <: AbstractBorder
     Fill{T,N}(value::T, lo::Dims{N}, hi::Dims{N}) where {T,N} = new{T,N}(value, lo, hi)
 end
 
+"""
+```julia
+Fill(value::T)
+```
+
+Construct an instance of [`Fill`](@ref) designating a `value` and zero padding (i.e. no padding).
+
+---
+
+"""
 Fill(value::T) where {T} = Fill{T,0}(value)
+
+"""
+```julia
+    Fill(value::T, lo::Dims{N}, hi::Dims{N})
+    Fill(value, lo::AbstractVector, hi::AbstractVector)
+```
+Construct an instance of [`Fill`](@ref) designating a `value` such that the image is prepended by `lo` pixels  and appended by `hi` pixels  in each dimension.
+
+#### Usage illustration
+Use `Fill(5,(2,2),(2,2))` to specify a padding of two pixels for the top,
+bottom, left and right edge with the value five.
+
+
+Use `Fill(zero(eltype(img))(1,2),(3,4))` to specify a padding of one, two, three
+and four pixels for the top, left, bottom and right edge respectively using a
+value of zero with the same type as `img`.
+
+Use `Fill(0,[1,2],[3,4]` to specify a padding of one, two, three and four pixels
+for the top, left, bottom and right edge respectively with the value zero.
+
+
+---
+
+"""
 Fill(value::T, lo::Dims{N}, hi::Dims{N}) where {T,N} = Fill{T,N}(value, lo, hi)
+
+"""
+```julia
+    Fill(value::T, both::Dims{N})
+```
+Construct an instance of [`Fill`](@ref) designating a `value`  and a tuple
+`both` which stipulates the number of row and columns which will be prepended
+and appended to the image.
+
+#### Usage illustration
+Use `Fill(0,(5,10))` to stipulate a padding of five pixels for the top and left
+edge, and a padding of ten pixels for the bottom and right edge with a value of
+zero.
+
+
+---
+
+"""
 Fill(value::T, both::Dims{N}) where {T,N} = Fill{T,N}(value, both, both)
+
 Fill(value, lo::AbstractVector, hi::AbstractVector) = Fill(value, (lo...,), (hi...,))
 Fill(value::T, inds::Base.Indices{N}) where {T,N} = Fill{T,N}(value, map(lo,inds), map(hi,inds))
+
+"""
+```julia
+    Fill(value, kernel)
+```
+Construct an instance of [`Fill`](@ref) by designating a `value` and a
+`kernel` which will be used to infer an appropriate padding.
+
+A minimal amount of padding is added which ensures that a convolution between
+the image and the kernel is defined at the boundary.
+
+#### Usage illustration
+Use `Fill(0,Kernel.sobel())` to specify a value of zero and the minimal amount
+of padding necessary to ensure that convolution with [`Kernel.sobel`](@ref) will
+be defined at the borders of an image.
+
+
+---
+
+"""
 Fill(value, kernel) = Fill(value, calculate_padding(kernel))
 
 (p::Fill)(kernel) = Fill(p.value, kernel)
