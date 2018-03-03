@@ -331,17 +331,33 @@ _reshape(L::Laplacian{N}, ::Type{Val{N}}) where {N} = L
 
 
 """
-    gabor(k_size,σ,θ,λ,γ,ψ) -> k
+    gabor(size_x,size_y,σ,θ,λ,γ,ψ) -> (k_real,k_complex)
 
-Constructs a 2 Dimensional Gabor kernel where 
-    k_size is the size of the kernel;
+Returns a 2 Dimensional Complex Gabor kernel contained in a tuple where
+
+    size_x,size_y is the size of the kernel;
     σ is the standard deviation of the Gaussian envelope;
     θ represents the orientation of the normal to the parallel stripes of a Gabor function;
     λ represents the wavelength of the sinusoidal factor;
     γ is the spatial aspect ratio, and specifies the ellipticity of the support of the Gabor function;
     ψ is the phase offset.
+
+#Citation
+N. Petkov and P. Kruizinga, “Computational models of visual neurons specialised in the detection of periodic and aperiodic oriented visual stimuli: bar and grating cells,” Biological Cybernetics, vol. 76, no. 2, pp. 83–96, Feb. 1997. doi.org/10.1007/s004220050323    
 """
-function gabor(k_size::Integer, σ::Real, θ::Real, λ::Real, γ::Real, ψ::Real)
+function gabor(size_x::Integer, size_y::Integer, σ::Real, θ::Real, λ::Real, γ::Real, ψ::Real)
+
+    function validate_gabor(σ,λ,γ)
+        if(σ>0 && λ>0 && γ>0)
+            return true
+        else
+            return false
+        end
+    end
+
+    if(!validate_gabor(σ,λ,γ))
+        error("Invalid Input Parameters!")
+    end
 
     σx = σ
     σy = σ/γ
@@ -349,31 +365,30 @@ function gabor(k_size::Integer, σ::Real, θ::Real, λ::Real, γ::Real, ψ::Real
     c = cos(θ)
     s = sin(θ)
 
-    if(k_size > 0)
-        xmax = floor(Int64,k_size/2)
-        ymax = floor(Int64,k_size/2)
+    if(size_x > 0)
+        xmax = floor(Int64,size_x/2)
     else
-        xmax = round(Int64,max(abs(nstds*σx*c),abs(nstds*σy*s)))
-        ymax = round(Int64,max(abs(nstds*σx*s),abs(nstds*σy*c)))
+        xmax = round(Int64,max(abs(nstds*σx*c),abs(nstds*σy*s),1))
     end
+
+    if(size_y > 0)
+        ymax = floor(Int64,size_y/2)
+    else
+        ymax = round(Int64,max(abs(nstds*σx*s),abs(nstds*σy*c),1))
+    end
+
     xmin = -xmax
     ymin = -ymax
         
-    kernel = Array{Float64}(ymax - ymin + 1, xmax - xmin + 1)
-    scale = Float64(1)
-    ex = -0.5/(σx*σx)
-    ey = -0.5/(σy*σy)
-    cscale = 2*π/λ
-    
-    for y = ymin:ymax
-        for x = xmin:xmax
-            xr = x*c + y*s
-            yr = -x*s + y*c
-            v = scale*exp(ex*xr*xr + ey*yr*yr)*cos(cscale*xr + ψ)
-            kernel[ymax-y+1,xmax-x+1] = v
-        end
-    end
+    x = [j for i in xmin:xmax,j in ymin:ymax]
+    y = [i for i in xmin:xmax,j in ymin:ymax]
+    xr = x*c + y*s
+    yr = -x*s + y*c
 
+    kernel_real = (exp.(-0.5*(((xr.*xr)/σx^2) + ((yr.*yr)/σy^2))).*cos.(2*(π/λ)*xr + ψ))
+    kernel_imag = (exp.(-0.5*(((xr.*xr)/σx^2) + ((yr.*yr)/σy^2))).*sin.(2*(π/λ)*xr + ψ))
+
+    kernel = (kernel_real,kernel_imag)
     return kernel
 end
 
