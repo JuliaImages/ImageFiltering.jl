@@ -34,15 +34,19 @@ using ImageFiltering, Base.Test
         gabor_result = sqrt.((gabor_real.*gabor_real) + (gabor_imag.*gabor_imag))
         return mean(gabor_result)
     end
-    rabor_result = rand(Float64,2,2)
+    gabor_output = rand(Float64,2,2)
     for i = 1:2
         for j = 1:2
-            rabor_result[i,j] = match_score(images[i],wavelengths[j])
+            gabor_output[i,j] = match_score(images[i],wavelengths[j])
         end
     end
-    @test rabor_result[1,1] > rabor_result[1,2]
-    @test rabor_result[2,2] > rabor_result[1,2]
-    @test rabor_result[1,1] > rabor_result[2,1]
-    @test rabor_result[2,2] > rabor_result[2,1]
+    @test gabor_output[1,1] > gabor_output[1,2]
+    @test gabor_output[2,2] > gabor_output[1,2]
+    @test gabor_output[1,1] > gabor_output[2,1]
+    @test gabor_output[2,2] > gabor_output[2,1]
+
+    @test_throws AssertionError Kernel.gabor(9,9,-2,0,5,0.1,0)
+    @test_throws AssertionError Kernel.gabor(9,9,2,0,-5,0.1,0)
+    @test_throws AssertionError Kernel.gabor(9,9,2,0,5,0,0)
 
 end
