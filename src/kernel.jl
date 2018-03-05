@@ -358,12 +358,14 @@ function gabor(size_x::Integer, size_y::Integer, σ::Real, θ::Real, λ::Real, �
     if(size_x > 0)
         xmax = floor(Int64,size_x/2)
     else
+        warn("The input parameter size_x should be positive. Using size_x = 6 * σx + 1 (Default value)")
         xmax = round(Int64,max(abs(nstds*σx*c),abs(nstds*σy*s),1))
     end
 
     if(size_y > 0)
         ymax = floor(Int64,size_y/2)
     else
+        warn("The input parameter size_y should be positive. Using size_y = 6 * σy + 1 (Default value)")
         ymax = round(Int64,max(abs(nstds*σx*s),abs(nstds*σy*c),1))
     end
 
