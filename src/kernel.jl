@@ -385,7 +385,9 @@ function gabor(size_x::Integer, size_y::Integer, σ::Real, θ::Real, λ::Real, �
 end
 
 function validate_gabor(σ::Real,λ::Real,γ::Real)
-    @assert (σ>0 && λ>0 && γ>0) "The parameters σ, λ and γ must be positive numbers."
+    if !(σ>0 && λ>0 && γ>0)
+        throw(ArgumentError("The parameters σ, λ and γ must be positive numbers."))
+    end
 end
 
 """

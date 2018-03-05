@@ -45,8 +45,8 @@ using ImageFiltering, Base.Test
     @test gabor_output[1,1] > gabor_output[2,1]
     @test gabor_output[2,2] > gabor_output[2,1]
 
-    @test_throws AssertionError Kernel.gabor(9,9,-2,0,5,0.1,0)
-    @test_throws AssertionError Kernel.gabor(9,9,2,0,-5,0.1,0)
-    @test_throws AssertionError Kernel.gabor(9,9,2,0,5,0,0)
+    @test_throws ArgumentError Kernel.gabor(9,9,-2,0,5,0.1,0)
+    @test_throws ArgumentError Kernel.gabor(9,9,2,0,-5,0.1,0)
+    @test_throws ArgumentError Kernel.gabor(9,9,2,0,5,0,0)
 
 end
