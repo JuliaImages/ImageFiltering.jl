@@ -347,23 +347,13 @@ N. Petkov and P. Kruizinga, “Computational models of visual neurons specialise
 """
 function gabor(size_x::Integer, size_y::Integer, σ::Real, θ::Real, λ::Real, γ::Real, ψ::Real)
 
-    function validate_gabor(σ,λ,γ)
-        if(σ>0 && λ>0 && γ>0)
-            return true
-        else
-            return false
-        end
-    end
-
-    if(!validate_gabor(σ,λ,γ))
-        error("Invalid Input Parameters!")
-    end
-
     σx = σ
     σy = σ/γ
     nstds = 3
     c = cos(θ)
     s = sin(θ)
+
+    validate_gabor(σ,λ,γ)
 
     if(size_x > 0)
         xmax = floor(Int64,size_x/2)
@@ -390,6 +380,10 @@ function gabor(size_x::Integer, size_y::Integer, σ::Real, θ::Real, λ::Real, �
 
     kernel = (kernel_real,kernel_imag)
     return kernel
+end
+
+function validate_gabor(σ::Real,λ::Real,γ::Real)
+    @assert (σ>0 && λ>0 && γ>0) "The parameters σ, λ and γ must be positive numbers."
 end
 
 """
