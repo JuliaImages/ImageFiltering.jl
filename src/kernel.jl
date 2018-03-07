@@ -335,12 +335,12 @@ _reshape(L::Laplacian{N}, ::Type{Val{N}}) where {N} = L
 
 Returns a 2 Dimensional Complex Gabor kernel contained in a tuple where
 
-    size_x,size_y is the size of the kernel;
-    σ is the standard deviation of the Gaussian envelope;
-    θ represents the orientation of the normal to the parallel stripes of a Gabor function;
-    λ represents the wavelength of the sinusoidal factor;
-    γ is the spatial aspect ratio, and specifies the ellipticity of the support of the Gabor function;
-    ψ is the phase offset.
+  - `size_x`, `size_y` denote the size of the kernel
+  - `σ` denotes the standard deviation of the Gaussian envelope
+  - `θ` represents the orientation of the normal to the parallel stripes of a Gabor function
+  - `λ` represents the wavelength of the sinusoidal factor
+  - `γ` is the spatial aspect ratio, and specifies the ellipticity of the support of the Gabor function
+  - `ψ` is the phase offset
 
 #Citation
 N. Petkov and P. Kruizinga, “Computational models of visual neurons specialised in the detection of periodic and aperiodic oriented visual stimuli: bar and grating cells,” Biological Cybernetics, vol. 76, no. 2, pp. 83–96, Feb. 1997. doi.org/10.1007/s004220050323    
