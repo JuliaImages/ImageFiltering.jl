@@ -14,5 +14,6 @@ include("specialty.jl")
 include("gradient.jl")
 include("mapwindow.jl")
 include("basic.jl")
+include("gabor.jl")
 
 nothing
