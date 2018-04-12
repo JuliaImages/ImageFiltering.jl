@@ -111,7 +111,7 @@ end
 function resolve_window(window::Integer)
     isodd(window) || error("window must be odd, got $window")
     h = window>>1
-    -h:h
+    (-h:h,)
 end
 resolve_window(window::AbstractArray) = resolve_window((window...,))
 resolve_window(window::AbstractUnitRange) = (window,)
@@ -290,7 +290,6 @@ docopy!(buf, img, padinds::NTuple{1}) = buf[:] = view(img, padinds[1])
 docopy!(buf, img, padinds::NTuple{2}) = buf[:,:] = view(img, padinds[1], padinds[2])
 docopy!(buf, img, padinds::NTuple{3}) = buf[:,:,:] = view(img, padinds[1], padinds[2], padinds[3])
 @inline function docopy!(buf, img, padinds::NTuple{N}) where N
-    @show N
     colons = ntuple(d->Colon(), Val{N})
     buf[colons...] = view(img, padinds...)
 end

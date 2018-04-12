@@ -129,5 +129,14 @@ using ImageFiltering, Base.Test
     inds_48 = 2:2:8
     @test mapwindow(first, img_48, (0:2,), Inner(), inds_48) == img_48[inds_48]
 
-
+    @testset "desugaring window argument #58" begin
+        img58 = rand(10)
+        canonical_window = (-1:1,)
+        truth = mapwindow(median, img58, canonical_window)
+        for window in [3, (3,), [3], [-1:1], -1:1]
+            @test truth == mapwindow(median, img58, window)
+            out = similar(img_58)
+            @test truth == mapwindow!(median,out, img58, window)
+        end
+    end
 end
