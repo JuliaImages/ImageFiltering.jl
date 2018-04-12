@@ -135,7 +135,7 @@ using ImageFiltering, Base.Test
         truth = mapwindow(median, img58, canonical_window)
         for window in [3, (3,), [3], [-1:1], -1:1]
             @test truth == mapwindow(median, img58, window)
-            out = similar(img_58)
+            out = similar(img58)
             @test truth == mapwindow!(median,out, img58, window)
         end
     end
