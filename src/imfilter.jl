@@ -542,7 +542,6 @@ w = centered(reshape(1.0:9.0,3,3))
 
 # You can designate the type of padding by specifying an appropriate string.
 imfilter(f,w,"replicate")
-imfilter(f,w,"replicate")
 imfilter(f,w,"circular")
 imfilter(f,w,"symmetric")
 imfilter(f,w,"reflect")
