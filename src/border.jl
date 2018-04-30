@@ -902,7 +902,12 @@ function padarray(::Type{T}, img::AbstractArray{S,N}, f::Fill{_,N}) where {T,S,_
     catch
         error("Unable to fill! an array of element type $(eltype(A)) with the value $(f.value). Supply an appropriate value to `Fill`, such as `zero(eltype(A))`.")
     end
-    A[indices(img)...] = img
+
+    # We would have liked to do A[indices(img)...] = img, but this calls size(img)
+    # which is not defined if img is of type OffsetArrays.
+    for I in Compat.CartesianIndices(Compat.axes(img))
+        A[I] = img[I]
+    end
     A
 end
 padarray(img::AbstractArray, f::Fill) = padarray(eltype(img), img, f)
