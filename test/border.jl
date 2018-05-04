@@ -62,6 +62,66 @@ using Base.Test
             ret = @test_throws ArgumentError padarray(A, Pad(Style))
             @test contains(ret.value.msg, "lacks the proper padding")
         end
+        # same as above, but input arrays are of type OffsetArray
+        Ao =  OffsetArray(reshape(1:25, 5, 5),-1,-1)
+        @test @inferred(padarray(Ao, Fill(0,(2,2),(2,2)))) == OffsetArray(
+            [0  0  0   0   0   0   0  0  0;
+             0  0  0   0   0   0   0  0  0;
+             0  0  1   6  11  16  21  0  0;
+             0  0  2   7  12  17  22  0  0;
+             0  0  3   8  13  18  23  0  0;
+             0  0  4   9  14  19  24  0  0;
+             0  0  5  10  15  20  25  0  0;
+             0  0  0   0   0   0   0  0  0;
+             0  0  0   0   0   0   0  0  0], (-3,-3))
+        @test @inferred(padarray(Ao, Pad(:replicate,(2,2),(2,2)))) == OffsetArray(
+            [ 1  1  1   6  11  16  21  21  21;
+              1  1  1   6  11  16  21  21  21;
+              1  1  1   6  11  16  21  21  21;
+              2  2  2   7  12  17  22  22  22;
+              3  3  3   8  13  18  23  23  23;
+              4  4  4   9  14  19  24  24  24;
+              5  5  5  10  15  20  25  25  25;
+              5  5  5  10  15  20  25  25  25;
+              5  5  5  10  15  20  25  25  25], (-3,-3))
+        @test @inferred(padarray(Ao, Pad(:circular,(2,2),(2,2)))) == OffsetArray(
+            [19  24  4   9  14  19  24  4   9;
+             20  25  5  10  15  20  25  5  10;
+             16  21  1   6  11  16  21  1   6;
+             17  22  2   7  12  17  22  2   7;
+             18  23  3   8  13  18  23  3   8;
+             19  24  4   9  14  19  24  4   9;
+             20  25  5  10  15  20  25  5  10;
+             16  21  1   6  11  16  21  1   6;
+             17  22  2   7  12  17  22  2   7], (-3,-3))
+        @test @inferred(padarray(Ao, Pad(:symmetric,(2,2),(2,2)))) == OffsetArray(
+            [ 7  2  2   7  12  17  22  22  17;
+              6  1  1   6  11  16  21  21  16;
+              6  1  1   6  11  16  21  21  16;
+              7  2  2   7  12  17  22  22  17;
+              8  3  3   8  13  18  23  23  18;
+              9  4  4   9  14  19  24  24  19;
+             10  5  5  10  15  20  25  25  20;
+             10  5  5  10  15  20  25  25  20;
+              9  4  4   9  14  19  24  24  19], (-3,-3))
+        @test @inferred(padarray(Ao, Pad(:reflect,(2,2),(2,2)))) == OffsetArray(
+            [13   8  3   8  13  18  23  18  13;
+             12   7  2   7  12  17  22  17  12;
+             11   6  1   6  11  16  21  16  11;
+             12   7  2   7  12  17  22  17  12;
+             13   8  3   8  13  18  23  18  13;
+             14   9  4   9  14  19  24  19  14;
+             15  10  5  10  15  20  25  20  15;
+             14   9  4   9  14  19  24  19  14;
+             13   8  3   8  13  18  23  18  13], (-3,-3))
+        ret = @test_throws ArgumentError padarray(Ao, Fill(0))
+        @test contains(ret.value.msg, "lacks the proper padding")
+        for Style in (:replicate, :circular, :symmetric, :reflect)
+            ret = @test_throws ArgumentError padarray(Ao, Pad(Style,(1,1,1),(1,1,1)))
+            @test contains(ret.value.msg, "lacks the proper padding")
+            ret = @test_throws ArgumentError padarray(Ao, Pad(Style))
+            @test contains(ret.value.msg, "lacks the proper padding")
+        end
         # arrays smaller than the padding
         A = [1 2; 3 4]
         @test @inferred(padarray(A, Pad(:replicate,(3,3),(3,3)))) == OffsetArray(
