@@ -157,7 +157,7 @@ DoG(σps::NTuple{N,Real}, σms::NTuple{N,Real}, ls::NTuple{N,Integer}) where {N}
 function DoG(σps::NTuple{N,Real}) where N
     σms = map(s->s*√2, σps)
     neg = gaussian(σms)
-    l = map(length, indices(neg))
+    l = map(length, axes(neg))
     gaussian(σps, l) - neg
 end
 DoG(σ::Real) = DoG((σ,σ))
@@ -174,7 +174,7 @@ See also: [`KernelFactors.IIRGaussian`](@ref) and [`Kernel.Laplacian`](@ref).
 """
 function LoG(σs::NTuple{N}) where N
     w = CartesianIndex(map(n->(ceil(Int,8.5*n)>>1), σs))
-    R = CartesianRange(-w, w)
+    R = CartesianIndices(-w, w)
     σ = SVector(σs)
     C = 1/(prod(σ)*(2π)^(N/2))
     σ2 = σ.^2
@@ -228,10 +228,10 @@ function Laplacian(dims, N::Int)
     Laplacian((flags...,))
 end
 
-Base.indices(L::Laplacian) = map(f->f ? (-1:1) : (0:0), L.flags)
+Base.axes(L::Laplacian) = map(f->f ? (-1:1) : (0:0), L.flags)
 Base.isempty(L::Laplacian) = false
 function Base.convert(::Type{AbstractArray}, L::Laplacian{N}) where N
-    A = fill!(OffsetArray{Int}(indices(L)), 0)
+    A = fill!(OffsetArray{Int}(axes(L)), 0)
     for I in L.offsets
         A[I] = A[-I] = 1
     end
@@ -248,9 +248,9 @@ Compute the pointwise reflection around 0, 0, ... of the kernel
 rather than correlation, with respect to the original `kernel`.
 """
 function reflect(kernel::AbstractArray)
-    inds = map(reflectind, indices(kernel))
+    inds = map(reflectind, axes(kernel))
     out = similar(kernel, inds)
-    for I in CartesianRange(indices(kernel))
+    for I in CartesianIndices(axes(kernel))
         out[-I] = kernel[I]
     end
     out

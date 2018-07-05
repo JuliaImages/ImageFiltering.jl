@@ -1,5 +1,5 @@
 using ImageFiltering, ImageCore, OffsetArrays, Colors, FFTViews, ColorVectorSpace, ComputationalResources, FixedPointNumbers
-using Base.Test
+using Test
 
 @testset "tiling" begin
     m = zeros(UInt8, 20, 20)
@@ -231,7 +231,7 @@ end
     # OffsetArrays
     img = OffsetArray(rand(RGB{N0f8}, 80, 100), (-5, 3))
     imgf = imfilter(img, Kernel.gaussian((3,3)))
-    @test indices(imgf) == indices(img)
+    @test axes(imgf) == axes(img)
 end
 
 nothing

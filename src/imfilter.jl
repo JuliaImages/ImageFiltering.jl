@@ -155,6 +155,7 @@ function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKern
                     # if our attempt to be helpful triggered a
                     # completely different error...
                     Tw = widen(eltype(img))
+                catch
                 end
             end
             warn("Likely overflow or conversion error detected. Consider specifying the output type, e.g., `imfilter($Tw, img, kernel, ...)`")
@@ -167,7 +168,7 @@ end
 """
     imfilter!(imgfilt, img, kernel, [border="replicate"], [alg])
     imfilter!(r, imgfilt, img, kernel, border, [inds])
-    imfilter!(r, imgfilt, img, kernel, border::NoPad, [inds=indices(imgfilt)])
+    imfilter!(r, imgfilt, img, kernel, border::NoPad, [inds=axes(imgfilt)])
 
 Filter an array `img` with kernel `kernel` by computing their
 correlation, storing the result in `imgfilt`.
@@ -222,7 +223,7 @@ function _imfilter_na!(r::AbstractResource,
     if isseparable(kernel)
         imfilter_na_separable!(r, out, img, kernel)
     else
-        nanflag = similar(dims->falses(dims), indices(img))
+        nanflag = similar(dims->falses(dims), axes(img))
         imfilter_na_inseparable!(r, out, img, nanflag, kernel)
     end
 end
@@ -248,14 +249,14 @@ end
 #                                                  kernel::ProcessedKernel,
 #                                                  border::Pad{0})
 #     # The fast path: handle the points that don't need padding
-#     iinds = map(intersect, interior(img, kernel), indices(out))
+#     iinds = map(intersect, interior(img, kernel), axes(out))
 #     imfilter!(r, out, img, kernel, NoPad(border), iinds)
 #     # The not-so-fast path: handle the edges
 #     # TODO: when the kernel is factored, move this logic in to each factor
 #     # This is especially important for bigger kernels, where the product pkernel is larger
 #     padded = view(img, padindices(img, border(kernel))...)
 #     pkernel = kernelconv(kernel...)
-#     _imfilter_iter!(r, out, padded, pkernel, EdgeIterator(indices(out), iinds))
+#     _imfilter_iter!(r, out, padded, pkernel, EdgeIterator(axes(out), iinds))
 # end
 
 ### "Scheduler" methods (all with NoPad)
@@ -266,20 +267,20 @@ end
 # filtering.
 
 # Trivial kernel (a copy operation)
-function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{}, ::NoPad, inds::Indices=indices(out))
-    R = CartesianRange(inds)
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{}, ::NoPad, inds::Indices=axes(out))
+    R = CartesianIndices(inds)
     copy!(out, R, A, R)
 end
 
 # A single kernel
-function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any}, border::NoPad, inds::Indices=indices(out))
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any}, border::NoPad, inds::Indices=axes(out))
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, (), border, inds)
     imfilter!(r, out, A, samedims(out, kern), border, inds)
 end
 
 # A filter cascade (2 or more filters)
-function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=indices(out))
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=axes(out))
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border, inds)
     # For multiple stages of filtering, we introduce a second buffer
@@ -292,7 +293,7 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
 end
 
 ### Use a tiled algorithm for the cascaded case
-function imfilter!(r::AbstractCPU{FIRTiled{N}}, out::AbstractArray{S,N}, A::AbstractArray{T,N}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=indices(out)) where {S,T,N}
+function imfilter!(r::AbstractCPU{FIRTiled{N}}, out::AbstractArray{S,N}, A::AbstractArray{T,N}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=axes(out)) where {S,T,N}
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border, inds)
     tmp = tile_allocate(filter_type(A, kernel), r.settings.tilesize, kernel)
@@ -314,19 +315,19 @@ end
 # optimistic about the range available in `out`; therefore we use
 # `intersect`.
 function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{}, border::NoPad, indsstep::Indices)
-    imfilter!(r, out, A1, kernel, border, map(intersect, indsstep, indices(out)))
+    imfilter!(r, out, A1, kernel, border, map(intersect, indsstep, axes(out)))
 end
 
 function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{Any}, border::NoPad, indsstep::Indices)
-    imfilter!(r, out, A1, kernel[1], border, map(intersect, indsstep, indices(out)))
+    imfilter!(r, out, A1, kernel[1], border, map(intersect, indsstep, axes(out)))
 end
 
 # For IIR, it's important to filter over the whole passed-in range,
 # and then copy! to out
 function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{AnyIIR}, border::NoPad, indsstep::Indices)
-    if indsstep != indices(out)
+    if indsstep != axes(out)
         imfilter!(r, A2, A1, kernel[1], border, indsstep)
-        R = CartesianRange(map(intersect, indsstep, indices(out)))
+        R = CartesianIndices(map(intersect, indsstep, axes(out)))
         return copy!(out, R, A2, R)
     end
     imfilter!(r, out, A1, kernel[1], border, indsstep)
@@ -357,7 +358,7 @@ end
 function _imfilter_tiled!(r::CPU1, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA}, indsout) where AA<:AbstractArray
     k1, k2 = kernel
     tile = tiles[1]
-    indsk2, indstile = indices(k2), indices(tile)
+    indsk2, indstile = axes(k2), axes(tile)
     sz = map(length, indstile)
     chunksz = map(length, shrink(indstile, indsk2))
     for tinds in TileIterator(indsout, chunksz)
@@ -373,7 +374,7 @@ end
 function _imfilter_tiled!(r::CPUThreads, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA}, indsout) where AA<:AbstractArray
     k1, k2 = kernel
     tile = tiles[1]
-    indsk2, indstile = indices(k2), indices(tile)
+    indsk2, indstile = axes(k2), axes(tile)
     sz = map(length, indstile)
     chunksz = map(length, shrink(indstile, indsk2))
     tileinds_all = collect(expand(inds, k2) for inds in TileIterator(indsout, chunksz))
@@ -395,7 +396,7 @@ end
 function _imfilter_tiled!(r::CPU1, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}}, indsout) where AA<:AbstractArray
     k1, kt = kernel[1], tail(kernel)
     tilepair = tiles[1]
-    indstile = indices(tilepair[1])
+    indstile = axes(tilepair[1])
     sz = map(length, indstile)
     chunksz = map(length, shrink(indstile, kt))
     for tinds in TileIterator(indsout, chunksz)
@@ -410,7 +411,7 @@ end
 function _imfilter_tiled!(r::CPUThreads, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}}, indsout) where AA<:AbstractArray
     k1, kt = kernel[1], tail(kernel)
     tilepair = tiles[1]
-    indstile = indices(tilepair[1])
+    indstile = axes(tilepair[1])
     sz = map(length, indstile)
     chunksz = map(length, shrink(indstile, kt))
     tileinds_all = collect(expand(inds, kt) for inds in TileIterator(indsout, chunksz))
@@ -435,7 +436,7 @@ end
 function _imfilter_tiled_swap!(r, out, kernel::Tuple{Any,Any,Vararg{Any}}, border, tmp::Tuple{TileBuffer,Array})
     tileb1, tile2 = tmp
     k1, kt = kernel[1], tail(kernel)
-    parentinds = indices(tileb1)
+    parentinds = axes(tileb1)
     tileinds = shrink(parentinds, k1)
     tileb2 = TileBuffer(tile2, tileinds)
     imfilter!(r, tileb2, tileb1, samedims(tileb2, k1), border, tileinds)
@@ -446,7 +447,7 @@ end
 function _imfilter_tiled_swap!(r, out, kernel::Tuple{Any}, border, tmp::Tuple{TileBuffer,Array})
     tileb1 = tmp[1]
     k1 = kernel[1]
-    parentinds = indices(tileb1)
+    parentinds = axes(tileb1)
     tileinds = shrink(parentinds, k1)
     imfilter!(r, out, tileb1, samedims(out, k1), border, tileinds)
 end
@@ -454,7 +455,7 @@ end
 ### FIR filtering
 
 """
-    imfilter!(::AbstractResource, imgfilt, img, kernel, NoPad(), [inds=indices(imgfilt)])
+    imfilter!(::AbstractResource, imgfilt, img, kernel, NoPad(), [inds=axes(imgfilt)])
 
 Filter an array `img` with kernel `kernel` by computing their
 correlation, storing the result in `imgfilt`, defaulting to a finite-impulse
@@ -482,11 +483,11 @@ function imfilter!(r::AbstractResource,
                    A::AbstractArray{T,N},
                    kern::NDimKernel{N},
                    border::NoPad,
-                   inds::Indices{N}=indices(out)) where {S,T,N}
+                   inds::Indices{N}=axes(out)) where {S,T,N}
     (isempty(A) || isempty(kern)) && return out
-    indso, indsA, indsk = indices(out), indices(A), indices(kern)
+    indso, indsA, indsk = axes(out), axes(A), axes(kern)
     if iscopy(kern)
-        R = CartesianRange(inds)
+        R = CartesianIndices(inds)
         return copy!(out, R, A, R)
     end
     for i = 1:N
@@ -506,12 +507,12 @@ end
 
 function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::ReshapedIIR, border::NoPad, inds)
     indspre, ind, indspost = iterdims(inds, kern)
-    _imfilter_dim!(r, out, A, kern.data, CartesianRange(indspre), ind, CartesianRange(indspost), border[])
+    _imfilter_dim!(r, out, A, kern.data, CartesianIndices(indspre), ind, CartesianIndices(indspost), border[])
 end
 
 function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern, border::NoPad, inds)
-    indsk = indices(kern)
-    R, Rk = CartesianRange(inds), CartesianRange(indsk)
+    indsk = axes(kern)
+    R, Rk = CartesianIndices(inds), CartesianIndices(indsk)
     if isempty(R) || isempty(Rk)
         return out
     end
@@ -521,7 +522,7 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern, b
 end
 
 function __imfilter_inbounds!(r, out, A, kern, border, R, z)
-    Rk = CartesianRange(indices(kern))
+    Rk = CartesianIndices(axes(kern))
     for I in safetail(R), i in safehead(R)
         tmp = z
         @unsafe for J in safetail(Rk), j in safehead(Rk)
@@ -538,8 +539,8 @@ end
 function __imfilter_inbounds!(r, out, A::OffsetArray, kern::OffsetArray, border, R, z)
     off, k = CartesianIndex(kern.offsets), parent(kern)
     o, O = safehead(off), safetail(off)
-    Rnew = CartesianRange(map(plus, R.indices, off.I))
-    Rk = CartesianRange(indices(k))
+    Rnew = CartesianIndices(map(plus, R.axes, off.I))
+    Rk = CartesianIndices(axes(k))
     offA, pA = CartesianIndex(A.offsets), parent(A)
     oA, OA = safehead(offA), safetail(offA)
     for I in safetail(Rnew)
@@ -559,7 +560,7 @@ end
 function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::ReshapedOneD, border::NoPad, inds)
     Rpre, ind, Rpost = iterdims(inds, kern)
     k = kern.data
-    R, Rk = CartesianRange(inds), CartesianRange(indices(kern))
+    R, Rk = CartesianIndices(inds), CartesianIndices(axes(kern))
     if isempty(R) || isempty(Rk)
         return out
     end
@@ -569,12 +570,12 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::R
 end
 
 # Many of the following are unfortunate specializations
-function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::OffsetVector, Rpre::CartesianRange, ind, Rpost::CartesianRange)
+function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::OffsetVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices)
     _imfilter_inbounds!(r, z, out, A, parent(k), Rpre, ind, Rpost, k.offsets[1])
 end
 
-function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange, ind, Rpost::CartesianRange, koffset=0)
-    indsk = indices(k, 1)
+function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices, koffset=0)
+    indsk = axes(k, 1)
     for Ipost in Rpost
         for i in ind
             ik = i+koffset
@@ -593,7 +594,7 @@ end
 function _imfilter_inbounds!(r::AbstractResource, out, A::OffsetArray, kern::ReshapedVector, border::NoPad, inds)
     Rpre, ind, Rpost = iterdims(inds, kern)
     k = kern.data
-    R, Rk = CartesianRange(inds), CartesianRange(indices(kern))
+    R, Rk = CartesianIndices(inds), CartesianIndices(axes(kern))
     if isempty(R) || isempty(Rk)
         return out
     end
@@ -603,12 +604,12 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::OffsetArray, kern::Res
     _imfilter_inbounds!(r, z, out, parent(A), k, Rpre, ind, Rpost, Opre, o, Opost)
 end
 
-function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::OffsetVector, Rpre::CartesianRange, ind, Rpost::CartesianRange, Opre, o, Opost)
+function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::OffsetVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices, Opre, o, Opost)
     _imfilter_inbounds!(r, z, out, A, parent(k), Rpre, ind, Rpost, Opre, o, Opost, k.offsets[1])
 end
 
-function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianRange, ind, Rpost::CartesianRange, Opre, o, Opost, koffset=0)
-    indsk = indices(k, 1)
+function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices, Opre, o, Opost, koffset=0)
+    indsk = axes(k, 1)
     for Ipost in Rpost
         IOpost = Ipost - Opost
         for i in ind
@@ -631,7 +632,7 @@ end
 # function _imfilter_iter!(r::AbstractResource, out, padded, kernel::AbstractArray, iter)
 #     p = padded[first(iter)] * first(kernel)
 #     z = zero(typeof(p+p))
-#     Rk = CartesianRange(indices(kernel))
+#     Rk = CartesianIndices(axes(kernel))
 #     for I in iter
 #         tmp = z
 #         for J in Rk
@@ -643,9 +644,9 @@ end
 # end
 
 # function _imfilter_iter!(r::AbstractResource, out, padded, kern::ReshapedOneD, iter)
-#     Rpre, ind, Rpost = iterdims(indices(out), kern)
+#     Rpre, ind, Rpost = iterdims(axes(out), kern)
 #     k = kern.data
-#     indsk = indices(k, 1)
+#     indsk = axes(k, 1)
 #     p = padded[first(iter)] * first(k)
 #     TT = typeof(p+p)
 #     for I in iter
@@ -710,28 +711,28 @@ function _imfilter_fft!(r::AbstractCPU{FFT},
                    kernel::Tuple{AbstractArray,Vararg{AbstractArray}},
                    border::NoPad) where {S,T,N}
     kern = samedims(A, kernelconv(kernel...))
-    krn = FFTView(zeros(eltype(kern), map(length, indices(A))))
-    for I in CartesianRange(indices(kern))
+    krn = FFTView(zeros(eltype(kern), map(length, axes(A))))
+    for I in CartesianIndices(axes(kern))
         krn[I] = kern[I]
     end
     Af = filtfft(A, krn)
-    if map(first, indices(out)) == map(first, indices(Af))
-        R = CartesianRange(indices(out))
+    if map(first, axes(out)) == map(first, axes(Af))
+        R = CartesianIndices(axes(out))
         copy!(out, R, Af, R)
     else
         # Exploit the periodic boundary conditions of FFTView
         dest = FFTView(out)
-        src = OffsetArray(view(FFTView(Af), indices(dest)...), indices(dest))
+        src = OffsetArray(view(FFTView(Af), axes(dest)...), axes(dest))
         copy!(dest, src)
     end
     out
 end
 
-filtfft(A, krn) = irfft(rfft(A).*conj(rfft(krn)), length(indices(A,1)))
+filtfft(A, krn) = irfft(rfft(A).*conj(rfft(krn)), length(axes(A,1)))
 function filtfft(A::AbstractArray{C}, krn) where C<:Colorant
     Av, dims = channelview_dims(A)
     kernrs = kreshape(C, krn)
-    Avf = irfft(rfft(Av, dims).*conj(rfft(kernrs, dims)), length(indices(Av, dims[1])), dims)
+    Avf = irfft(rfft(Av, dims).*conj(rfft(kernrs, dims)), length(axes(Av, dims[1])), dims)
     colorview(base_colorant_type(C){eltype(Avf)}, Avf)
 end
 channelview_dims(A::AbstractArray{C,N}) where {C<:Colorant,N} = channelview(A), ntuple(d->d+1, Val(N))
@@ -761,8 +762,8 @@ function imfilter!(r::AbstractResource{IIR},
                    border::BorderSpec) where {S,T,N}
     isa(border, Pad) && border.style != :replicate && throw(ArgumentError("only \"replicate\" is supported"))
     length(kernel) <= N || throw(DimensionMismatch("cannot have more kernels than dimensions"))
-    inds = indices(img)
-    _imfilter_inplace_tuple!(r, out, img, kernel, CartesianRange(()), inds, CartesianRange(tail(inds)), border)
+    inds = axes(img)
+    _imfilter_inplace_tuple!(r, out, img, kernel, CartesianIndices(()), inds, CartesianIndices(tail(inds)), border)
 end
 
 """
@@ -785,11 +786,11 @@ With Triggs-Sdika filtering, the only border options are `NA()`,
 See also: [`imfilter`](@ref), [`KernelFactors.TriggsSdika`](@ref), [`KernelFactors.IIRGaussian`](@ref).
 """
 function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::TriggsSdika, dim::Integer, border::BorderSpec)
-    inds = indices(img)
+    inds = axes(img)
     k, l = length(kernel.a), length(kernel.b)
     # This next part is not type-stable, which is why _imfilter_dim! has a @noinline
-    Rbegin = CartesianRange(inds[1:dim-1])
-    Rend   = CartesianRange(inds[dim+1:end])
+    Rbegin = CartesianIndices(inds[1:dim-1])
+    Rend   = CartesianIndices(inds[dim+1:end])
     _imfilter_dim!(r, out, img, kernel, Rbegin, inds[dim], Rend, border)
 end
 function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::TriggsSdika, dim::Integer, border::AbstractString)
@@ -797,9 +798,9 @@ function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, 
 end
 
 
-function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractVector, kern::TriggsSdika, border::NoPad, inds::Indices=indices(out))
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractVector, kern::TriggsSdika, border::NoPad, inds::Indices=axes(out))
     indspre, ind, indspost = iterdims(inds, kern)
-    _imfilter_dim!(r, out, A, kern, CartesianRange(indspre), ind, CartesianRange(indspost), border[])
+    _imfilter_dim!(r, out, A, kern, CartesianIndices(indspre), ind, CartesianIndices(indspost), border[])
 end
 
 # Lispy and type-stable inplace (currently just Triggs-Sdika) filtering over each dimension
@@ -810,7 +811,7 @@ function _imfilter_inplace_tuple!(r, out, img, kernel, Rbegin, inds, Rend, borde
                              out,
                              out,
                              tail(kernel),
-                             CartesianRange(Rbegin.indices..., ind),
+                             CartesianIndices(Rbegin.indices..., ind),
                              tail(inds),
                              _tail(Rend),
                              border)
@@ -828,8 +829,8 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
 # information, see http://julialang.org/blog/2016/02/iteration.
 @noinline function _imfilter_dim!(r::AbstractResource,
                                   out, img, kernel::TriggsSdika{T,k,l},
-                                  Rbegin::CartesianRange, ind::AbstractUnitRange,
-                                  Rend::CartesianRange, border::BorderSpec) where {T,k,l}
+                                  Rbegin::CartesianIndices, ind::AbstractUnitRange,
+                                  Rend::CartesianIndices, border::BorderSpec) where {T,k,l}
     if iscopy(kernel)
         if !(out === img)
             copy!(out, img)
@@ -957,7 +958,7 @@ function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, nanflag, kernel
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
     copy!(out, img)
     out[nanflag] = zero(T)
-    validpixels = copy!(similar(Array{eltype(T)}, indices(img)), mappedarray(x->!x, nanflag))
+    validpixels = copy!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, nanflag))
     # TriggsSdika is safe for inplace operations
     imfilter!(r, out, out, kernel, fc)
     imfilter!(r, validpixels, validpixels, kernel, fn)
@@ -970,9 +971,9 @@ end
 
 function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple) where T
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
-    imgtmp = copy!(similar(out, indices(img)), img)
+    imgtmp = copy!(similar(out, axes(img)), img)
     imgtmp[nanflag] = zero(T)
-    validpixels = copy!(similar(Array{eltype(T)}, indices(img)), mappedarray(x->!x, nanflag))
+    validpixels = copy!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, nanflag))
     imfilter!(r, out, imgtmp, kernel, fc)
     vp = imfilter(r, validpixels, kernel, fn)
     for I in eachindex(out)
@@ -1015,11 +1016,11 @@ end
 end
 filter_type(::Type{T}, ::Type{S}, kernel::Tuple{}) where {T,S} = T
 
-factorkernel(kernel::AbstractArray) = (kernelshift(indices(kernel), kernel),)
+factorkernel(kernel::AbstractArray) = (kernelshift(axes(kernel), kernel),)
 factorkernel(L::Laplacian) = (L,)
 
 function factorkernel(kernel::AbstractMatrix{T}) where T
-    inds = indices(kernel)
+    inds = axes(kernel)
     m, n = map(length, inds)
     kern = Array{T}(m, n)
     copy!(kern, 1:m, 1:n, kernel, inds[1], inds[2])
@@ -1036,7 +1037,7 @@ function factorstridedkernel(inds, kernel::StridedMatrix)
     end
     if !separable
         ks = kernelshift(inds, kernel)
-        return (dummykernel(indices(ks)), ks)
+        return (dummykernel(axes(ks)), ks)
     end
     s = S[1]
     u, v = U[:,1:1], Vt[1:1,:]
@@ -1053,7 +1054,7 @@ function _kernelshift(inds, A)
 end
 kernelshift(inds::Indices, A::StridedArray) = OffsetArray(A, inds...)
 function kernelshift(inds::Indices, A)
-    @assert indices(A) == inds
+    @assert axes(A) == inds
     A
 end
 
@@ -1083,7 +1084,7 @@ isseparable(kernels::Tuple) = all(x->nextendeddims(x)==1, kernels)
 
 normalize_separable!(r::AbstractResource, A, ::Tuple{}, border) = error("this shouldn't happen")
 function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,TriggsSdika}, border) where N
-    inds = indices(A)
+    inds = axes(A)
     function imfilter_inplace!(r, a, kern, border)
         imfilter!(r, a, a, (kern,), border)
     end
@@ -1095,13 +1096,13 @@ function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,Reshaped
 end
 
 function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,Any}, border) where N
-    inds = indices(A)
+    inds = axes(A)
     filtdims = ntuple(d->imfilter(r, similar(dims->ones(dims), inds[d]), _vec(kernels[d]), border), Val(N))
     normalize_dims!(A, filtdims)
 end
 
 function normalize_dims!(A::AbstractArray{T,N}, factors::NTuple{N}) where {T,N}
-    for I in CartesianRange(indices(A))
+    for I in CartesianIndices(axes(A))
         tmp = A[I]/factors[1][I[1]]
         for d = 2:N
             tmp /= factors[d][I[d]]
@@ -1111,7 +1112,7 @@ function normalize_dims!(A::AbstractArray{T,N}, factors::NTuple{N}) where {T,N}
     A
 end
 
-iscopy(kernel::AbstractArray) = all(x->x==0:0, indices(kernel)) && first(kernel) == 1
+iscopy(kernel::AbstractArray) = all(x->x==0:0, axes(kernel)) && first(kernel) == 1
 iscopy(kernel::Laplacian) = false
 iscopy(kernel::TriggsSdika) = all(x->x==0, kernel.a) && all(x->x==0, kernel.b) && kernel.scale == 1
 iscopy(kernel::ReshapedOneD) = iscopy(kernel.data)
@@ -1121,7 +1122,7 @@ function kernelconv(k1, k2, kernels...)
     out = similar(Array{filter_type(eltype(k1), k2)}, calculate_padding((k1, k2)))
     fill!(out, zero(eltype(out)))
     k1N, k2N = samedims(out, k1), samedims(out, k2)
-    R1, R2 = CartesianRange(indices(k1N)), CartesianRange(indices(k2N))
+    R1, R2 = CartesianIndices(axes(k1N)), CartesianIndices(axes(k2N))
     ref = accumfilter(zero(eltype(k1)), zero(eltype(k2)))
     for I1 in R1
         for I2 in R2
@@ -1143,15 +1144,15 @@ alg_defaults(alg::Alg, out, kernel) = alg
 
 ## Faster Cartesian iteration
 # Splitting out the first dimension saves a branch
-safetail(R::CartesianRange) = CartesianRange(tail(R.indices))
-@compat safetail(R::CartesianRange{1}) = CartesianRange(())
-@compat safetail(R::CartesianRange{0}) = CartesianRange(())
+safetail(R::CartesianIndices) = CartesianIndices(tail(R.indices))
+@compat safetail(R::CartesianIndices{1}) = CartesianIndices(())
+@compat safetail(R::CartesianIndices{0}) = CartesianIndices(())
 safetail(I::CartesianIndex) = CartesianIndex(tail(I.I))
 safetail(::CartesianIndex{1}) = CartesianIndex(())
 safetail(::CartesianIndex{0}) = CartesianIndex(())
 
-safehead(R::CartesianRange) = R.indices[1]
-@compat safehead(R::CartesianRange{0}) = CartesianRange(())
+safehead(R::CartesianIndices) = R.indices[1]
+@compat safehead(R::CartesianIndices{0}) = CartesianIndices(())
 safehead(I::CartesianIndex) = I[1]
 safehead(::CartesianIndex{0}) = CartesianIndex(())
 

@@ -1,4 +1,4 @@
-using ImageFiltering, OffsetArrays, Base.Test
+using ImageFiltering, OffsetArrays, Test
 
 @testset "basic" begin
     v = OffsetArray([1,2,3], -1:1)
@@ -35,9 +35,9 @@ using ImageFiltering, OffsetArrays, Base.Test
     @test isa(tiles, Vector{Matrix{Float32}})
     @test length(tiles) == 1
 
-    @test length(ImageFiltering.safetail(CartesianRange(()))) == 1
+    @test length(ImageFiltering.safetail(CartesianIndices(()))) == 1
     @test ImageFiltering.safetail(CartesianIndex(())) == CartesianIndex(())
-    @test length(ImageFiltering.safehead(CartesianRange(()))) == 1
+    @test length(ImageFiltering.safehead(CartesianIndices(()))) == 1
     @test ImageFiltering.safehead(CartesianIndex(())) == CartesianIndex(())
 
     # Warnings
@@ -60,7 +60,7 @@ using ImageFiltering, OffsetArrays, Base.Test
             redirect_stderr(OLDERR)
         end
     end
-    @test contains(readstring(fname), "too small for accuracy")
+    @test occursin("too small for accuracy", readstring(fname))
     rm(fname)
 end
 

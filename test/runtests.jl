@@ -1,4 +1,6 @@
-using ImageFiltering, Base.Test
+using ImageFiltering, Test
+import StaticArrays
+using Random
 
 aif = detect_ambiguities(ImageFiltering, Kernel, KernelFactors, Base)
 # Because StaticArrays has ambiguities with Base, we have to "subtract" these

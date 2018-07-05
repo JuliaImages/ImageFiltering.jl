@@ -48,7 +48,7 @@ Base.eltype(A::ReshapedOneD{T}) where {T} = T
 Base.ndims(A::ReshapedOneD{_,N}) where {_,N} = N
 Base.isempty(A::ReshapedOneD) = isempty(A.data)
 
-@inline Base.indices(A::ReshapedOneD{_,N,Npre}) where {_,N,Npre} = Base.fill_to_length((Base.ntuple(d->0:0, Val(Npre))..., UnitRange(Base.indices1(A.data))), 0:0, Val(N))
+@inline Base.axes(A::ReshapedOneD{_,N,Npre}) where {_,N,Npre} = Base.fill_to_length((Base.ntuple(d->0:0, Val(Npre))..., UnitRange(Base.indices1(A.data))), 0:0, Val(N))
 
 Base.start(A::ReshapedOneD) = start(A.data)
 Base.next(A::ReshapedOneD, state) = next(A.data, state)
@@ -60,7 +60,7 @@ Base.done(A::ReshapedOneD, state) = done(A.data, state)
     ret
 end
 @inline function Base.getindex(A::ReshapedOneD{T,N,Npre}, I::Vararg{Int,N}) where {T,N,Npre}
-    @boundscheck checkbounds_indices(Bool, indices(A), I) || throw_boundserror(A, I)
+    @boundscheck checkbounds_indices(Bool, axes(A), I) || throw_boundserror(A, I)
     @inbounds ret = A.data[I[Npre+1]]
     ret
 end
@@ -68,7 +68,7 @@ end
     A[Base.IteratorsMD.flatten(I)...]
 end
 
-Base.convert(::Type{AA}, A::ReshapedOneD) where {AA<:AbstractArray} = convert(AA, reshape(A.data, indices(A)))
+Base.convert(::Type{AA}, A::ReshapedOneD) where {AA<:AbstractArray} = convert(AA, reshape(A.data, axes(A)))
 
 import Base: ==
 ==(A::ReshapedOneD, B::ReshapedOneD) = convert(AbstractArray, A) == convert(AbstractArray, B)
@@ -94,21 +94,21 @@ nextendeddims(a::ReshapedOneD) = 1
 """
     iterdims(inds, v::ReshapedOneD{T,N,Npre}) -> Rpre, ind, Rpost
 
-Return a pair `Rpre`, `Rpost` of CartesianRanges that correspond to
+Return a pair `Rpre`, `Rpost` of CartesianIndicess that correspond to
 pre- and post- dimensions for iterating over an array with indices
 `inds`. `Rpre` corresponds to the `Npre` "pre" dimensions, and `Rpost`
 to the trailing dimensions (not including the vector object wrapped in
 `v`).  Concretely,
 
-    Rpre  = CartesianRange(inds[1:Npre])
+    Rpre  = CartesianIndices(inds[1:Npre])
     ind   = inds[Npre+1]
-    Rpost = CartesianRange(inds[Npre+2:end])
+    Rpost = CartesianIndices(inds[Npre+2:end])
 
 although the implementation differs for reason of type-stability.
 """
 function iterdims(inds::Indices{N}, v::ReshapedOneD{T,N,Npre}) where {T,N,Npre}
     indspre, ind, indspost = _iterdims((), (), inds, v)
-    CartesianRange(indspre), ind, CartesianRange(indspost)
+    CartesianIndices(indspre), ind, CartesianIndices(indspost)
 end
 @inline function _iterdims(indspre, ::Tuple{}, inds, v)
     _iterdims((indspre..., inds[1]), (), tail(inds), v)  # consume inds and push to indspre
@@ -334,7 +334,7 @@ Base.vec(kernel::TriggsSdika) = kernel
 Base.ndims(kernel::TriggsSdika) = 1
 Base.ndims(::Type{T}) where {T<:TriggsSdika} = 1
 Base.indices1(kernel::TriggsSdika) = 0:0
-Base.indices(kernel::TriggsSdika) = (Base.indices1(kernel),)
+Base.axes(kernel::TriggsSdika) = (Base.indices1(kernel),)
 Base.isempty(kernel::TriggsSdika) = false
 
 iterdims(inds::Indices{1}, kern::TriggsSdika) = (), inds[1], ()
