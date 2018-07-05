@@ -193,7 +193,7 @@ struct Laplacian{N}
     offsets::Vector{CartesianIndex{N}}
 
     function Laplacian{N}(flags::NTuple{N,Bool}) where {N}
-        offsets = Array{CartesianIndex{N}}(0)
+        offsets = Array{CartesianIndex{N}}(undef, 0)
         for i = 1:N
             if flags[i]
                 push!(offsets,
