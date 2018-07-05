@@ -1,11 +1,11 @@
-using ImageFiltering, Base.Test
+using ImageFiltering, Test
 
 @testset "mapwindow" begin
     function groundtruth(f, A, window::Tuple)
         Aex = copy(A)
         hshift = map(x->x>>1+1, window)
-        for Ishift in CartesianRange(window)
-            for I in CartesianRange(size(A))
+        for Ishift in CartesianIndices(window)
+            for I in CartesianIndices(size(A))
                 Aex[I] = f(Aex[I], A[map(d->clamp(I[d]+Ishift[d]-hshift[d], 1, size(A,d)), 1:ndims(A))...])
             end
         end

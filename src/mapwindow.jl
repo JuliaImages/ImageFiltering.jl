@@ -81,27 +81,27 @@ function _mapwindow(f,
                     border::BorderSpecAny,
                     shape=default_shape(f);
                     callmode=:copy!) where {T,N}
-    inds = indices(img)
+    inds = axes(img)
     inner = _interior(inds, window)
     if callmode == :copy!
         buf = Array{T}(map(length, window))
         bufrs = shape(buf)
-        Rbuf = CartesianRange(size(buf))
+        Rbuf = CartesianIndices(size(buf))
         offset = CartesianIndex(map(w->first(w)-1, window))
         # To allocate the output, we have to evaluate f once
-        Rinner = CartesianRange(inner)
+        Rinner = CartesianIndices(inner)
         if !isempty(Rinner)
-            Rwin = CartesianRange(map(+, window, first(Rinner).I))
+            Rwin = CartesianIndices(map(+, window, first(Rinner).I))
             copy!(buf, Rbuf, img, Rwin)
             out = similar(img, typeof(f(bufrs)))
             # Handle the interior
             for I in Rinner
-                Rwin = CartesianRange(map(+, window, I.I))
+                Rwin = CartesianIndices(map(+, window, I.I))
                 copy!(buf, Rbuf, img, Rwin)
                 out[I] = f(bufrs)
             end
         else
-            copy_win!(buf, img, first(CartesianRange(inds)), border, offset)
+            copy_win!(buf, img, first(CartesianIndices(inds)), border, offset)
             out = similar(img, typeof(f(bufrs)))
         end
         # Now pick up the edge points we skipped over above
@@ -118,8 +118,8 @@ end
 
 # For copying along the edge of the image
 function copy_win!(buf::AbstractArray{T,N}, img, I, border::Pad, offset) where {T,N}
-    win_inds = map(+, indices(buf), (I+offset).I)
-    win_img_inds = map(intersect, indices(img), win_inds)
+    win_inds = map(+, axes(buf), (I+offset).I)
+    win_img_inds = map(intersect, axes(img), win_inds)
     padinds = map((inner,outer)->padindex(border, inner, outer), win_img_inds, win_inds)
     docopy!(buf, img, padinds)
     buf
@@ -134,9 +134,9 @@ docopy!(buf, img, padinds::NTuple{3}) = buf[:,:,:] = view(img, padinds[1], padin
 end
 
 function copy_win!(buf::AbstractArray{T,N}, img, I, border::Fill, offset) where {T,N}
-    R = CartesianRange(indices(img))
+    R = CartesianIndices(axes(img))
     Ioff = I+offset
-    for J in CartesianRange(indices(buf))
+    for J in CartesianIndices(axes(buf))
         K = Ioff+J
         buf[J] = K ∈ R ? img[K] : convert(eltype(img), border.value)
     end
@@ -229,11 +229,11 @@ function _extrema_filter1!(A::AbstractArray{Tuple{T,T}}, window::Int, cache) whe
     tmp = Array{Tuple{T,T}}(window)
     c = z = first(cache)
 
-    inds = indices(A)
+    inds = axes(A)
     inds1 = inds[1]
     halfwindow = window>>1
     iw = min(last(inds1), first(inds1)+window-1)
-    for J in CartesianRange(tail(inds))
+    for J in CartesianIndices(tail(inds))
         empty!(W)
         # Leading edge. We can't overwrite any values yet in A because
         # we'll need them again in later computations.
@@ -275,7 +275,7 @@ end
 
 replace_function(f) = f
 replace_function(::typeof(median!)) = function(v)
-    inds = indices(v,1)
+    inds = axes(v,1)
     Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
 end
 

@@ -1,5 +1,5 @@
 using ImageFiltering, Colors, ColorVectorSpace, FixedPointNumbers
-using Base.Test, Compat  # Compat for ones(x, T)
+using Test, Compat  # Compat for ones(x, T)
 
 @testset "gradient" begin
     y, x = 1:5, (1:7)'
@@ -20,7 +20,7 @@ using Base.Test, Compat  # Compat for ones(x, T)
                 @test abs(val - ex) < 1e-4
             end
             gy, gx = imgradients(img, kernelfunc, Pad(:replicate))
-            @test indices(gy) == indices(gx) == indices(img)
+            @test axes(gy) == axes(gx) == axes(img)
         end
         for funcpairs in ((Kernel.ando3, KernelFactors.ando3),
                           (Kernel.sobel, KernelFactors.sobel),

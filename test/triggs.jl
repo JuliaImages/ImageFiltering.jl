@@ -1,5 +1,5 @@
 using ImageFiltering, Colors, ComputationalResources, FixedPointNumbers
-using Base.Test
+using Test
 
 # @testset "TriggsSdika" begin
 #     @testset "1d" begin

@@ -3,7 +3,7 @@
 function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, L::Laplacian, border::NoPad, inds)
     TT = eltype(out) # accumtype(eltype(out), eltype(A))
     n = 2*length(L.offsets)
-    R = CartesianRange(inds)
+    R = CartesianIndices(inds)
     @unsafe for I in R
         tmp = convert(TT, - n * A[I])
         for J in L.offsets
@@ -39,7 +39,7 @@ provided as a dense or factored kernel, with factored representations
 recommended when the kernel is separable.
 """
 function imgradients(img::AbstractArray, kernelfun::Function, border="replicate")
-    extended = map(isextended, indices(img))
+    extended = map(isextended, axes(img))
     _imgradients((), img, kernelfun, extended, border)
 end
 
@@ -83,7 +83,7 @@ number of columns is the dimensionality of the array.
 """
 function imgradients(img::AbstractArray{T,N}, points::AbstractVector,
                      method=KernelFactors.ando3, border::AbstractString="replicate") where {T,N}
-    extended = map(isextended, indices(img))
+    extended = map(isextended, axes(img))
     npoints = length(points)
 
     # pad input image only on appropriate directions
@@ -104,7 +104,7 @@ function imgradients(img::AbstractArray{T,N}, points::AbstractVector,
             for (k, p) in enumerate(points)
                 icenter = CartesianIndex(ind2sub(extent, p))
                 i1 = CartesianIndex(tuple(ones(Int, ndirs)...))
-                for ii in CartesianRange(shape)
+                for ii in CartesianIndices(shape)
                     A[ii] = imgpad[ii + icenter - i1]
                 end
 

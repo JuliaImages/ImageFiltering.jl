@@ -1,5 +1,5 @@
 using ImageFiltering, OffsetArrays, ComputationalResources
-using Base.Test
+using Test
 
 @testset "1d" begin
     img = 1:8
@@ -78,7 +78,7 @@ using Base.Test
         imgf = imfilter(img, centered([0.25, 0.5, 0.25]), border)
         @test imgf[-1] == imgf[1] == 0.25
         @test imgf[0] == 0.5
-        inds = indices(imgf,1)
+        inds = axes(imgf,1)
         @test all(x->x==0, imgf[first(inds):-2]) && all(x->x==0, imgf[2:last(inds)])
     end
 end
