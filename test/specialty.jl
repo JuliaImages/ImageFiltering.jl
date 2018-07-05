@@ -1,5 +1,5 @@
 using ImageFiltering, ImageCore, OffsetArrays, Colors, FixedPointNumbers
-using Base.Test
+using Test
 
 @testset "specialty" begin
     @testset "Laplacian" begin
@@ -162,7 +162,7 @@ using Base.Test
             @test ImageFiltering.iscopy(kern)
         end
         for kern in (Kernel.gaussian((1.3,)), Kernel.gaussian((1.3,),(7,)))
-            @test kern ≈ gaussiancmp(1.3, indices(kern,1))
+            @test kern ≈ gaussiancmp(1.3, axes(kern,1))
         end
         @test KernelFactors.gaussian(2, 9) ≈ gaussiancmp(2, -4:4)
         k = KernelFactors.gaussian((2,3), (9,7))
@@ -197,7 +197,7 @@ using Base.Test
         @test abs(sum(Kernel.DoG(5))) < 1e-8
         @test Kernel.DoG(5) == Kernel.DoG((5,5))
         @test abs(sum(Kernel.DoG((5,), (7,), (21,)))) < 1e-8
-        @test indices(Kernel.DoG((5,), (7,), (21,))) == (-10:10,)
+        @test axes(Kernel.DoG((5,), (7,), (21,))) == (-10:10,)
     end
 
     @testset "LoG" begin

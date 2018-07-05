@@ -3,7 +3,7 @@
 function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, L::Laplacian, border::NoPad, inds)
     TT = eltype(out) # accumtype(eltype(out), eltype(A))
     n = 2*length(L.offsets)
-    R = CartesianRange(inds)
+    R = CartesianIndices(inds)
     @unsafe for I in R
         tmp = convert(TT, - n * A[I])
         for J in L.offsets
@@ -498,7 +498,7 @@ Using ImageFiltering.KernelFactors.bickley results in a mean absolute deviation 
 
 """
 function imgradients(img::AbstractArray, kernelfun::Function, border="replicate")
-    extended = map(isextended, indices(img))
+    extended = map(isextended, axes(img))
     _imgradients((), img, kernelfun, extended, border)
 end
 

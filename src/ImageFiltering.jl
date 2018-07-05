@@ -2,8 +2,9 @@ __precompile__()
 
 module ImageFiltering
 
-importall FFTW
+import FFTW
 using Colors, FixedPointNumbers, ImageCore, MappedArrays, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
+using Statistics
 using ColorVectorSpace  # for filtering RGB arrays
 using Compat
 using Base: Indices, tail, fill_to_length, @pure, depwarn
@@ -28,7 +29,7 @@ OffsetVector{T} = OffsetArray{T,1}
 
 # Needed for type-stability
 function Base.transpose(A::StaticOffsetArray{T,2}) where T
-    inds1, inds2 = indices(A)
+    inds1, inds2 = axes(A)
     OffsetArray(transpose(parent(A)), inds2, inds1)
 end
 

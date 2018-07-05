@@ -1,5 +1,5 @@
 using ImageFiltering, ImageCore, OffsetArrays, ComputationalResources
-using Base.Test
+using Test
 
 @testset "cascade" begin
     a = rand(15)
