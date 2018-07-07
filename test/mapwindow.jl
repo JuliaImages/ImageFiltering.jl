@@ -1,4 +1,4 @@
-using ImageFiltering, Test
+using ImageFiltering, Statistics, Test
 
 @testset "mapwindow" begin
     function groundtruth(f, A, window::Tuple)

@@ -18,9 +18,7 @@ module KernelFactors
 using StaticArrays, OffsetArrays
 using ..ImageFiltering: centered, dummyind
 import ..ImageFiltering: _reshape, _vec, nextendeddims
-using Base: tail, Indices, @pure, checkbounds_indices, throw_boundserror
-
-using Compat
+using Base: tail, Indices, @pure, checkbounds_indices, throw_boundserror, @propagate_inbounds
 
 # We would like to do `using ..ImageFiltering.Kernel` but we cannot because
 # `kernelfactors.jl` is included before  `kernel.jl` in the ImageFiltering.jl
@@ -71,25 +69,26 @@ _reshapedvector(::NTuple{N,Bool}, ::NTuple{Npre,Bool}, data) where {N,Npre} = Re
 # Give ReshapedOneD many of the characteristics of AbstractArray
 Base.eltype(A::ReshapedOneD{T}) where {T} = T
 Base.ndims(A::ReshapedOneD{_,N}) where {_,N} = N
+Base.BroadcastStyle(::Type{ReshapedOneD{T,N,Npre,V}}) where {T,N,Npre,V} = Broadcast.DefaultArrayStyle{N}()
+Base.broadcastable(A::ReshapedOneD) = A
 Base.isempty(A::ReshapedOneD) = isempty(A.data)
 
-@inline Base.axes(A::ReshapedOneD{_,N,Npre}) where {_,N,Npre} = Base.fill_to_length((Base.ntuple(d->0:0, Val(Npre))..., UnitRange(Base.indices1(A.data))), 0:0, Val(N))
+@inline Base.axes(A::ReshapedOneD{_,N,Npre}) where {_,N,Npre} = Base.fill_to_length((Base.ntuple(d->0:0, Val(Npre))..., UnitRange(Base.axes1(A.data))), 0:0, Val(N))
 
-Base.start(A::ReshapedOneD) = start(A.data)
-Base.next(A::ReshapedOneD, state) = next(A.data, state)
-Base.done(A::ReshapedOneD, state) = done(A.data, state)
+Base.iterate(A::ReshapedOneD) = iterate(A.data)
+Base.iterate(A::ReshapedOneD, state) = iterate(A.data, state)
 
-@inline function Base.getindex(A::ReshapedOneD, i::Int)
+@inline @propagate_inbounds function Base.getindex(A::ReshapedOneD, i::Int)
     @boundscheck checkbounds(A.data, i)
     @inbounds ret = A.data[i]
     ret
 end
-@inline function Base.getindex(A::ReshapedOneD{T,N,Npre}, I::Vararg{Int,N}) where {T,N,Npre}
+@inline @propagate_inbounds function Base.getindex(A::ReshapedOneD{T,N,Npre}, I::Vararg{Int,N}) where {T,N,Npre}
     @boundscheck checkbounds_indices(Bool, axes(A), I) || throw_boundserror(A, I)
     @inbounds ret = A.data[I[Npre+1]]
     ret
 end
-@inline function Base.getindex(A::ReshapedOneD, I::Union{CartesianIndex,Int}...)
+@inline @propagate_inbounds function Base.getindex(A::ReshapedOneD, I::Union{CartesianIndex,Int}...)
     A[Base.IteratorsMD.flatten(I)...]
 end
 
@@ -109,7 +108,7 @@ for op in (:+, :-, :*, :/)
             broadcast($op, map(A->convert(AbstractArray, A), As)...)
     end
 end
-Base.Broadcast.containertype(::Type{T}) where {T<:ReshapedOneD} = Array
+Base.BroadcastStyle(::Type{R}) where {R<:ReshapedOneD{T,N}} where {T,N} = Broadcast.DefaultArrayStyle{N}()
 
 _reshape(A::ReshapedOneD{T,N}, ::Val{N}) where {T,N} = A
 _vec(A::ReshapedOneD) = A.data
@@ -143,7 +142,7 @@ end
 end
 
 function indexsplit(I::CartesianIndex{N}, v::ReshapedOneD{_,N}) where {_,N}
-    ipre, i, ipost = _iterdims((), (), I.I, v)
+    ipre, i, ipost = _iterdims((), (), Tuple(I), v)
     CartesianIndex(ipre), i, CartesianIndex(ipost)
 end
 
@@ -478,8 +477,8 @@ end
 Base.vec(kernel::TriggsSdika) = kernel
 Base.ndims(kernel::TriggsSdika) = 1
 Base.ndims(::Type{T}) where {T<:TriggsSdika} = 1
-Base.indices1(kernel::TriggsSdika) = 0:0
-Base.axes(kernel::TriggsSdika) = (Base.indices1(kernel),)
+Base.axes1(kernel::TriggsSdika) = 0:0
+Base.axes(kernel::TriggsSdika) = (Base.axes1(kernel),)
 Base.isempty(kernel::TriggsSdika) = false
 
 iterdims(inds::Indices{1}, kern::TriggsSdika) = (), inds[1], ()
@@ -505,7 +504,7 @@ Filtering". IEEE Trans. Sig. Proc., 50: 2798-2805 (2002).
 """
 function IIRGaussian(::Type{T}, σ::Real; emit_warning::Bool = true) where T
     if emit_warning && σ < 1 && σ != 0
-        warn("σ is too small for accuracy")
+        @warn("σ is too small for accuracy")
     end
     m0 = convert(T,1.16680)
     m1 = convert(T,1.10783)
@@ -574,6 +573,6 @@ function gradfactors(extended::NTuple{N,Bool}, d::Int, k1, k2) where N
     kernelfactors(ntuple(i -> kdim(extended[i], i==d ? k1 : k2), Val(N)))
 end
 
-kdim(keep::Bool, k) = keep ? centered(k) : OffsetArray([one(eltype(k))], 0:0)
+kdim(keep::Bool, k) = keep ? centered(k) : OffsetArray([oneunit(eltype(k))], 0:0)
 
 end

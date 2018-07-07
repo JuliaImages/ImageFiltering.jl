@@ -4,7 +4,7 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, L::Lapl
     TT = eltype(out) # accumtype(eltype(out), eltype(A))
     n = 2*length(L.offsets)
     R = CartesianIndices(inds)
-    @unsafe for I in R
+    @inbounds for I in R
         tmp = convert(TT, - n * A[I])
         for J in L.offsets
             tmp += A[I+J]

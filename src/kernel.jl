@@ -18,7 +18,9 @@ See also: [`KernelFactors`](@ref).
 module Kernel
 
 using StaticArrays, OffsetArrays
-using ..ImageFiltering: centered, KernelFactors
+using ..ImageFiltering
+using ..ImageFiltering.KernelFactors
+import ..ImageFiltering: _reshape
 
 # We would like to do `using ..ImageFiltering.imgradients` so that that
 # Documenter.jl (the documentation system) can parse a reference such as `See
@@ -27,8 +29,6 @@ using ..ImageFiltering: centered, KernelFactors
 # ImageFiltering.jl. With the more general `using ImageFiltering`, we seem to
 # sidestep the scope problem, although I don't actually understand the mechanism
 # form why this works. - ZS
-using ImageFiltering
-import ..ImageFiltering: _reshape
 
 function product2d(kf)
     k1, k2 = kf
@@ -267,10 +267,10 @@ function LoG(σs::NTuple{N}) where N
     σ = SVector(σs)
     C = 1/(prod(σ)*(2π)^(N/2))
     σ2 = σ.^2
-    σ2i = sum(1.0/σ2)
+    σ2i = sum(1 ./ σ2)
     function df(I::CartesianIndex, σ2, σ2i)
-        x = SVector(I.I)
-        xσ = x.^2.0/σ2
+        x = SVector(Tuple(I))
+        xσ = x.^2 ./ σ2
         (sum(xσ./σ2) - σ2i) * exp(-sum(xσ)/2)
     end
     centered([C*df(I, σ2, σ2i) for I in R])
@@ -320,14 +320,14 @@ end
 Base.axes(L::Laplacian) = map(f->f ? (-1:1) : (0:0), L.flags)
 Base.isempty(L::Laplacian) = false
 function Base.convert(::Type{AbstractArray}, L::Laplacian{N}) where N
-    A = fill!(OffsetArray{Int}(axes(L)), 0)
+    A = fill!(OffsetArray{Int}(undef, axes(L)), 0)
     for I in L.offsets
         A[I] = A[-I] = 1
     end
     A[ntuple(d->0, Val(N))...] = -2*length(L.offsets)
     A
 end
-_reshape(L::Laplacian{N}, ::Type{Val{N}}) where {N} = L
+_reshape(L::Laplacian{N}, ::Val{N}) where {N} = L
 
 
 """
@@ -343,7 +343,7 @@ Returns a 2 Dimensional Complex Gabor kernel contained in a tuple where
   - `ψ` is the phase offset
 
 #Citation
-N. Petkov and P. Kruizinga, “Computational models of visual neurons specialised in the detection of periodic and aperiodic oriented visual stimuli: bar and grating cells,” Biological Cybernetics, vol. 76, no. 2, pp. 83–96, Feb. 1997. doi.org/10.1007/s004220050323    
+N. Petkov and P. Kruizinga, “Computational models of visual neurons specialised in the detection of periodic and aperiodic oriented visual stimuli: bar and grating cells,” Biological Cybernetics, vol. 76, no. 2, pp. 83–96, Feb. 1997. doi.org/10.1007/s004220050323
 """
 function gabor(size_x::Integer, size_y::Integer, σ::Real, θ::Real, λ::Real, γ::Real, ψ::Real)
 
@@ -371,7 +371,7 @@ function gabor(size_x::Integer, size_y::Integer, σ::Real, θ::Real, λ::Real, �
 
     xmin = -xmax
     ymin = -ymax
-        
+
     x = [j for i in xmin:xmax,j in ymin:ymax]
     y = [i for i in xmin:xmax,j in ymin:ymax]
     xr = x*c + y*s

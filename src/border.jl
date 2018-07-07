@@ -233,7 +233,7 @@ function (p::Pad{0})(kernel, img, ::FFT)
 end
 function padfft(indk::AbstractUnitRange, l::Integer)
     lk = length(indk)
-    range(first(indk), nextprod([2,3], l+lk)-l+1)
+    range(first(indk), length=nextprod([2,3], l+lk)-l+1)
 end
 
 function padindices(img::AbstractArray{_,N}, border::Pad) where {_,N}
@@ -656,7 +656,7 @@ padarray(img::AbstractArray, border::Pad)  = padarray(eltype(img), img, border)
 function padarray(::Type{T}, img::AbstractArray, border::Pad) where T
     inds = padindices(img, border)
     # like img[inds...] except that we can control the element type
-    newinds = map(Base.indices1, inds)
+    newinds = map(Base.axes1, inds)
     dest = similar(img, T, newinds)
     copydata!(dest, img, inds)
 end
@@ -669,8 +669,8 @@ function copydata!(dest, img, inds)
     # Work around julia #9080
     i1, itail = idest[1], tail(idest)
     inds1, indstail = inds[1], tail(inds)
-    @unsafe for I in CartesianIndices(itail)
-        J = CartesianIndex(map((i,x)->x[i], I.I, indstail))
+    @inbounds for I in CartesianIndices(itail)
+        J = CartesianIndex(map((i,x)->x[i], Tuple(I), indstail))
         for i in i1
             j = inds1[i]
             dest[i,I] = img[j,J]
@@ -726,14 +726,14 @@ end
 
 for T in (:Inner, :NA)
     @eval begin
-        (::Type{$T})(both::Int...) = $T(both, both)
-        (::Type{$T})(both::Dims{N}) where {N} = $T(both, both)
-        (::Type{$T})(lo::Tuple{}, hi::Tuple{}) = $T{0}(lo, hi)
-        (::Type{$T})(lo::Dims{N}, hi::Tuple{}) where {N} = $T{N}(lo, ntuple(d->0,Val(N)))
-        (::Type{$T})(lo::Tuple{}, hi::Dims{N}) where {N} = $T{N}(ntuple(d->0,Val(N)), hi)
-        (::Type{$T})(inds::Indices{N}) where {N} = $T{N}(map(lo,inds), map(hi,inds))
-        (::Type{$T{N}})(lo::AbstractVector, hi::AbstractVector) where {N} = $T{N}((lo...,), (hi...,))
-        (::Type{$T})(lo::AbstractVector, hi::AbstractVector) = $T((lo...,), (hi...,)) # not inferrable
+        $T(both::Int...) = $T(both, both)
+        $T(both::Dims{N}) where {N} = $T(both, both)
+        $T(lo::Tuple{}, hi::Tuple{}) = $T{0}(lo, hi)
+        $T(lo::Dims{N}, hi::Tuple{}) where {N} = $T{N}(lo, ntuple(d->0,Val(N)))
+        $T(lo::Tuple{}, hi::Dims{N}) where {N} = $T{N}(ntuple(d->0,Val(N)), hi)
+        $T(inds::Indices{N}) where {N} = $T{N}(map(lo,inds), map(hi,inds))
+        $T{N}(lo::AbstractVector, hi::AbstractVector) where {N} = $T{N}((lo...,), (hi...,))
+        $T(lo::AbstractVector, hi::AbstractVector) = $T((lo...,), (hi...,)) # not inferrable
 
         (p::$T{0})(kernel, img, ::Alg) = p(kernel)
         (p::$T{0})(kernel) = $T(calculate_padding(kernel))
@@ -742,7 +742,7 @@ end
 
 padarray(img, border::Inner) = padarray(eltype(img), img, border)
 padarray(::Type{T}, img::AbstractArray{T}, border::Inner) where {T} = copy(img)
-padarray(::Type{T}, img::AbstractArray, border::Inner) where {T} = copy!(similar(Array{T}, axes(img)), img)
+padarray(::Type{T}, img::AbstractArray, border::Inner) where {T} = copyto!(similar(Array{T}, axes(img)), img)
 
 """
 ```julia
@@ -896,7 +896,8 @@ function padarray(::Type{T}, img::AbstractArray, border::Fill) where T
     throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"))
 end
 function padarray(::Type{T}, img::AbstractArray{S,N}, f::Fill{_,N}) where {T,S,_,N}
-    A = similar(arraytype(img, T), map((l,r,h)->first(r)-l:last(r)+h, f.lo, axes(img), f.hi))
+    paxs = map((l,r,h)->first(r)-l:last(r)+h, f.lo, axes(img), f.hi)
+    A = similar(arraytype(img, T), paxs)
     try
         fill!(A, f.value)
     catch
@@ -916,16 +917,16 @@ Generate an index-vector to be used for padding. `inds` specifies the image indi
 """
 function padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer)
     if border.style == :replicate
-        indsnew = vcat(fill(first(inds), lo), inds, fill(last(inds), hi))
+        indsnew = vcat(fill(first(inds), lo), UnitRange(inds), fill(last(inds), hi))
         OffsetArray(indsnew, first(inds)-lo:last(inds)+hi)
     elseif border.style == :circular
         return modrange(extend(lo, inds, hi), inds)
     elseif border.style == :symmetric
-        I = OffsetArray([inds; reverse(inds)], plus((0:2*length(inds)-1), first(inds)))
+        I = OffsetArray([inds; reverse(inds)], (0:2*length(inds)-1) .+ first(inds))
         r = modrange(extend(lo, inds, hi), axes(I, 1))
         return I[r]
     elseif border.style == :reflect
-        I = OffsetArray([inds; last(inds)-1:-1:first(inds)+1], plus((0:2*length(inds)-3), first(inds)))
+        I = OffsetArray([inds; last(inds)-1:-1:first(inds)+1], (0:2*length(inds)-3) .+ first(inds))
         return I[modrange(extend(lo, inds, hi), axes(I, 1))]
     else
         error("border style $(border.style) unrecognized")

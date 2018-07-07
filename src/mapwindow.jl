@@ -4,6 +4,7 @@ using DataStructures, TiledIteration
 using ..ImageFiltering: BorderSpecAny, Pad, Fill, Inner,
     borderinstance, _interior, padindex, imfilter
 using Base: Indices, tail
+using Statistics
 
 export mapwindow, mapwindow!
 
@@ -279,8 +280,8 @@ end
 
 
 # For copying along the edge of the image
-function copy_win!(buf::AbstractArray{T,N}, img, I, border::Pad, offset) where {T,N}
-    win_inds = map(+, axes(buf), (I+offset).I)
+function copy_win!(buf::AbstractArray, img, I, border::Pad, offset)
+    win_inds = map((x,y)->x .+ y, axes(buf), Tuple(I) .+ Tuple(offset))
     win_img_inds = map(intersect, axes(img), win_inds)
     padinds = map((inner,outer)->padindex(border, inner, outer), win_img_inds, win_inds)
     docopy!(buf, img, padinds)
@@ -294,7 +295,7 @@ docopy!(buf, img, padinds::NTuple{3}) = buf[:,:,:] = view(img, padinds[1], padin
     buf[colons...] = view(img, padinds...)
 end
 
-function copy_win!(buf::AbstractArray{T,N}, img, I, border::Fill, offset) where {T,N}
+function copy_win!(buf::AbstractArray, img, I, border::Fill, offset)
     R = CartesianIndices(axes(img))
     Ioff = I+offset
     for J in CartesianIndices(axes(buf))
@@ -387,7 +388,7 @@ function _extrema_filter1!(A::AbstractArray{Tuple{T,T}}, window::Int, cache) whe
     # U[1], L[1] are the location of the global (within the window) maximum and minimum
     # U[2], L[2] are the maximum and minimum over (U1, end] and (L1, end], respectively
     W = Wedge{Int}(window+1)
-    tmp = Array{Tuple{T,T}}(window)
+    tmp = Array{Tuple{T,T}}(undef, window)
     c = z = first(cache)
 
     inds = axes(A)
@@ -406,10 +407,10 @@ function _extrema_filter1!(A::AbstractArray{Tuple{T,T}}, window::Int, cache) whe
         for i = iw+1:last(inds1)
             A[i-window, J] = c
             if i == window+front(W.U)
-                shift!(W.U)
+                popfirst!(W.U)
             end
             if i == window+front(W.L)
-                shift!(W.L)
+                popfirst!(W.L)
             end
             addtoback!(W, A, i, J)
             c, cache = cyclecache(cache, getextrema(A, W, J))
@@ -419,10 +420,10 @@ function _extrema_filter1!(A::AbstractArray{Tuple{T,T}}, window::Int, cache) whe
                 A[i, J] = c
             end
             if i == front(W.U)
-                shift!(W.U)
+                popfirst!(W.U)
             end
             if i == front(W.L)
-                shift!(W.L)
+                popfirst!(W.L)
             end
             c, cache = cyclecache(cache, getextrema(A, W, J))
         end

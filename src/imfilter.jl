@@ -622,7 +622,7 @@ function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKern
                 catch
                 end
             end
-            warn("Likely overflow or conversion error detected. Consider specifying the output type, e.g., `imfilter($Tw, img, kernel, ...)`")
+            @warn "Likely overflow or conversion error detected. Consider specifying the output type, e.g., `imfilter($Tw, img, kernel, ...)`"
         end
         rethrow(err)
     end
@@ -687,7 +687,7 @@ function _imfilter_na!(r::AbstractResource,
     if isseparable(kernel)
         imfilter_na_separable!(r, out, img, kernel)
     else
-        nanflag = similar(dims->falses(dims), axes(img))
+        nanflag = fill(false, axes(img))
         imfilter_na_inseparable!(r, out, img, nanflag, kernel)
     end
 end
@@ -733,7 +733,7 @@ end
 # Trivial kernel (a copy operation)
 function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{}, ::NoPad, inds::Indices=axes(out))
     R = CartesianIndices(inds)
-    copy!(out, R, A, R)
+    copyto!(out, R, A, R)
 end
 
 # A single kernel
@@ -792,7 +792,7 @@ function _imfilter!(r, out::AbstractArray, A1, A2, kernel::Tuple{AnyIIR}, border
     if indsstep != axes(out)
         imfilter!(r, A2, A1, kernel[1], border, indsstep)
         R = CartesianIndices(map(intersect, indsstep, axes(out)))
-        return copy!(out, R, A2, R)
+        return copyto!(out, R, A2, R)
     end
     imfilter!(r, out, A1, kernel[1], border, indsstep)
 end
@@ -952,7 +952,7 @@ function imfilter!(r::AbstractResource,
     indso, indsA, indsk = axes(out), axes(A), axes(kern)
     if iscopy(kern)
         R = CartesianIndices(inds)
-        return copy!(out, R, A, R)
+        return copyto!(out, R, A, R)
     end
     for i = 1:N
         # Check that inds is inbounds for out
@@ -989,10 +989,10 @@ function __imfilter_inbounds!(r, out, A, kern, border, R, z)
     Rk = CartesianIndices(axes(kern))
     for I in safetail(R), i in safehead(R)
         tmp = z
-        @unsafe for J in safetail(Rk), j in safehead(Rk)
+        @inbounds for J in safetail(Rk), j in safehead(Rk)
             tmp += safe_for_prod(A[i+j,I+J], tmp)*kern[j,J]
         end
-        @unsafe out[i,I] = tmp
+        @inbounds out[i,I] = tmp
     end
     out
 end
@@ -1003,7 +1003,7 @@ end
 function __imfilter_inbounds!(r, out, A::OffsetArray, kern::OffsetArray, border, R, z)
     off, k = CartesianIndex(kern.offsets), parent(kern)
     o, O = safehead(off), safetail(off)
-    Rnew = CartesianIndices(map(plus, R.axes, off.I))
+    Rnew = CartesianIndices(map((x,y)->x.+y, R.indices, Tuple(off)))
     Rk = CartesianIndices(axes(k))
     offA, pA = CartesianIndex(A.offsets), parent(A)
     oA, OA = safehead(offA), safetail(offA)
@@ -1012,10 +1012,10 @@ function __imfilter_inbounds!(r, out, A::OffsetArray, kern::OffsetArray, border,
         for i in safehead(Rnew)
             tmp = z
             iA = i-oA
-            @unsafe for J in safetail(Rk), j in safehead(Rk)
+            @inbounds for J in safetail(Rk), j in safehead(Rk)
                 tmp += safe_for_prod(pA[iA+j,IA+J], tmp)*k[j,J]
             end
-            @unsafe out[i-o,I-O] = tmp
+            @inbounds out[i-o,I-O] = tmp
         end
     end
     out
@@ -1046,9 +1046,9 @@ function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::A
             for Ipre in Rpre
                 tmp = z
                 for j in indsk
-                    @unsafe tmp += safe_for_prod(A[Ipre,ik+j,Ipost], tmp)*k[j]
+                    @inbounds tmp += safe_for_prod(A[Ipre,ik+j,Ipost], tmp)*k[j]
                 end
-                @unsafe out[Ipre,i,Ipost] = tmp
+                @inbounds out[Ipre,i,Ipost] = tmp
             end
         end
     end
@@ -1082,9 +1082,9 @@ function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::A
                 IOpre = Ipre - Opre
                 tmp = z
                 for j in indsk
-                    @unsafe tmp += safe_for_prod(A[IOpre,io+j,IOpost], tmp)*k[j]
+                    @inbounds tmp += safe_for_prod(A[IOpre,io+j,IOpost], tmp)*k[j]
                 end
-                @unsafe out[Ipre,i,Ipost] = tmp
+                @inbounds out[Ipre,i,Ipost] = tmp
             end
         end
     end
@@ -1100,7 +1100,7 @@ end
 #     for I in iter
 #         tmp = z
 #         for J in Rk
-#             @unsafe tmp += safe_for_prod(padded[I+J], tmp)*kernel[J]
+#             @inbounds tmp += safe_for_prod(padded[I+J], tmp)*kernel[J]
 #         end
 #         out[I] = tmp
 #     end
@@ -1116,7 +1116,7 @@ end
 #     for I in iter
 #         Ipre, i, Ipost = KernelFactors.indexsplit(I, kern)
 #         tmp = zero(TT) error("probably needs fixing")
-#         @unsafe for j in indsk
+#         @inbounds for j in indsk
 #             tmp += safe_for_prod(padded[Ipre,i+j,Ipost], tmp)*k[j]
 #         end
 #         out[I] = tmp
@@ -1182,12 +1182,12 @@ function _imfilter_fft!(r::AbstractCPU{FFT},
     Af = filtfft(A, krn)
     if map(first, axes(out)) == map(first, axes(Af))
         R = CartesianIndices(axes(out))
-        copy!(out, R, Af, R)
+        copyto!(out, R, Af, R)
     else
         # Exploit the periodic boundary conditions of FFTView
         dest = FFTView(out)
         src = OffsetArray(view(FFTView(Af), axes(dest)...), axes(dest))
-        copy!(dest, src)
+        copyto!(dest, src)
     end
     out
 end
@@ -1200,17 +1200,13 @@ function filtfft(A::AbstractArray{C}, krn) where C<:Colorant
     colorview(base_colorant_type(C){eltype(Avf)}, Avf)
 end
 channelview_dims(A::AbstractArray{C,N}) where {C<:Colorant,N} = channelview(A), ntuple(d->d+1, Val(N))
-if ImageCore.squeeze1
-    channelview_dims(A::AbstractArray{C,N}) where {C<:ImageCore.Color1,N} = channelview(A), ntuple(identity, Val(N))
-end
+channelview_dims(A::AbstractArray{C,N}) where {C<:ImageCore.Color1,N} = channelview(A), ntuple(identity, Val(N))
 
 function kreshape(::Type{C}, krn::FFTView) where C<:Colorant
     kern = parent(krn)
     kernrs = FFTView(reshape(kern, 1, size(kern)...))
 end
-if ImageCore.squeeze1
-    kreshape(::Type{C}, krn::FFTView) where {C<:ImageCore.Color1} = krn
-end
+kreshape(::Type{C}, krn::FFTView) where {C<:ImageCore.Color1} = krn
 
 ### Triggs-Sdika (modified Young-van Vliet) recursive filtering
 # B. Triggs and M. Sdika, "Boundary conditions for Young-van Vliet
@@ -1297,7 +1293,7 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
                                   Rend::CartesianIndices, border::BorderSpec) where {T,k,l}
     if iscopy(kernel)
         if !(out === img)
-            copy!(out, img)
+            copyto!(out, img)
         end
         return out
     end
@@ -1315,7 +1311,7 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
         # is "replicate", so that the original value is still
         # available. rightborder! will handle that point.
         for i = ind[k]+1:ind[end-1]
-            @unsafe for Ibegin in Rbegin
+            @inbounds for Ibegin in Rbegin
                 tmp = accumfilter(img[Ibegin, i, Iend], one(T))
                 for j = 1:k
                     tmp += kernel.a[j]*safe_for_prod(out[Ibegin, i-j, Iend], tmp)
@@ -1330,7 +1326,7 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
         end
         # Propagate backwards
         for i = ind[end-l]:-1:ind[1]
-            @unsafe for Ibegin in Rbegin
+            @inbounds for Ibegin in Rbegin
                 tmp = accumfilter(out[Ibegin, i, Iend], one(T))
                 for j = 1:l
                     tmp += kernel.b[j]*safe_for_prod(out[Ibegin, i+j, Iend], tmp)
@@ -1340,7 +1336,7 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
         end
         # Final scaling
         for i in ind
-            @unsafe for Ibegin in Rbegin
+            @inbounds for Ibegin in Rbegin
                 out[Ibegin, i, Iend] *= kernel.scale
             end
         end
@@ -1420,30 +1416,30 @@ end
 
 function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple{Vararg{AnyIIR}}) where T
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
-    copy!(out, img)
-    out[nanflag] = zero(T)
-    validpixels = copy!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, nanflag))
+    copyto!(out, img)
+    out[nanflag] .= zero(T)
+    validpixels = copyto!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, nanflag))
     # TriggsSdika is safe for inplace operations
     imfilter!(r, out, out, kernel, fc)
     imfilter!(r, validpixels, validpixels, kernel, fn)
     for I in eachindex(out)
         out[I] /= validpixels[I]
     end
-    out[nanflag] = nan(T)
+    out[nanflag] .= nan(T)
     out
 end
 
 function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple) where T
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
-    imgtmp = copy!(similar(out, axes(img)), img)
-    imgtmp[nanflag] = zero(T)
-    validpixels = copy!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, nanflag))
+    imgtmp = copyto!(similar(out, axes(img)), img)
+    imgtmp[nanflag] .= zero(T)
+    validpixels = copyto!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, nanflag))
     imfilter!(r, out, imgtmp, kernel, fc)
     vp = imfilter(r, validpixels, kernel, fn)
     for I in eachindex(out)
         out[I] /= vp[I]
     end
-    out[nanflag] = nan(T)
+    out[nanflag] .= nan(T)
     out
 end
 
@@ -1486,14 +1482,14 @@ factorkernel(L::Laplacian) = (L,)
 function factorkernel(kernel::AbstractMatrix{T}) where T
     inds = axes(kernel)
     m, n = map(length, inds)
-    kern = Array{T}(m, n)
-    copy!(kern, 1:m, 1:n, kernel, inds[1], inds[2])
+    kern = Array{T}(undef, m, n)
+    copyto!(kern, 1:m, 1:n, kernel, inds[1], inds[2])
     factorstridedkernel(inds, kern)
 end
 
 function factorstridedkernel(inds, kernel::StridedMatrix)
-    SVD = svdfact(kernel)
-    U, S, Vt = SVD[:U], SVD[:S], SVD[:Vt]
+    SVD = svd(kernel)
+    U, S, Vt = SVD.U, SVD.S, SVD.Vt
     separable = true
     EPS = sqrt(eps(eltype(S)))
     for i = 2:length(S)
@@ -1535,13 +1531,12 @@ end
 filter_algorithm(out, img, kernel::Tuple{AnyIIR,Vararg{AnyIIR}}) = IIR()
 filter_algorithm(out, img, kernel) = Mixed()
 
-maxlen(A::AbstractArray) = _length(A)
+maxlen(A::AbstractArray) = length(A)
 @inline maxlen(kernel::Tuple) = _maxlen(0, kernel...)
-_maxlen(len, kernel1, kernel...) = _maxlen(max(len, _length(kernel1)), kernel...)
+_maxlen(len, kernel1, kernel...) = _maxlen(max(len, length(kernel1)), kernel...)
 _maxlen(len) = len
 
-_length(A::AbstractArray) = length(linearindices(A))
-_length(A::ReshapedVector) = _length(A.data)
+Base.length(A::ReshapedVector) = length(A.data)
 
 isseparable(kernels::Tuple{Vararg{AnyIIR}}) = true
 isseparable(kernels::Tuple) = all(x->nextendeddims(x)==1, kernels)
@@ -1552,7 +1547,7 @@ function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,TriggsSd
     function imfilter_inplace!(r, a, kern, border)
         imfilter!(r, a, a, (kern,), border)
     end
-    filtdims = ntuple(d->imfilter_inplace!(r, similar(dims->ones(dims), inds[d]), kernels[d], border), Val(N))
+    filtdims = ntuple(d->imfilter_inplace!(r, fill(1, inds[d]), kernels[d], border), Val(N))
     normalize_dims!(A, filtdims)
 end
 function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,ReshapedIIR}, border) where N
@@ -1561,7 +1556,7 @@ end
 
 function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,Any}, border) where N
     inds = axes(A)
-    filtdims = ntuple(d->imfilter(r, similar(dims->ones(dims), inds[d]), _vec(kernels[d]), border), Val(N))
+    filtdims = ntuple(d->imfilter(r, fill(1, inds[d]), _vec(kernels[d]), border), Val(N))
     normalize_dims!(A, filtdims)
 end
 
@@ -1609,14 +1604,14 @@ alg_defaults(alg::Alg, out, kernel) = alg
 ## Faster Cartesian iteration
 # Splitting out the first dimension saves a branch
 safetail(R::CartesianIndices) = CartesianIndices(tail(R.indices))
-@compat safetail(R::CartesianIndices{1}) = CartesianIndices(())
-@compat safetail(R::CartesianIndices{0}) = CartesianIndices(())
-safetail(I::CartesianIndex) = CartesianIndex(tail(I.I))
+safetail(R::CartesianIndices{1}) = CartesianIndices(())
+safetail(R::CartesianIndices{0}) = CartesianIndices(())
+safetail(I::CartesianIndex) = CartesianIndex(tail(Tuple(I)))
 safetail(::CartesianIndex{1}) = CartesianIndex(())
 safetail(::CartesianIndex{0}) = CartesianIndex(())
 
 safehead(R::CartesianIndices) = R.indices[1]
-@compat safehead(R::CartesianIndices{0}) = CartesianIndices(())
+safehead(R::CartesianIndices{0}) = CartesianIndices(())
 safehead(I::CartesianIndex) = I[1]
 safehead(::CartesianIndex{0}) = CartesianIndex(())
 
@@ -1630,12 +1625,12 @@ end
 
 function tile_allocate(::Type{T}, tsz::Dims, kernel::Tuple{Any,Any}) where T
     # Allocate a single tile for a 2-stage filter
-    [Array{T}(tsz) for i = 1:Threads.nthreads()]
+    [Array{T}(undef, tsz) for i = 1:Threads.nthreads()]
 end
 
 function tile_allocate(::Type{T}, tsz::Dims, kernel::Tuple{Any,Any,Vararg{Any}}) where T
     # Allocate a pair of tiles and swap buffers at each stage
-    [(Array{T}(tsz), Array{T}(tsz)) for i = 1:Threads.nthreads()]
+    [(Array{T}(undef, tsz), Array{T}(undef, tsz)) for i = 1:Threads.nthreads()]
 end
 
 ## Whole-image temporaries

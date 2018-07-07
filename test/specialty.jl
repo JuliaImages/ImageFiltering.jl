@@ -1,5 +1,5 @@
 using ImageFiltering, ImageCore, OffsetArrays, Colors, FixedPointNumbers
-using Test
+using Statistics, Test
 
 @testset "specialty" begin
     @testset "Laplacian" begin
@@ -20,7 +20,7 @@ using Test
         @test convert(AbstractArray, kern) == reshape(L1, 0:0, -1:1)
         function makeimpulse(T, sz, x)
             A = zeros(T, sz)
-            A[x] = one(T)
+            A[x] .= oneunit(T)
             A
         end
         # 1d
@@ -62,7 +62,7 @@ using Test
             af = imfilter(a, kern)
             T = eltype(a)
             z = zero(T)
-            c = one(T)
+            c = oneunit(T)
             @test af == [z z z z z;
                          z z c z z;
                          z c -4c c z;
@@ -77,7 +77,7 @@ using Test
                 af = imfilter(a, kern, border)
                 T = eltype(a)
                 z = zero(T)
-                c = one(T)
+                c = oneunit(T)
                 @test af == [z z z z z;
                              c z z z z;
                              edgecoef*c c z z z;
@@ -93,7 +93,7 @@ using Test
                 af = imfilter(a, kern, border)
                 T = eltype(a)
                 z = zero(T)
-                c = one(T)
+                c = oneunit(T)
                 @test af == [z z z z z;
                              z z z z z;
                              z z z z z;
@@ -110,7 +110,7 @@ using Test
             af = imfilter(a, kern)
             T = eltype(a)
             z = zero(T)
-            c = one(T)
+            c = oneunit(T)
             @test af == [z z z z z;
                          z z c z z;
                          z z -2c z z;
@@ -125,7 +125,7 @@ using Test
                 af = imfilter(a, kern, border)
                 T = eltype(a)
                 z = zero(T)
-                c = one(T)
+                c = oneunit(T)
                 @test af == [z z z z z;
                              c z z z z;
                              edgecoef*c z z z z;
@@ -141,7 +141,7 @@ using Test
                 af = imfilter(a, kern, border)
                 T = eltype(a)
                 z = zero(T)
-                c = one(T)
+                c = oneunit(T)
                 @test af == [z z z z z;
                              z z z z z;
                              z z z z z;

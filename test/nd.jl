@@ -39,7 +39,7 @@ using Test
     # Element-type widening (issue #17)
     v = fill(0xff, 10)
     kern = centered(fill(0xff, 3))
-    info("Two warnings are expected")
+    @info "Two warnings are expected"
     @test_throws InexactError imfilter(v, kern)
     vout = imfilter(UInt32, v, kern)
     @test eltype(vout) == UInt32
@@ -104,11 +104,11 @@ end
     # Fill(0)
     target = convert(Array{Float64}, img)
     for i in (1,10)
-        target[:,:,i] = target[:,i,:] = target[i,:,:] = 2/3
+        target[:,:,i] .= target[:,i,:] .= target[i,:,:] .= 2/3
     end
     for i in (1,10)
         for j in (1,10)
-            target[:,i,j] = target[i,:,j] = target[i,j,:] = (2/3)^2
+            target[:,i,j] .= target[i,:,j] .= target[i,j,:] .= (2/3)^2
         end
     end
     for i in (1,10)

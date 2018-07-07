@@ -1,4 +1,4 @@
-using ImageFiltering, OffsetArrays, Test
+using ImageFiltering, OffsetArrays, Logging, Test
 
 @testset "basic" begin
     v = OffsetArray([1,2,3], -1:1)
@@ -41,26 +41,21 @@ using ImageFiltering, OffsetArrays, Test
     @test ImageFiltering.safehead(CartesianIndex(())) == CartesianIndex(())
 
     # Warnings
-    const OLDERR = STDERR
     fname = tempname()
     open(fname, "w") do f
-        redirect_stderr(f)
-        try
+        logger = SimpleLogger(f)
+        with_logger(logger) do
             KernelFactors.IIRGaussian(0.5, emit_warning=false)
-        finally
-            redirect_stderr(OLDERR)
         end
     end
-    @test isempty(chomp(readstring(fname)))
+    @test isempty(chomp(read(fname, String)))
     open(fname, "w") do f
-        redirect_stderr(f)
-        try
+        logger = SimpleLogger(f)
+        with_logger(logger) do
             KernelFactors.IIRGaussian(0.5)
-        finally
-            redirect_stderr(OLDERR)
         end
     end
-    @test occursin("too small for accuracy", readstring(fname))
+    @test occursin("too small for accuracy", read(fname, String))
     rm(fname)
 end
 

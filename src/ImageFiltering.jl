@@ -2,26 +2,16 @@ __precompile__()
 
 module ImageFiltering
 
-import FFTW
+using FFTW
 using Colors, FixedPointNumbers, ImageCore, MappedArrays, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
-using Statistics
+using Statistics, LinearAlgebra
 using ColorVectorSpace  # for filtering RGB arrays
-using Compat
-using Base: Indices, tail, fill_to_length, @pure, depwarn
+using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
 
 export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm,
     imfilter, imfilter!,
     mapwindow, mapwindow!,
     imgradients, padarray, centered, kernelfactors, reflect
-
-# TODO: just use .+
-# See https://github.com/JuliaLang/julia/pull/22932#issuecomment-330711997
-if VERSION < v"0.7.0-DEV.1759"
-    plus(r::AbstractUnitRange, i::Integer) = r + i
-else
-    plus(r::AbstractUnitRange, i::Integer) = broadcast(+, r, i)
-end
-plus(a::AbstractArray, x::Number) = a .+ x
 
 FixedColorant{T<:Normed} = Colorant{T}
 StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
@@ -36,7 +26,6 @@ end
 module Algorithm
     # deliberately don't export these, but it's expected that they
     # will be used as Algorithm.FFT(), etc.
-    using Compat
     abstract type Alg end
     "Filter using the Fast Fourier Transform" struct FFT <: Alg end
     "Filter using a direct algorithm" struct FIR <: Alg end
