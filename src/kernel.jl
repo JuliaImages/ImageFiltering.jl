@@ -262,8 +262,8 @@ symmetric 2d kernel is returned.
 See also: [`KernelFactors.IIRGaussian`](@ref) and [`Kernel.Laplacian`](@ref).
 """
 function LoG(σs::NTuple{N}) where N
-    w = CartesianIndex(map(n->(ceil(Int,8.5*n)>>1), σs))
-    R = CartesianIndices(-w, w)
+    ws = map(n->(ceil(Int,8.5*n)>>1), σs)
+    R = CartesianIndices(map(w->Base.Slice(-w:w), ws))
     σ = SVector(σs)
     C = 1/(prod(σ)*(2π)^(N/2))
     σ2 = σ.^2
@@ -273,7 +273,7 @@ function LoG(σs::NTuple{N}) where N
         xσ = x.^2 ./ σ2
         (sum(xσ./σ2) - σ2i) * exp(-sum(xσ)/2)
     end
-    centered([C*df(I, σ2, σ2i) for I in R])
+    [C*df(I, σ2, σ2i) for I in R]
 end
 LoG(σ::Real) = LoG((σ,σ))
 
