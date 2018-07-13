@@ -9,9 +9,9 @@ using Statistics
 export mapwindow, mapwindow!
 
 """
-    mapwindow(f, img, window, [border="replicate"], [imginds=indices(img)]) -> imgf
+    mapwindow(f, img, window, [border="replicate"], [imginds=axes(img)]) -> imgf
 
-Apply `f` to sliding windows of `img`, with window size or indices
+Apply `f` to sliding windows of `img`, with window size or axes
 specified by `window`. For example, `mapwindow(median!, img, window)`
 returns an `Array` of values similar to `img` (median-filtered, of
 course), whereas `mapwindow(extrema, img, window)` returns an `Array`
@@ -64,10 +64,10 @@ function mapwindow(f, img, window, border="replicate",
 end
 
 function default_imginds(img, window, border)
-    indices(img)
+    axes(img)
 end
 function default_imginds(img, window, border::Inner)
-    imginds = indices(img)
+    imginds = axes(img)
     win = resolve_window(window)
     indind = _indices_of_interiour_indices(imginds, imginds, win)
     map((II, r) -> r[II], indind, imginds)
@@ -79,7 +79,7 @@ function _mapwindow(f, img, window, border, imginds)
 end
 
 """
-    mapwindow!(f, out, img, window, border="replicate", imginds=indices(img))
+    mapwindow!(f, out, img, window, border="replicate", imginds=axes(img))
 
 Variant of [mapwindow](@ref), with preallocated output.
 If `out` and `img` have overlapping memory regions, behaviour is undefined.
@@ -97,7 +97,7 @@ end
 function median_fast!(v)
     # median! calls partialsort! which has keyword arguments. Keyword arguments are slow.
     # This replaces median! with a more efficient implementation free of keyword arguments.
-    inds = indices(v,1)
+    inds = axes(v,1)
     Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
 end
 
@@ -121,7 +121,7 @@ resolve_window(window::Indices) = window
 resolve_border(border::AbstractString) = borderinstance(border)
 resolve_border(border::BorderSpecAny) = border
 
-resolve_imginds(r::Range) = (r,)
+resolve_imginds(r::AbstractRange) = (r,)
 resolve_imginds(imginds) = imginds
 
 abstract type _IndexTransformer end
@@ -162,19 +162,19 @@ function _IndexTransformer(ranges::NTuple{N,AbstractUnitRange}) where {N}
 end
 
 compute_output_range(r::AbstractUnitRange) = r
-compute_output_range(r::Range) = Base.OneTo(length(r))
+compute_output_range(r::AbstractRange) = Base.OneTo(length(r))
 
 function compute_output_indices(imginds)
     ranges = map(compute_output_range, imginds)
     # Base.similar does not like if some but not all ranges are Base.OneTo
     homogenize(ranges)
 end
-homogenize(ranges::NTuple{N, Range}) where {N}   = map(r-> first(r):step(r):last(r), ranges)
+homogenize(ranges::NTuple{N, AbstractRange}) where {N}   = map(r-> first(r):step(r):last(r), ranges)
 homogenize(ranges::NTuple{N, AbstractUnitRange}) where{N} = map(r-> first(r):last(r), ranges)
 homogenize(ranges::NTuple{N, Base.OneTo}) where {N} = ranges
 
 # Return indices of elements of `r` that are also elements of `full`.
-function _intersectionindices(full::AbstractUnitRange, r::Range)
+function _intersectionindices(full::AbstractUnitRange, r::AbstractRange)
     r_sub = intersect(full, r)
     if isempty(r_sub)
         ret = 1:0
@@ -185,7 +185,7 @@ function _intersectionindices(full::AbstractUnitRange, r::Range)
     ret
 end
 
-function _indexof(r::Range, x)
+function _indexof(r::AbstractRange, x)
     T = eltype(r)
     @assert x ∈ r
     i = one(T) + T((x - first(r)) / step(r))
@@ -195,8 +195,8 @@ end
 
 function _indices_of_interiour_range(
         fullimgr::AbstractUnitRange,
-        imgr::Range,
-        kerr::Range)
+        imgr::AbstractRange,
+        kerr::AbstractRange)
     kmin, kmax = extrema(kerr)
     idx1 = _intersectionindices(fullimgr, kmin + imgr)
     idx2 = _intersectionindices(fullimgr, kmax + imgr)
@@ -245,16 +245,16 @@ function mapwindow_kernel!(f,
                     img::AbstractArray{T,N},
                     window::NTuple{N,AbstractUnitRange},
                     border::BorderSpecAny,
-                    imginds::NTuple{N, Range}) where {S,T,N}
+                    imginds::NTuple{N, AbstractRange}) where {S,T,N}
 
-    @assert map(length, imginds) == map(length, indices(out))
+    @assert map(length, imginds) == map(length, axes(out))
 
     indind_full = map(r -> Base.OneTo(length(r)), imginds)
-    indind_inner = _indices_of_interiour_indices(indices(img), imginds, window)
+    indind_inner = _indices_of_interiour_indices(axes(img), imginds, window)
     Rindind_full = CartesianIndices(indind_full)
     Rindind_inner = CartesianIndices(indind_inner)
 
-    outindtrafo = _IndexTransformer(indices(out))
+    outindtrafo = _IndexTransformer(axes(out))
     imgindtrafo = _IndexTransformer(imginds)
 
     buf, bufrs = allocate_buffer(f, img, window)
@@ -262,7 +262,7 @@ function mapwindow_kernel!(f,
     for II ∈ Rindind_inner
         Iimg = imgindtrafo[II]
         Iout = outindtrafo[II]
-        Rwin = CartesianIndices(map((w,o) -> w .+ o, window, Tuple(Iimg))
+        Rwin = CartesianIndices(map((w,o) -> w .+ o, window, Tuple(Iimg)))
         copyto!(buf, Rbuf, img, Rwin)
         out[Iout] = f(bufrs)
     end
@@ -356,7 +356,7 @@ end
 
 Calculate the running min/max over a window of width `window[d]` along
 dimension `d`, centered on the current point. The returned array has
-the same indices as the input `A`.
+the same axes as the input `A`.
 """
 function extrema_filter(A::AbstractArray{T,N}, window::NTuple{N,Integer}) where {T,N}
     _extrema_filter!([(a,a) for a in A], window...)

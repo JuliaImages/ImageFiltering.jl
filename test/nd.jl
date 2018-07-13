@@ -70,7 +70,7 @@ using Test
     out = imfilter!(CPU1(Algorithm.FFT()), similar(img, Float64), img, kern, NoPad())
     @test out ≈ imfilter(img, kern)
 
-    # Inputs that have non-1 indices
+    # Inputs that have non-1 axes
     img = OffsetArray(zeros(11), -5:5)
     img[0] = 1
     for border in ("replicate", "circular", "symmetric", "reflect",

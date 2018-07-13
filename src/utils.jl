@@ -7,7 +7,7 @@ center-element of `kernel` will be accessed by `shiftedkernel[0, 0,
 
 This function makes it easy to supply kernels using regular Arrays,
 and provides compatibility with other languages that do not support
-arbitrary indices.
+arbitrary axes.
 
 See also: [`imfilter`](@ref).
 """
@@ -23,7 +23,7 @@ nextendeddims(a::AbstractArray) = nextendeddims(axes(a))
 
 function checkextended(inds::Indices, n)
     dimstr = n == 1 ? "dimension" : "dimensions"
-    nextendeddims(inds) != n && throw(ArgumentError("need $n extended $dimstr, got indices $inds"))
+    nextendeddims(inds) != n && throw(ArgumentError("need $n extended $dimstr, got axes $inds"))
     nothing
 end
 checkextended(a::AbstractArray, n) = checkextended(axes(a), n)

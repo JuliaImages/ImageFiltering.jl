@@ -20,7 +20,7 @@ using Statistics, Test
         @test convert(AbstractArray, kern) == reshape(L1, 0:0, -1:1)
         function makeimpulse(T, sz, x)
             A = zeros(T, sz)
-            A[x] .= oneunit(T)
+            A[x] = oneunit(T)
             A
         end
         # 1d
@@ -154,7 +154,7 @@ using Statistics, Test
     @testset "gaussian" begin
         function gaussiancmp(σ, xr)
             cmp = [exp(-x^2/(2σ^2)) for x in xr]
-            OffsetArray(cmp/sum(cmp), xr)
+            cmp ./ sum(cmp)
         end
         for kern in (Kernel.gaussian(()), Kernel.gaussian((),()))
             @test ndims(kern) == 0
@@ -164,17 +164,17 @@ using Statistics, Test
         for kern in (Kernel.gaussian((1.3,)), Kernel.gaussian((1.3,),(7,)))
             @test kern ≈ gaussiancmp(1.3, axes(kern,1))
         end
-        @test KernelFactors.gaussian(2, 9) ≈ gaussiancmp(2, -4:4)
+        @test KernelFactors.gaussian(2, 9) ≈ gaussiancmp(2, Base.Slice(-4:4))
         k = KernelFactors.gaussian((2,3), (9,7))
-        @test vec(k[1]) ≈ gaussiancmp(2, -4:4)
-        @test vec(k[2]) ≈ gaussiancmp(3, -3:3)
+        @test vec(k[1]) ≈ gaussiancmp(2, Base.Slice(-4:4))
+        @test vec(k[2]) ≈ gaussiancmp(3, Base.Slice(-3:3))
         @test sum(KernelFactors.gaussian(5)) ≈ 1
         for k = (KernelFactors.gaussian((2,3)), KernelFactors.gaussian([2,3]), KernelFactors.gaussian([2,3], [9,7]))
             @test sum(k[1]) ≈ 1
             @test sum(k[2]) ≈ 1
         end
-        @test Kernel.gaussian((2,), (9,)) ≈ gaussiancmp(2, -4:4)
-        @test Kernel.gaussian((2,3), (9,7)) ≈ gaussiancmp(2, -4:4).*gaussiancmp(3, -3:3)'
+        @test Kernel.gaussian((2,), (9,)) ≈ gaussiancmp(2, Base.Slice(-4:4))
+        @test Kernel.gaussian((2,3), (9,7)) ≈ gaussiancmp(2, Base.Slice(-4:4)).*gaussiancmp(3, Base.Slice(-3:3))'
         @test sum(Kernel.gaussian(5)) ≈ 1
         for k = (Kernel.gaussian((2,3)), Kernel.gaussian([2,3]), Kernel.gaussian([2,3], [9,7]))
             @test sum(k) ≈ 1

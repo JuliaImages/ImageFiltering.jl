@@ -38,8 +38,8 @@ Base.eltype(kernel::IIRFilter{T}) where {T} = T
     ReshapedOneD{N,Npre}(data)
 
 Return an object of dimensionality `N`, where `data` must have
-dimensionality 1. The indices are `0:0` for the first `Npre`
-dimensions, have the indices of `data` for dimension `Npre+1`, and are
+dimensionality 1. The axes are `0:0` for the first `Npre`
+dimensions, have the axes of `data` for dimension `Npre+1`, and are
 `0:0` for the remaining dimensions.
 
 `data` must support `eltype` and `ndims`, but does not have to be an
@@ -119,7 +119,7 @@ nextendeddims(a::ReshapedOneD) = 1
     iterdims(inds, v::ReshapedOneD{T,N,Npre}) -> Rpre, ind, Rpost
 
 Return a pair `Rpre`, `Rpost` of CartesianIndicess that correspond to
-pre- and post- dimensions for iterating over an array with indices
+pre- and post- dimensions for iterating over an array with axes
 `inds`. `Rpre` corresponds to the `Npre` "pre" dimensions, and `Rpost`
 to the trailing dimensions (not including the vector object wrapped in
 `v`).  Concretely,

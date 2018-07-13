@@ -115,12 +115,12 @@ using Test
              14   9  4   9  14  19  24  19  14;
              13   8  3   8  13  18  23  18  13], (-3,-3))
         ret = @test_throws ArgumentError padarray(Ao, Fill(0))
-        @test contains(ret.value.msg, "lacks the proper padding")
+        @test occursin("lacks the proper padding", ret.value.msg)
         for Style in (:replicate, :circular, :symmetric, :reflect)
             ret = @test_throws ArgumentError padarray(Ao, Pad(Style,(1,1,1),(1,1,1)))
-            @test contains(ret.value.msg, "lacks the proper padding")
+            @test occursin("lacks the proper padding", ret.value.msg)
             ret = @test_throws ArgumentError padarray(Ao, Pad(Style))
-            @test contains(ret.value.msg, "lacks the proper padding")
+            @test occursin("lacks the proper padding", ret.value.msg)
         end
         # arrays smaller than the padding
         A = [1 2; 3 4]

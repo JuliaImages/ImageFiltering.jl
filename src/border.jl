@@ -211,7 +211,7 @@ Pad(style::Symbol, inds::Indices) = Pad(style, map(lo,inds), map(hi,inds))
     Pad(style, kernel)
     Pad(style)(kernel)
 ```
-Construct an instance of [`Pad`](@ref) by designating the value `val` and a filter array `kernel` which will be used to determine the amount of padding from the `indices` of `kernel`.
+Construct an instance of [`Pad`](@ref) by designating the value `val` and a filter array `kernel` which will be used to determine the amount of padding from the `axes` of `kernel`.
 
 #### Usage illustration
 
@@ -913,7 +913,7 @@ padarray(img::AbstractArray, f::Fill) = padarray(eltype(img), img, f)
 """
     padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer)
 
-Generate an index-vector to be used for padding. `inds` specifies the image indices along a particular axis; `lo` and `hi` are the amount to pad on the lower and upper, respectively, sides of this axis. `border` specifying the style of padding.
+Generate an index-vector to be used for padding. `inds` specifies the image axes along a particular axis; `lo` and `hi` are the amount to pad on the lower and upper, respectively, sides of this axis. `border` specifying the style of padding.
 """
 function padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer)
     if border.style == :replicate

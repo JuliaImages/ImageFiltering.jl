@@ -313,7 +313,7 @@ Laplacian() = Laplacian((true,true))
 
 function Laplacian(dims, N::Int)
     flags = falses(N)
-    flags[[dims...]] = true
+    flags[[dims...]] .= true
     Laplacian((flags...,))
 end
 
