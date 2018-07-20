@@ -118,14 +118,14 @@ using ImageFiltering, Statistics, Test
                         ((2:7,), ("replicate", 2:7)),
                         ((Base.OneTo(10),), ())
                        ]
-        @test inds == indices(mapwindow(mean, randn(10), (3,), args...))
+        @test inds == axes(mapwindow(mean, randn(10), (3,), args...))
     end
 
     img_48 = 10*collect(1:10)
     @test mapwindow(first, img_48, (1,), Inner()) == img_48
     res_48 = mapwindow(first, img_48, (0:1,), Inner())
-    @test indices(res_48) === (1:9,)
-    @test res_48 == img_48[indices(res_48)...]
+    @test axes(res_48) === (Base.Slice(1:9),)
+    @test res_48 == img_48[axes(res_48)...]
     inds_48 = 2:2:8
     @test mapwindow(first, img_48, (0:2,), Inner(), inds_48) == img_48[inds_48]
 

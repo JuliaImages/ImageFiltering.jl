@@ -1,4 +1,4 @@
-using ImageFiltering, Base.Test
+using ImageFiltering, Test
 
 @testset "gabor" begin
     σx = 8
@@ -23,9 +23,9 @@ using ImageFiltering, Base.Test
         @test abs(sum(kernel1[2] - kernel2[2])) < 1e-2
     end
     
-    x = [j for i in 0:49,j in 0:49]
+    x1 = [j for i in 0:49,j in 0:49]
     wavelengths = (3, 10)
-    images = [sin.(2*π*x/λ) for λ in wavelengths]
+    images = [sin.(2*π*x1/λ) for λ in wavelengths]
     σx = 4
     σy = 5
     function match_score(image, λ)
