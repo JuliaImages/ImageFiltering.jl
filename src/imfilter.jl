@@ -1610,14 +1610,14 @@ alg_defaults(alg::Alg, out, kernel) = alg
 # Splitting out the first dimension saves a branch
 safetail(R::CartesianRange) = CartesianRange(CartesianIndex(tail(R.start.I)),
                                              CartesianIndex(tail(R.stop.I)))
-safetail(R::CartesianRange{CartesianIndex{1}}) = CartesianRange(())
-safetail(R::CartesianRange{CartesianIndex{0}}) = CartesianRange(())
+@compat safetail(R::CartesianRange{1}) = CartesianRange(())
+@compat safetail(R::CartesianRange{0}) = CartesianRange(())
 safetail(I::CartesianIndex) = CartesianIndex(tail(I.I))
 safetail(::CartesianIndex{1}) = CartesianIndex(())
 safetail(::CartesianIndex{0}) = CartesianIndex(())
 
 safehead(R::CartesianRange) = R.start[1]:R.stop[1]
-safehead(R::CartesianRange{CartesianIndex{0}}) = CartesianRange(())
+@compat safehead(R::CartesianRange{0}) = CartesianRange(())
 safehead(I::CartesianIndex) = I[1]
 safehead(::CartesianIndex{0}) = CartesianIndex(())
 
