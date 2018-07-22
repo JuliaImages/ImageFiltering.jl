@@ -48,7 +48,7 @@ samedims(::Type{Val{N}}, kernel) where {N} = _reshape(kernel, Val{N})
 samedims(::Type{Val{N}}, kernel::Tuple) where {N} = map(k->_reshape(k, Val{N}), kernel)
 samedims(::AbstractArray{T,N}, kernel) where {T,N} = samedims(Val{N}, kernel)
 
-_tail(R::CartesianRange{CartesianIndex{0}}) = R
+@compat _tail(R::CartesianRange{0}) = R
 _tail(R::CartesianRange) = CartesianRange(CartesianIndex(tail(R.start.I)),
                                           CartesianIndex(tail(R.stop.I)))
 
