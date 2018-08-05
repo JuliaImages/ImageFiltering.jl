@@ -1,4 +1,4 @@
-using ImageFiltering, Test
+using ImageFiltering, Test, Statistics
 
 @testset "gabor" begin
     σx = 8
@@ -6,31 +6,33 @@ using ImageFiltering, Test
     size_x = 6*σx+1
     size_y = 6*σy+1
     γ = σx/σy
+    # zero size forces default kernel width, with warnings
+    @info "Four warnings are expected"
     kernel = Kernel.gabor(0,0,σx,0,5,γ,0)
     @test isequal(size(kernel[1]),(size_x,size_y))
     kernel = Kernel.gabor(0,0,σx,π,5,γ,0)
     @test isequal(size(kernel[1]),(size_x,size_y))
 
     for x in 0:4, y in 0:4, z in 0:4, t in 0:4
-        σx = 2*x+1
-        σy = 2*y+1
+        σx1 = 2*x+1
+        σy1 = 2*y+1
         λ = 2*z+1
-        γ = σx/σy
+        γ1 = σx1/σy1
         θ = 2*t+1
-        kernel1 = Kernel.gabor(9,9,σx,θ,λ,γ,0)
-        kernel2 = Kernel.gabor(9,9,σx,θ+π,λ,γ,0)
+        kernel1 = Kernel.gabor(9,9,σx1,θ,λ,γ1,0)
+        kernel2 = Kernel.gabor(9,9,σx1,θ+π,λ,γ1,0)
         @test abs(sum(kernel1[1] - kernel2[1])) < 1e-2
         @test abs(sum(kernel1[2] - kernel2[2])) < 1e-2
     end
-    
+
     x1 = [j for i in 0:49,j in 0:49]
     wavelengths = (3, 10)
     images = [sin.(2*π*x1/λ) for λ in wavelengths]
     σx = 4
     σy = 5
     function match_score(image, λ)
-        gabor_real = imfilter(image,centered(Kernel.gabor(6*σx+1,6*σy+1,σx,0,λ,σx/σy,0)[1]),[border="replicate"])
-        gabor_imag = imfilter(image,centered(Kernel.gabor(6*σx+1,6*σy+1,σx,0,λ,σx/σy,0)[2]),[border="replicate"])
+        gabor_real = imfilter(image,centered(Kernel.gabor(6*σx+1,6*σy+1,σx,0,λ,σx/σy,0)[1]),"replicate")
+        gabor_imag = imfilter(image,centered(Kernel.gabor(6*σx+1,6*σy+1,σx,0,λ,σx/σy,0)[2]),"replicate")
         gabor_result = sqrt.((gabor_real.*gabor_real) + (gabor_imag.*gabor_imag))
         return mean(gabor_result)
     end

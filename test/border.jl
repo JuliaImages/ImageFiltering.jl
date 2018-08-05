@@ -1,4 +1,4 @@
-using ImageFiltering, OffsetArrays, Colors, FixedPointNumbers
+using ImageFiltering, OffsetArrays, Colors, FixedPointNumbers, Random
 using Test
 
 @testset "Border" begin
@@ -191,7 +191,7 @@ using Test
         @test B != A
         A = rand(RGB{N0f8}, 3, 5)
         ret = @test_throws ErrorException padarray(A, Fill(0, (0,0), (0,0)))
-        @test occursin("element type RGB", ret.value.msg)
+        @test occursin("element type ColorTypes.RGB", ret.value.msg)
         A = bitrand(3, 5)
         ret = @test_throws ErrorException padarray(A, Fill(7, (0,0), (0,0)))
         @test occursin("element type Bool", ret.value.msg)
