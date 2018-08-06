@@ -224,7 +224,7 @@ using Statistics, Test
         # Ensure that edge-trimming under successive stages of filtering works correctly
         ImageFiltering.fillbuf_nan[] = true
         kernel3 = (Kernel.Laplacian(), KernelFactors.IIRGaussian(σs)...)
-        @test_broken !any(isnan, imfilter(img, kernel3))
+        @test !any(isnan, imfilter(img, kernel3))
         ImageFiltering.fillbuf_nan[] = false
         @test Kernel.LoG(2.5) == Kernel.LoG((2.5,2.5))
     end
