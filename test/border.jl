@@ -191,7 +191,10 @@ using Test
         @test B != A
         A = rand(RGB{N0f8}, 3, 5)
         ret = @test_throws ErrorException padarray(A, Fill(0, (0,0), (0,0)))
-        @test occursin("element type ColorTypes.RGB", ret.value.msg)
+        # FIXME: exact phrase depends on showarg in Interpolations
+        # @test occursin("element type ColorTypes.RGB", ret.value.msg)
+        # This is a temporary substitute:
+        @test occursin("RGB", ret.value.msg)
         A = bitrand(3, 5)
         ret = @test_throws ErrorException padarray(A, Fill(7, (0,0), (0,0)))
         @test occursin("element type Bool", ret.value.msg)
