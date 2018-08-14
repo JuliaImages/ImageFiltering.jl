@@ -619,6 +619,7 @@ function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKern
                     # if our attempt to be helpful triggered a
                     # completely different error...
                     Tw = widen(eltype(img))
+                catch
                 end
             end
             warn("Likely overflow or conversion error detected. Consider specifying the output type, e.g., `imfilter($Tw, img, kernel, ...)`")
