@@ -726,14 +726,14 @@ end
 
 for T in (:Inner, :NA)
     @eval begin
-        (::Type{$T})(both::Int...) = $T(both, both)
-        (::Type{$T})(both::Dims{N}) where {N} = $T(both, both)
-        (::Type{$T})(lo::Tuple{}, hi::Tuple{}) = $T{0}(lo, hi)
-        (::Type{$T})(lo::Dims{N}, hi::Tuple{}) where {N} = $T{N}(lo, ntuple(d->0,Val{N}))
-        (::Type{$T})(lo::Tuple{}, hi::Dims{N}) where {N} = $T{N}(ntuple(d->0,Val{N}), hi)
-        (::Type{$T})(inds::Indices{N}) where {N} = $T{N}(map(lo,inds), map(hi,inds))
-        (::Type{$T{N}})(lo::AbstractVector, hi::AbstractVector) where {N} = $T{N}((lo...,), (hi...,))
-        (::Type{$T})(lo::AbstractVector, hi::AbstractVector) = $T((lo...,), (hi...,)) # not inferrable
+        $T(both::Int...) = $T(both, both)
+        $T(both::Dims{N}) where {N} = $T(both, both)
+        $T(lo::Tuple{}, hi::Tuple{}) = $T{0}(lo, hi)
+        $T(lo::Dims{N}, hi::Tuple{}) where {N} = $T{N}(lo, ntuple(d->0,Val{N}))
+        $T(lo::Tuple{}, hi::Dims{N}) where {N} = $T{N}(ntuple(d->0,Val{N}), hi)
+        $T(inds::Indices{N}) where {N} = $T{N}(map(lo,inds), map(hi,inds))
+        $T{N}(lo::AbstractVector, hi::AbstractVector) where {N} = $T{N}((lo...,), (hi...,))
+        $T(lo::AbstractVector, hi::AbstractVector) = $T((lo...,), (hi...,)) # not inferrable
 
         (p::$T{0})(kernel, img, ::Alg) = p(kernel)
         (p::$T{0})(kernel) = $T(calculate_padding(kernel))
