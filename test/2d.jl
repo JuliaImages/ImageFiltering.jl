@@ -43,8 +43,8 @@ end
     ## Images for which the boundary conditions will be irrelevant
     imgf = zeros(5, 7); imgf[3,4] = 1
     imgi = zeros(Int, 5, 7); imgi[3,4] = 1
-    imgg = fill(Gray(0), 5, 7); imgg[3,4] = 1
-    imgc = fill(RGB(0,0,0), 5, 7); imgc[3,4] = RGB(1,0,0)
+    imgg = fill(Gray{N0f8}(0), 5, 7); imgg[3,4] = 1
+    imgc = fill(RGB{N0f8}(0,0,0), 5, 7); imgc[3,4] = RGB(1,0,0)
     # Dense inseparable kernel
     kern = [0.1 0.2; 0.4 0.5]
     kernel = OffsetArray(kern, -1:0, 1:2)

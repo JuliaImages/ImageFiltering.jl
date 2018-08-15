@@ -98,7 +98,7 @@ function median_fast!(v)
     # median! calls partialsort! which has keyword arguments. Keyword arguments are slow.
     # This replaces median! with a more efficient implementation free of keyword arguments.
     inds = axes(v,1)
-    Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
+    Statistics.middle(Base.partialsort!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
 end
 
 replace_function(f) = f
@@ -198,11 +198,11 @@ function _indices_of_interiour_range(
         imgr::AbstractRange,
         kerr::AbstractRange)
     kmin, kmax = extrema(kerr)
-    idx1 = _intersectionindices(fullimgr, kmin + imgr)
-    idx2 = _intersectionindices(fullimgr, kmax + imgr)
+    idx1 = _intersectionindices(fullimgr, kmin .+ imgr)
+    idx2 = _intersectionindices(fullimgr, kmax .+ imgr)
     idx = intersect(idx1, idx2)
-    @assert imgr[idx] + kmin ⊆ fullimgr
-    @assert imgr[idx] + kmax ⊆ fullimgr
+    @assert imgr[idx] .+ kmin ⊆ fullimgr
+    @assert imgr[idx] .+ kmax ⊆ fullimgr
     idx
 end
 
@@ -218,7 +218,7 @@ end
 
 function allocate_buffer(f, img, window)
     T = eltype(img)
-    buf = Array{T}(map(length, window))
+    buf = Array{T}(undef,map(length, window))
     bufrs = default_shape(f)(buf)
     buf, bufrs
 end

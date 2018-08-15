@@ -4,17 +4,23 @@ os:
   - linux
   - osx
 julia:
-  - 0.6
+  - 0.7
   - nightly
 notifications:
   email: false
+
+matrix:
+  allow_failures:
+    - julia: nightly
+
 # uncomment the following lines to override the default test script
 script:
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
- - julia -e 'Pkg.clone(pwd()); Pkg.build("ImageFiltering"); Pkg.test("ImageFiltering"; coverage=VERSION >= v"0.6.0-alpha")'
+ - julia --color=yes -e 'using InteractiveUtils; versioninfo(); import Pkg; Pkg.clone(pwd()); Pkg.build("ImageFiltering")'
+ - julia --color=yes -e 'import Pkg; Pkg.test("ImageFiltering"; coverage=VERSION < v"1.0-alpha")'
 after_success:
   # push coverage results to Codecov
-  - julia -e 'if VERSION >= v"0.6.0-alpha" cd(Pkg.dir("ImageFiltering")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder()); end'
+  - julia -e 'if VERSION < v"1.0-alpha" cd(Pkg.dir("ImageFiltering")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder()); end'
   # update the documentation
   - julia -e 'Pkg.add("Documenter")'
   - julia -e 'cd(Pkg.dir("ImageFiltering")); ENV["DOCUMENTER_DEBUG"] = "true"; include(joinpath("docs", "make.jl"))'

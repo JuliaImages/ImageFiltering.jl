@@ -1547,7 +1547,7 @@ function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,TriggsSd
     function imfilter_inplace!(r, a, kern, border)
         imfilter!(r, a, a, (kern,), border)
     end
-    filtdims = ntuple(d->imfilter_inplace!(r, fill(1, inds[d]), kernels[d], border), Val(N))
+    filtdims = ntuple(d->imfilter_inplace!(r, fill(1.0, inds[d]), kernels[d], border), Val(N))
     normalize_dims!(A, filtdims)
 end
 function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,ReshapedIIR}, border) where N
@@ -1556,7 +1556,8 @@ end
 
 function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,Any}, border) where N
     inds = axes(A)
-    filtdims = ntuple(d->imfilter(r, fill(1, inds[d]), _vec(kernels[d]), border), Val(N))
+    # some kernels require floats here
+    filtdims = ntuple(d->imfilter(r, fill(1.0, inds[d]), _vec(kernels[d]), border), Val(N))
     normalize_dims!(A, filtdims)
 end
 
