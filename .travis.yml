@@ -5,6 +5,7 @@ os:
   - osx
 julia:
   - 0.7
+  - 1.0
   - nightly
 notifications:
   email: false
@@ -13,14 +14,22 @@ matrix:
   allow_failures:
     - julia: nightly
 
-# uncomment the following lines to override the default test script
 script:
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
- - julia --color=yes -e 'using InteractiveUtils; versioninfo(); import Pkg; Pkg.clone(pwd()); Pkg.build("ImageFiltering")'
- - julia --color=yes -e 'import Pkg; Pkg.test("ImageFiltering"; coverage=VERSION < v"1.0-alpha")'
+ - julia -e 'import Pkg; Pkg.clone(pwd()); Pkg.build("ImageFiltering")'
+ - julia --check-bounds=yes --color=yes -e 'import Pkg; Pkg.test("ImageFiltering"; coverage=true)'
+# control of actual deployment is in the Documenter make script
+jobs:
+  include:
+    - stage: deploy
+      julia: 0.7
+      os: linux
+      script:
+        - julia -e 'import Pkg; Pkg.clone(pwd()); Pkg.build("ImageFiltering")'
+        - julia -e 'import Pkg; Pkg.add("Documenter")'
+        - julia -e 'import ImageFiltering; ENV["DOCUMENTER_DEBUG"] = "true"; include(joinpath("docs","make.jl"))'
+
 after_success:
   # push coverage results to Codecov
-  - julia -e 'if VERSION < v"1.0-alpha" cd(Pkg.dir("ImageFiltering")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder()); end'
-  # update the documentation
-  - julia -e 'Pkg.add("Documenter")'
-  - julia -e 'cd(Pkg.dir("ImageFiltering")); ENV["DOCUMENTER_DEBUG"] = "true"; include(joinpath("docs", "make.jl"))'
+  - julia -e 'import Pkg; Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+
