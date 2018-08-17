@@ -18,7 +18,9 @@ See also: [`KernelFactors`](@ref).
 module Kernel
 
 using StaticArrays, OffsetArrays
-using ..ImageFiltering: centered, KernelFactors
+using ..ImageFiltering
+using ..ImageFiltering.KernelFactors
+import ..ImageFiltering: _reshape
 
 # We would like to do `using ..ImageFiltering.imgradients` so that that
 # Documenter.jl (the documentation system) can parse a reference such as `See
@@ -27,8 +29,6 @@ using ..ImageFiltering: centered, KernelFactors
 # ImageFiltering.jl. With the more general `using ImageFiltering`, we seem to
 # sidestep the scope problem, although I don't actually understand the mechanism
 # form why this works. - ZS
-using ImageFiltering
-import ..ImageFiltering: _reshape
 
 function product2d(kf)
     k1, k2 = kf
@@ -246,7 +246,7 @@ DoG(σps::NTuple{N,Real}, σms::NTuple{N,Real}, ls::NTuple{N,Integer}) where {N}
 function DoG(σps::NTuple{N,Real}) where N
     σms = map(s->s*√2, σps)
     neg = gaussian(σms)
-    l = map(length, indices(neg))
+    l = map(length, axes(neg))
     gaussian(σps, l) - neg
 end
 DoG(σ::Real) = DoG((σ,σ))
@@ -262,18 +262,18 @@ symmetric 2d kernel is returned.
 See also: [`KernelFactors.IIRGaussian`](@ref) and [`Kernel.Laplacian`](@ref).
 """
 function LoG(σs::NTuple{N}) where N
-    w = CartesianIndex(map(n->(ceil(Int,8.5*n)>>1), σs))
-    R = CartesianRange(-w, w)
+    ws = map(n->(ceil(Int,8.5*n)>>1), σs)
+    R = CartesianIndices(map(w->Base.Slice(-w:w), ws))
     σ = SVector(σs)
     C = 1/(prod(σ)*(2π)^(N/2))
     σ2 = σ.^2
-    σ2i = sum(1./σ2)
+    σ2i = sum(1 ./ σ2)
     function df(I::CartesianIndex, σ2, σ2i)
-        x = SVector(I.I)
-        xσ = x.^2./σ2
+        x = SVector(Tuple(I))
+        xσ = x.^2 ./ σ2
         (sum(xσ./σ2) - σ2i) * exp(-sum(xσ)/2)
     end
-    centered([C*df(I, σ2, σ2i) for I in R])
+    [C*df(I, σ2, σ2i) for I in R]
 end
 LoG(σ::Real) = LoG((σ,σ))
 
@@ -282,7 +282,7 @@ struct Laplacian{N}
     offsets::Vector{CartesianIndex{N}}
 
     function Laplacian{N}(flags::NTuple{N,Bool}) where {N}
-        offsets = Array{CartesianIndex{N}}(0)
+        offsets = Array{CartesianIndex{N}}(undef, 0)
         for i = 1:N
             if flags[i]
                 push!(offsets,
@@ -313,21 +313,21 @@ Laplacian() = Laplacian((true,true))
 
 function Laplacian(dims, N::Int)
     flags = falses(N)
-    flags[[dims...]] = true
+    flags[[dims...]] .= true
     Laplacian((flags...,))
 end
 
-Base.indices(L::Laplacian) = map(f->f ? (-1:1) : (0:0), L.flags)
+Base.axes(L::Laplacian) = map(f->f ? (-1:1) : (0:0), L.flags)
 Base.isempty(L::Laplacian) = false
 function Base.convert(::Type{AbstractArray}, L::Laplacian{N}) where N
-    A = fill!(OffsetArray{Int}(indices(L)), 0)
+    A = fill!(OffsetArray{Int}(undef, axes(L)), 0)
     for I in L.offsets
         A[I] = A[-I] = 1
     end
-    A[ntuple(d->0, Val{N})...] = -2*length(L.offsets)
+    A[ntuple(d->0, Val(N))...] = -2*length(L.offsets)
     A
 end
-_reshape(L::Laplacian{N}, ::Type{Val{N}}) where {N} = L
+_reshape(L::Laplacian{N}, ::Val{N}) where {N} = L
 
 
 """
@@ -343,7 +343,7 @@ Returns a 2 Dimensional Complex Gabor kernel contained in a tuple where
   - `ψ` is the phase offset
 
 #Citation
-N. Petkov and P. Kruizinga, “Computational models of visual neurons specialised in the detection of periodic and aperiodic oriented visual stimuli: bar and grating cells,” Biological Cybernetics, vol. 76, no. 2, pp. 83–96, Feb. 1997. doi.org/10.1007/s004220050323    
+N. Petkov and P. Kruizinga, “Computational models of visual neurons specialised in the detection of periodic and aperiodic oriented visual stimuli: bar and grating cells,” Biological Cybernetics, vol. 76, no. 2, pp. 83–96, Feb. 1997. doi.org/10.1007/s004220050323
 """
 function gabor(size_x::Integer, size_y::Integer, σ::Real, θ::Real, λ::Real, γ::Real, ψ::Real)
 
@@ -358,27 +358,27 @@ function gabor(size_x::Integer, size_y::Integer, σ::Real, θ::Real, λ::Real, �
     if(size_x > 0)
         xmax = floor(Int64,size_x/2)
     else
-        warn("The input parameter size_x should be positive. Using size_x = 6 * σx + 1 (Default value)")
+        @warn "The input parameter size_x should be positive. Using size_x = 6 * σx + 1 (Default value)"
         xmax = round(Int64,max(abs(nstds*σx*c),abs(nstds*σy*s),1))
     end
 
     if(size_y > 0)
         ymax = floor(Int64,size_y/2)
     else
-        warn("The input parameter size_y should be positive. Using size_y = 6 * σy + 1 (Default value)")
+        @warn "The input parameter size_y should be positive. Using size_y = 6 * σy + 1 (Default value)"
         ymax = round(Int64,max(abs(nstds*σx*s),abs(nstds*σy*c),1))
     end
 
     xmin = -xmax
     ymin = -ymax
-        
+
     x = [j for i in xmin:xmax,j in ymin:ymax]
     y = [i for i in xmin:xmax,j in ymin:ymax]
     xr = x*c + y*s
     yr = -x*s + y*c
 
-    kernel_real = (exp.(-0.5*(((xr.*xr)/σx^2) + ((yr.*yr)/σy^2))).*cos.(2*(π/λ)*xr + ψ))
-    kernel_imag = (exp.(-0.5*(((xr.*xr)/σx^2) + ((yr.*yr)/σy^2))).*sin.(2*(π/λ)*xr + ψ))
+    kernel_real = (exp.(-0.5*(((xr.*xr)/σx^2) + ((yr.*yr)/σy^2))).*cos.(2*(π/λ)*xr .+ ψ))
+    kernel_imag = (exp.(-0.5*(((xr.*xr)/σx^2) + ((yr.*yr)/σy^2))).*sin.(2*(π/λ)*xr .+ ψ))
 
     kernel = (kernel_real,kernel_imag)
     return kernel
@@ -398,9 +398,9 @@ Compute the pointwise reflection around 0, 0, ... of the kernel
 rather than correlation, with respect to the original `kernel`.
 """
 function reflect(kernel::AbstractArray)
-    inds = map(reflectind, indices(kernel))
+    inds = map(reflectind, axes(kernel))
     out = similar(kernel, inds)
-    for I in CartesianRange(indices(kernel))
+    for I in CartesianIndices(axes(kernel))
         out[-I] = kernel[I]
     end
     out

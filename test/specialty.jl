@@ -1,5 +1,5 @@
 using ImageFiltering, ImageCore, OffsetArrays, Colors, FixedPointNumbers
-using Base.Test
+using Statistics, Test
 
 @testset "specialty" begin
     @testset "Laplacian" begin
@@ -20,7 +20,7 @@ using Base.Test
         @test convert(AbstractArray, kern) == reshape(L1, 0:0, -1:1)
         function makeimpulse(T, sz, x)
             A = zeros(T, sz)
-            A[x] = one(T)
+            A[x] = oneunit(T)
             A
         end
         # 1d
@@ -62,7 +62,7 @@ using Base.Test
             af = imfilter(a, kern)
             T = eltype(a)
             z = zero(T)
-            c = one(T)
+            c = oneunit(T)
             @test af == [z z z z z;
                          z z c z z;
                          z c -4c c z;
@@ -77,7 +77,7 @@ using Base.Test
                 af = imfilter(a, kern, border)
                 T = eltype(a)
                 z = zero(T)
-                c = one(T)
+                c = oneunit(T)
                 @test af == [z z z z z;
                              c z z z z;
                              edgecoef*c c z z z;
@@ -93,7 +93,7 @@ using Base.Test
                 af = imfilter(a, kern, border)
                 T = eltype(a)
                 z = zero(T)
-                c = one(T)
+                c = oneunit(T)
                 @test af == [z z z z z;
                              z z z z z;
                              z z z z z;
@@ -110,7 +110,7 @@ using Base.Test
             af = imfilter(a, kern)
             T = eltype(a)
             z = zero(T)
-            c = one(T)
+            c = oneunit(T)
             @test af == [z z z z z;
                          z z c z z;
                          z z -2c z z;
@@ -125,7 +125,7 @@ using Base.Test
                 af = imfilter(a, kern, border)
                 T = eltype(a)
                 z = zero(T)
-                c = one(T)
+                c = oneunit(T)
                 @test af == [z z z z z;
                              c z z z z;
                              edgecoef*c z z z z;
@@ -141,7 +141,7 @@ using Base.Test
                 af = imfilter(a, kern, border)
                 T = eltype(a)
                 z = zero(T)
-                c = one(T)
+                c = oneunit(T)
                 @test af == [z z z z z;
                              z z z z z;
                              z z z z z;
@@ -154,7 +154,7 @@ using Base.Test
     @testset "gaussian" begin
         function gaussiancmp(σ, xr)
             cmp = [exp(-x^2/(2σ^2)) for x in xr]
-            OffsetArray(cmp/sum(cmp), xr)
+            cmp ./ sum(cmp)
         end
         for kern in (Kernel.gaussian(()), Kernel.gaussian((),()))
             @test ndims(kern) == 0
@@ -162,19 +162,19 @@ using Base.Test
             @test ImageFiltering.iscopy(kern)
         end
         for kern in (Kernel.gaussian((1.3,)), Kernel.gaussian((1.3,),(7,)))
-            @test kern ≈ gaussiancmp(1.3, indices(kern,1))
+            @test kern ≈ gaussiancmp(1.3, axes(kern,1))
         end
-        @test KernelFactors.gaussian(2, 9) ≈ gaussiancmp(2, -4:4)
+        @test KernelFactors.gaussian(2, 9) ≈ gaussiancmp(2, Base.Slice(-4:4))
         k = KernelFactors.gaussian((2,3), (9,7))
-        @test vec(k[1]) ≈ gaussiancmp(2, -4:4)
-        @test vec(k[2]) ≈ gaussiancmp(3, -3:3)
+        @test vec(k[1]) ≈ gaussiancmp(2, Base.Slice(-4:4))
+        @test vec(k[2]) ≈ gaussiancmp(3, Base.Slice(-3:3))
         @test sum(KernelFactors.gaussian(5)) ≈ 1
         for k = (KernelFactors.gaussian((2,3)), KernelFactors.gaussian([2,3]), KernelFactors.gaussian([2,3], [9,7]))
             @test sum(k[1]) ≈ 1
             @test sum(k[2]) ≈ 1
         end
-        @test Kernel.gaussian((2,), (9,)) ≈ gaussiancmp(2, -4:4)
-        @test Kernel.gaussian((2,3), (9,7)) ≈ gaussiancmp(2, -4:4).*gaussiancmp(3, -3:3)'
+        @test Kernel.gaussian((2,), (9,)) ≈ gaussiancmp(2, Base.Slice(-4:4))
+        @test Kernel.gaussian((2,3), (9,7)) ≈ gaussiancmp(2, Base.Slice(-4:4)).*gaussiancmp(3, Base.Slice(-3:3))'
         @test sum(Kernel.gaussian(5)) ≈ 1
         for k = (Kernel.gaussian((2,3)), Kernel.gaussian([2,3]), Kernel.gaussian([2,3], [9,7]))
             @test sum(k) ≈ 1
@@ -197,7 +197,7 @@ using Base.Test
         @test abs(sum(Kernel.DoG(5))) < 1e-8
         @test Kernel.DoG(5) == Kernel.DoG((5,5))
         @test abs(sum(Kernel.DoG((5,), (7,), (21,)))) < 1e-8
-        @test indices(Kernel.DoG((5,), (7,), (21,))) == (-10:10,)
+        @test axes(Kernel.DoG((5,), (7,), (21,))) == (-10:10,)
     end
 
     @testset "LoG" begin

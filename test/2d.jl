@@ -1,17 +1,18 @@
 using ImageFiltering, ImageCore, OffsetArrays, Colors, FFTViews, ColorVectorSpace, ComputationalResources, FixedPointNumbers
-using Base.Test
+using LinearAlgebra
+using Test
 
 @testset "tiling" begin
     m = zeros(UInt8, 20, 20)
-    for i = -2:2; m[diagind(m,i)] = 0xff; end
+    for i = -2:2; m[diagind(m,i)] .= 0xff; end
     kernel = KernelFactors.prewitt((true,true), 1)
     kp = broadcast(*, kernel...)
     # target is the result we want to get
     target = zeros(20, 20)
     dv = [42.5, 85, 85, 42.5]
     for i = 1:4
-        target[diagind(target, i)] = dv[i]
-        target[diagind(target, -i)] = -dv[i]
+        target[diagind(target, i)] .= dv[i]
+        target[diagind(target, -i)] .= -dv[i]
     end
     mf = imfilter(m, kernel)
     @test mf[2:19, 2:19] ≈ target[2:19, 2:19]
@@ -37,13 +38,13 @@ end
     f32type(img) = f32type(eltype(img))
     f32type(::Type{C}) where {C<:Colorant} = base_colorant_type(C){Float32}
     f32type(::Type{T}) where {T<:Number} = Float32
-    zerona!(a) = (a[isnan.(a)] = zero(eltype(a)); a)
-    zerona!(a, nanflag) = (a[nanflag] = zero(eltype(a)); a)
+    zerona!(a) = (a[isnan.(a)] .= zero(eltype(a)); a)
+    zerona!(a, nanflag) = (a[nanflag] .= zero(eltype(a)); a)
     ## Images for which the boundary conditions will be irrelevant
     imgf = zeros(5, 7); imgf[3,4] = 1
     imgi = zeros(Int, 5, 7); imgi[3,4] = 1
-    imgg = fill(Gray(0), 5, 7); imgg[3,4] = 1
-    imgc = fill(RGB(0,0,0), 5, 7); imgc[3,4] = RGB(1,0,0)
+    imgg = fill(Gray{N0f8}(0), 5, 7); imgg[3,4] = 1
+    imgc = fill(RGB{N0f8}(0,0,0), 5, 7); imgc[3,4] = RGB(1,0,0)
     # Dense inseparable kernel
     kern = [0.1 0.2; 0.4 0.5]
     kernel = OffsetArray(kern, -1:0, 1:2)
@@ -112,7 +113,7 @@ end
     kern = kernel[1].*kernel[2]
     for img in (imgf, imgi, imgg, imgc)
         targetimg = zeros(typeof(img[1]*kern[1]), size(img))
-        targetimg[2:4,3:5] = img[3,4]*(1//9)
+        targetimg[2:4,3:5] .= img[3,4]*(1//9)
         @test @inferred(imfilter(img, kernel)) ≈ targetimg
         @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32.(targetimg)
         for border in ("replicate", "circular", "symmetric", "reflect", Fill(zero(eltype(img))))
@@ -172,7 +173,7 @@ end
         x = img[1,2]
         ret[1,1] = kern[2,1]*x/(kern[2,1]+kern[2,2])
         ret[2,1] = kern[1,1]*x/sum(kern)
-        ret[:,end] = nan(eltype(ret))  # for the last column, this kernel is entirely in the padding region
+        ret[:,end] .= nan(eltype(ret))  # for the last column, this kernel is entirely in the padding region
         ret
     end
     for img in (imgf, imgi, imgg, imgc)
@@ -231,7 +232,7 @@ end
     # OffsetArrays
     img = OffsetArray(rand(RGB{N0f8}, 80, 100), (-5, 3))
     imgf = imfilter(img, Kernel.gaussian((3,3)))
-    @test indices(imgf) == indices(img)
+    @test axes(imgf) == axes(img)
 end
 
 nothing

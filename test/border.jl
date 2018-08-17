@@ -1,5 +1,5 @@
-using ImageFiltering, OffsetArrays, Colors, FixedPointNumbers
-using Base.Test
+using ImageFiltering, OffsetArrays, Colors, FixedPointNumbers, Random
+using Test
 
 @testset "Border" begin
     @testset "padarray" begin
@@ -55,12 +55,12 @@ using Base.Test
              14   9  4   9  14  19  24  19  14;
              13   8  3   8  13  18  23  18  13], (-2,-2))
         ret = @test_throws ArgumentError padarray(A, Fill(0))
-        @test contains(ret.value.msg, "lacks the proper padding")
+        @test occursin("lacks the proper padding", ret.value.msg)
         for Style in (:replicate, :circular, :symmetric, :reflect)
             ret = @test_throws ArgumentError padarray(A, Pad(Style,(1,1,1),(1,1,1)))
-            @test contains(ret.value.msg, "lacks the proper padding")
+            @test occursin("lacks the proper padding", ret.value.msg)
             ret = @test_throws ArgumentError padarray(A, Pad(Style))
-            @test contains(ret.value.msg, "lacks the proper padding")
+            @test occursin("lacks the proper padding", ret.value.msg)
         end
         # same as above, but input arrays are of type OffsetArray
         Ao =  OffsetArray(reshape(1:25, 5, 5),-1,-1)
@@ -115,12 +115,12 @@ using Base.Test
              14   9  4   9  14  19  24  19  14;
              13   8  3   8  13  18  23  18  13], (-3,-3))
         ret = @test_throws ArgumentError padarray(Ao, Fill(0))
-        @test contains(ret.value.msg, "lacks the proper padding")
+        @test occursin("lacks the proper padding", ret.value.msg)
         for Style in (:replicate, :circular, :symmetric, :reflect)
             ret = @test_throws ArgumentError padarray(Ao, Pad(Style,(1,1,1),(1,1,1)))
-            @test contains(ret.value.msg, "lacks the proper padding")
+            @test occursin("lacks the proper padding", ret.value.msg)
             ret = @test_throws ArgumentError padarray(Ao, Pad(Style))
-            @test contains(ret.value.msg, "lacks the proper padding")
+            @test occursin("lacks the proper padding", ret.value.msg)
         end
         # arrays smaller than the padding
         A = [1 2; 3 4]
@@ -191,18 +191,20 @@ using Base.Test
         @test B != A
         A = rand(RGB{N0f8}, 3, 5)
         ret = @test_throws ErrorException padarray(A, Fill(0, (0,0), (0,0)))
-        @test contains(ret.value.msg, "element type ColorTypes.RGB")
+        # FIXME: exact phrase depends on showarg in Interpolations
+        # @test occursin("element type ColorTypes.RGB", ret.value.msg)
+        # This is a temporary substitute:
+        @test occursin("RGB", ret.value.msg)
         A = bitrand(3, 5)
         ret = @test_throws ErrorException padarray(A, Fill(7, (0,0), (0,0)))
-        @test contains(ret.value.msg, "element type Bool")
+        @test occursin("element type Bool", ret.value.msg)
         @test isa(parent(padarray(A, Fill(false, (1,1), (1,1)))), BitArray)
     end
 
     @testset "Pad" begin
         @test Pad(:replicate,[1,2], [5,3]) == Pad(:replicate,(1,2), (5,3))
         @test @inferred(Pad{2}(:replicate, [1,2], [5,3])) == Pad(:replicate,(1,2), (5,3))
-        paderr = VERSION <= v"0.6.0-dev.2123" ? TypeError : MethodError
-        @eval @test_throws $paderr Pad{3}(:replicate, [1,2], [5,3])
+        @eval @test_throws MethodError Pad{3}(:replicate, [1,2], [5,3])
         @test @inferred(Pad(:circular)(rand(3,5))) == Pad(:circular, (0,0),(3,5))
         @test @inferred(Pad(:circular)(centered(rand(3,5)))) == Pad{2}(:circular, (1,2),(1,2))
         @test @inferred(Pad(:symmetric)(Kernel.Laplacian())) == Pad{2}(:symmetric, (1,1),(1,1))
@@ -211,7 +213,7 @@ using Base.Test
         a = reshape(1:15, 3, 5)
         targetinds = (OffsetArray([1,1,2,3,3], 0:4), OffsetArray([1:5;], 1:5))
         ret = @test_throws ArgumentError ImageFiltering.padindices(rand(3,5), Pad(:replicate,(1,)))
-        @test contains(ret.value.msg, "lacks the proper padding sizes")
+        @test occursin("lacks the proper padding sizes", ret.value.msg)
     end
 
 

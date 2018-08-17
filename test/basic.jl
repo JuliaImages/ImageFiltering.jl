@@ -1,4 +1,4 @@
-using ImageFiltering, OffsetArrays, Base.Test
+using ImageFiltering, OffsetArrays, Logging, Test
 
 @testset "basic" begin
     v = OffsetArray([1,2,3], -1:1)
@@ -35,32 +35,27 @@ using ImageFiltering, OffsetArrays, Base.Test
     @test isa(tiles, Vector{Matrix{Float32}})
     @test length(tiles) == 1
 
-    @test length(ImageFiltering.safetail(CartesianRange(()))) == 1
+    @test length(ImageFiltering.safetail(CartesianIndices(()))) == 1
     @test ImageFiltering.safetail(CartesianIndex(())) == CartesianIndex(())
-    @test length(ImageFiltering.safehead(CartesianRange(()))) == 1
+    @test length(ImageFiltering.safehead(CartesianIndices(()))) == 1
     @test ImageFiltering.safehead(CartesianIndex(())) == CartesianIndex(())
 
     # Warnings
-    const OLDERR = STDERR
     fname = tempname()
     open(fname, "w") do f
-        redirect_stderr(f)
-        try
+        logger = SimpleLogger(f)
+        with_logger(logger) do
             KernelFactors.IIRGaussian(0.5, emit_warning=false)
-        finally
-            redirect_stderr(OLDERR)
         end
     end
-    @test isempty(chomp(readstring(fname)))
+    @test isempty(chomp(read(fname, String)))
     open(fname, "w") do f
-        redirect_stderr(f)
-        try
+        logger = SimpleLogger(f)
+        with_logger(logger) do
             KernelFactors.IIRGaussian(0.5)
-        finally
-            redirect_stderr(OLDERR)
         end
     end
-    @test contains(readstring(fname), "too small for accuracy")
+    @test occursin("too small for accuracy", read(fname, String))
     rm(fname)
 end
 

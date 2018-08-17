@@ -3,8 +3,8 @@
 function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, L::Laplacian, border::NoPad, inds)
     TT = eltype(out) # accumtype(eltype(out), eltype(A))
     n = 2*length(L.offsets)
-    R = CartesianRange(inds)
-    @unsafe for I in R
+    R = CartesianIndices(inds)
+    @inbounds for I in R
         tmp = convert(TT, - n * A[I])
         for J in L.offsets
             tmp += A[I+J]
@@ -498,26 +498,17 @@ Using ImageFiltering.KernelFactors.bickley results in a mean absolute deviation 
 
 """
 function imgradients(img::AbstractArray, kernelfun::Function, border="replicate")
-    extended = map(isextended, indices(img))
-    _imgradients((), img, kernelfun, extended, border)
-end
-
-# For the 0.6 release of Images, we need to warn users about the
-# switch in the order of the outputs. Use the provision of kernelfun
-# as the test for the new interface.
-function imgradients(img::AbstractArray)
-    depwarn("the order of outputs has switched (`grad1, grad2 = imgradients(img)` rather than `gradx, grady = imgradients`). Silence this warning by providing a kernelfun, e.g., imgradients(img, KernelFactors.ando3).", :imgradients)
-    imgradients(img, KernelFactors.ando3)
+    extended = map(isextended, axes(img))
+    _imgradients(extended, img, kernelfun, extended, border)
 end
 
 isextended(ind) = length(ind) > 1
 
-# When all N gradients have been calculated, return the result
-_imgradients(G::NTuple{N}, img::AbstractArray{T,N}, kernelfun::Function, extent, border) where {T,N} = G
-
 # Add the next dimension to G
-function _imgradients(G::NTuple{M}, img::AbstractArray{T,N}, kernelfun::Function, extended, border) where {T,M,N}
-    d = M+1  # the dimension we're working on now
+function _imgradients(donewhenempty::NTuple{M}, img::AbstractArray{T,N}, kernelfun::Function, extended, border) where {T,M,N}
+    d = N-M+1  # the dimension we're working on now
     kern = kernelfun(extended, d)
-    _imgradients((G..., imfilter(img, kern, border)), img, kernelfun, extended, border)
+    return (imfilter(img, kern, border), _imgradients(Base.tail(donewhenempty), img, kernelfun, extended, border)...)
 end
+# When all N gradients have been calculated, return the result
+_imgradients(::Tuple{}, img::AbstractArray, kernelfun::Function, extent, border) = ()

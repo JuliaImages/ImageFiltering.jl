@@ -1,5 +1,5 @@
 using ImageFiltering, OffsetArrays, ComputationalResources
-using Base.Test
+using Test
 
 @testset "1d" begin
     img = 1:8
@@ -39,7 +39,7 @@ using Base.Test
     # Element-type widening (issue #17)
     v = fill(0xff, 10)
     kern = centered(fill(0xff, 3))
-    info("Two warnings are expected")
+    @info "Two warnings are expected"
     @test_throws InexactError imfilter(v, kern)
     vout = imfilter(UInt32, v, kern)
     @test eltype(vout) == UInt32
@@ -70,7 +70,7 @@ using Base.Test
     out = imfilter!(CPU1(Algorithm.FFT()), similar(img, Float64), img, kern, NoPad())
     @test out ≈ imfilter(img, kern)
 
-    # Inputs that have non-1 indices
+    # Inputs that have non-1 axes
     img = OffsetArray(zeros(11), -5:5)
     img[0] = 1
     for border in ("replicate", "circular", "symmetric", "reflect",
@@ -78,7 +78,7 @@ using Base.Test
         imgf = imfilter(img, centered([0.25, 0.5, 0.25]), border)
         @test imgf[-1] == imgf[1] == 0.25
         @test imgf[0] == 0.5
-        inds = indices(imgf,1)
+        inds = axes(imgf,1)
         @test all(x->x==0, imgf[first(inds):-2]) && all(x->x==0, imgf[2:last(inds)])
     end
 end
@@ -104,11 +104,11 @@ end
     # Fill(0)
     target = convert(Array{Float64}, img)
     for i in (1,10)
-        target[:,:,i] = target[:,i,:] = target[i,:,:] = 2/3
+        target[:,:,i] .= target[:,i,:] .= target[i,:,:] .= 2/3
     end
     for i in (1,10)
         for j in (1,10)
-            target[:,i,j] = target[i,:,j] = target[i,j,:] = (2/3)^2
+            target[:,i,j] .= target[i,:,j] .= target[i,j,:] .= (2/3)^2
         end
     end
     for i in (1,10)

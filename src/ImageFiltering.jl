@@ -1,11 +1,10 @@
-__precompile__()
-
 module ImageFiltering
 
+using FFTW
 using Colors, FixedPointNumbers, ImageCore, MappedArrays, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
+using Statistics, LinearAlgebra
 using ColorVectorSpace  # for filtering RGB arrays
-using Compat
-using Base: Indices, tail, fill_to_length, @pure, depwarn
+using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
 
 export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm,
     imfilter, imfilter!,
@@ -18,14 +17,13 @@ OffsetVector{T} = OffsetArray{T,1}
 
 # Needed for type-stability
 function Base.transpose(A::StaticOffsetArray{T,2}) where T
-    inds1, inds2 = indices(A)
+    inds1, inds2 = axes(A)
     OffsetArray(transpose(parent(A)), inds2, inds1)
 end
 
 module Algorithm
     # deliberately don't export these, but it's expected that they
     # will be used as Algorithm.FFT(), etc.
-    using Compat
     abstract type Alg end
     "Filter using the Fast Fourier Transform" struct FFT <: Alg end
     "Filter using a direct algorithm" struct FIR <: Alg end

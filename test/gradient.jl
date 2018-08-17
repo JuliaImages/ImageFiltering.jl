@@ -1,12 +1,12 @@
 using ImageFiltering, Colors, ColorVectorSpace, FixedPointNumbers
-using Base.Test, Compat  # Compat for ones(x, T)
+using Test
 
 @testset "gradient" begin
     y, x = 1:5, (1:7)'
-    img_grads = ((y .* ones(x), 1, 0),
-            (ones(y) .* x, 0, 1),
-            (map(Gray, y.*ones(x, Float64)), Gray(1), Gray(0)),
-            (map(v->RGB(v,0,0), y.*ones(x, Float64)), RGB(1,0,0), RGB(0,0,0)))
+    img_grads = ((y .* fill(1, size(x)), 1, 0),
+            (fill(1, size(y)) .* x, 0, 1),
+            (map(Gray, y.*fill(1.0, size(x))), Gray(1), Gray(0)),
+            (map(v->RGB(v,0,0), y.*fill(1.0, size(x))), RGB(1,0,0), RGB(0,0,0)))
     for (img, ey, ex) in img_grads
         for kernelfunc in (KernelFactors.ando3, KernelFactors.sobel, KernelFactors.prewitt,
                            KernelFactors.ando4, KernelFactors.ando5, KernelFactors.bickley,
@@ -21,7 +21,7 @@ using Base.Test, Compat  # Compat for ones(x, T)
                 @test abs(val - ex) < 1e-4
             end
             gy, gx = imgradients(img, kernelfunc, Pad(:replicate))
-            @test indices(gy) == indices(gx) == indices(img)
+            @test axes(gy) == axes(gx) == axes(img)
         end
         for funcpairs in ((Kernel.ando3, KernelFactors.ando3),
                           (Kernel.sobel, KernelFactors.sobel),
@@ -48,9 +48,9 @@ using Base.Test, Compat  # Compat for ones(x, T)
     end
     # 3d
     y, x, z = 1:5, (1:7)', reshape(1:6, 1, 1, 6)
-    for (img, ey, ex, ez) in ((y .* ones(x) .* ones(z), 1, 0, 0),
-                              (ones(y) .* x .* ones(z), 0, 1, 0),
-                              (ones(y) .* ones(x) .* z, 0, 0, 1))
+    for (img, ey, ex, ez) in ((y .* fill(1, size(x)) .* fill(1, size(z)), 1, 0, 0),
+                              (fill(1, size(y)) .* x .* fill(1, size(z)), 0, 1, 0),
+                              (fill(1, size(y)) .* fill(1, size(x)) .* z, 0, 0, 1))
         for kernelfunc in (KernelFactors.ando3, KernelFactors.sobel, KernelFactors.prewitt,
                            KernelFactors.scharr, KernelFactors.bickley,
                            Kernel.ando3, Kernel.sobel, Kernel.prewitt,

@@ -1,11 +1,11 @@
-using ImageFiltering, Base.Test
+using ImageFiltering, Statistics, Test
 
 @testset "mapwindow" begin
     function groundtruth(f, A, window::Tuple)
         Aex = copy(A)
         hshift = map(x->x>>1+1, window)
-        for Ishift in CartesianRange(window)
-            for I in CartesianRange(size(A))
+        for Ishift in CartesianIndices(window)
+            for I in CartesianIndices(size(A))
                 Aex[I] = f(Aex[I], A[map(d->clamp(I[d]+Ishift[d]-hshift[d], 1, size(A,d)), 1:ndims(A))...])
             end
         end
@@ -118,14 +118,14 @@ using ImageFiltering, Base.Test
                         ((2:7,), ("replicate", 2:7)),
                         ((Base.OneTo(10),), ())
                        ]
-        @test inds == indices(mapwindow(mean, randn(10), (3,), args...))
+        @test inds == axes(mapwindow(mean, randn(10), (3,), args...))
     end
 
     img_48 = 10*collect(1:10)
     @test mapwindow(first, img_48, (1,), Inner()) == img_48
     res_48 = mapwindow(first, img_48, (0:1,), Inner())
-    @test indices(res_48) === (1:9,)
-    @test res_48 == img_48[indices(res_48)...]
+    @test axes(res_48) === (Base.Slice(1:9),)
+    @test res_48 == img_48[axes(res_48)...]
     inds_48 = 2:2:8
     @test mapwindow(first, img_48, (0:2,), Inner(), inds_48) == img_48[inds_48]
 

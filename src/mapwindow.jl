@@ -4,13 +4,14 @@ using DataStructures, TiledIteration
 using ..ImageFiltering: BorderSpecAny, Pad, Fill, Inner,
     borderinstance, _interior, padindex, imfilter
 using Base: Indices, tail
+using Statistics
 
 export mapwindow, mapwindow!
 
 """
-    mapwindow(f, img, window, [border="replicate"], [imginds=indices(img)]) -> imgf
+    mapwindow(f, img, window, [border="replicate"], [imginds=axes(img)]) -> imgf
 
-Apply `f` to sliding windows of `img`, with window size or indices
+Apply `f` to sliding windows of `img`, with window size or axes
 specified by `window`. For example, `mapwindow(median!, img, window)`
 returns an `Array` of values similar to `img` (median-filtered, of
 course), whereas `mapwindow(extrema, img, window)` returns an `Array`
@@ -63,10 +64,10 @@ function mapwindow(f, img, window, border="replicate",
 end
 
 function default_imginds(img, window, border)
-    indices(img)
+    axes(img)
 end
 function default_imginds(img, window, border::Inner)
-    imginds = indices(img)
+    imginds = axes(img)
     win = resolve_window(window)
     indind = _indices_of_interiour_indices(imginds, imginds, win)
     map((II, r) -> r[II], indind, imginds)
@@ -78,7 +79,7 @@ function _mapwindow(f, img, window, border, imginds)
 end
 
 """
-    mapwindow!(f, out, img, window, border="replicate", imginds=indices(img))
+    mapwindow!(f, out, img, window, border="replicate", imginds=axes(img))
 
 Variant of [mapwindow](@ref), with preallocated output.
 If `out` and `img` have overlapping memory regions, behaviour is undefined.
@@ -96,8 +97,8 @@ end
 function median_fast!(v)
     # median! calls partialsort! which has keyword arguments. Keyword arguments are slow.
     # This replaces median! with a more efficient implementation free of keyword arguments.
-    inds = indices(v,1)
-    Base.middle(Base.select!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
+    inds = axes(v,1)
+    Statistics.middle(Base.partialsort!(v, (first(inds)+last(inds))÷2, Base.Order.ForwardOrdering()))
 end
 
 replace_function(f) = f
@@ -120,7 +121,7 @@ resolve_window(window::Indices) = window
 resolve_border(border::AbstractString) = borderinstance(border)
 resolve_border(border::BorderSpecAny) = border
 
-resolve_imginds(r::Range) = (r,)
+resolve_imginds(r::AbstractRange) = (r,)
 resolve_imginds(imginds) = imginds
 
 abstract type _IndexTransformer end
@@ -161,19 +162,19 @@ function _IndexTransformer(ranges::NTuple{N,AbstractUnitRange}) where {N}
 end
 
 compute_output_range(r::AbstractUnitRange) = r
-compute_output_range(r::Range) = Base.OneTo(length(r))
+compute_output_range(r::AbstractRange) = Base.OneTo(length(r))
 
 function compute_output_indices(imginds)
     ranges = map(compute_output_range, imginds)
     # Base.similar does not like if some but not all ranges are Base.OneTo
     homogenize(ranges)
 end
-homogenize(ranges::NTuple{N, Range}) where {N}   = map(r-> first(r):step(r):last(r), ranges)
+homogenize(ranges::NTuple{N, AbstractRange}) where {N}   = map(r-> first(r):step(r):last(r), ranges)
 homogenize(ranges::NTuple{N, AbstractUnitRange}) where{N} = map(r-> first(r):last(r), ranges)
 homogenize(ranges::NTuple{N, Base.OneTo}) where {N} = ranges
 
 # Return indices of elements of `r` that are also elements of `full`.
-function _intersectionindices(full::AbstractUnitRange, r::Range)
+function _intersectionindices(full::AbstractUnitRange, r::AbstractRange)
     r_sub = intersect(full, r)
     if isempty(r_sub)
         ret = 1:0
@@ -184,7 +185,7 @@ function _intersectionindices(full::AbstractUnitRange, r::Range)
     ret
 end
 
-function _indexof(r::Range, x)
+function _indexof(r::AbstractRange, x)
     T = eltype(r)
     @assert x ∈ r
     i = one(T) + T((x - first(r)) / step(r))
@@ -193,15 +194,15 @@ function _indexof(r::Range, x)
 end
 
 function _indices_of_interiour_range(
-        fullimgr::AbstractUnitRange, 
-        imgr::Range,
-        kerr::Range)
+        fullimgr::AbstractUnitRange,
+        imgr::AbstractRange,
+        kerr::AbstractRange)
     kmin, kmax = extrema(kerr)
-    idx1 = _intersectionindices(fullimgr, kmin + imgr)
-    idx2 = _intersectionindices(fullimgr, kmax + imgr)
+    idx1 = _intersectionindices(fullimgr, kmin .+ imgr)
+    idx2 = _intersectionindices(fullimgr, kmax .+ imgr)
     idx = intersect(idx1, idx2)
-    @assert imgr[idx] + kmin ⊆ fullimgr
-    @assert imgr[idx] + kmax ⊆ fullimgr
+    @assert imgr[idx] .+ kmin ⊆ fullimgr
+    @assert imgr[idx] .+ kmax ⊆ fullimgr
     idx
 end
 
@@ -217,7 +218,7 @@ end
 
 function allocate_buffer(f, img, window)
     T = eltype(img)
-    buf = Array{T}(map(length, window))
+    buf = Array{T}(undef,map(length, window))
     bufrs = default_shape(f)(buf)
     buf, bufrs
 end
@@ -244,25 +245,25 @@ function mapwindow_kernel!(f,
                     img::AbstractArray{T,N},
                     window::NTuple{N,AbstractUnitRange},
                     border::BorderSpecAny,
-                    imginds::NTuple{N, Range}) where {S,T,N}
-    
-    @assert map(length, imginds) == map(length, indices(out))
-    
+                    imginds::NTuple{N, AbstractRange}) where {S,T,N}
+
+    @assert map(length, imginds) == map(length, axes(out))
+
     indind_full = map(r -> Base.OneTo(length(r)), imginds)
-    indind_inner = _indices_of_interiour_indices(indices(img), imginds, window)
-    Rindind_full = CartesianRange(indind_full)
-    Rindind_inner = CartesianRange(indind_inner)
-    
-    outindtrafo = _IndexTransformer(indices(out))
+    indind_inner = _indices_of_interiour_indices(axes(img), imginds, window)
+    Rindind_full = CartesianIndices(indind_full)
+    Rindind_inner = CartesianIndices(indind_inner)
+
+    outindtrafo = _IndexTransformer(axes(out))
     imgindtrafo = _IndexTransformer(imginds)
-    
+
     buf, bufrs = allocate_buffer(f, img, window)
-    Rbuf = CartesianRange(size(buf))
+    Rbuf = CartesianIndices(size(buf))
     for II ∈ Rindind_inner
         Iimg = imgindtrafo[II]
         Iout = outindtrafo[II]
-        Rwin = CartesianRange(map(+, window, Iimg.I))
-        copy!(buf, Rbuf, img, Rwin)
+        Rwin = CartesianIndices(map((w,o) -> w .+ o, window, Tuple(Iimg)))
+        copyto!(buf, Rbuf, img, Rwin)
         out[Iout] = f(bufrs)
     end
     # Now pick up the edge points we skipped over above
@@ -279,9 +280,9 @@ end
 
 
 # For copying along the edge of the image
-function copy_win!(buf::AbstractArray{T,N}, img, I, border::Pad, offset) where {T,N}
-    win_inds = map(+, indices(buf), (I+offset).I)
-    win_img_inds = map(intersect, indices(img), win_inds)
+function copy_win!(buf::AbstractArray, img, I, border::Pad, offset)
+    win_inds = map((x,y)->x .+ y, axes(buf), Tuple(I) .+ Tuple(offset))
+    win_img_inds = map(intersect, axes(img), win_inds)
     padinds = map((inner,outer)->padindex(border, inner, outer), win_img_inds, win_inds)
     docopy!(buf, img, padinds)
     buf
@@ -294,10 +295,10 @@ docopy!(buf, img, padinds::NTuple{3}) = buf[:,:,:] = view(img, padinds[1], padin
     buf[colons...] = view(img, padinds...)
 end
 
-function copy_win!(buf::AbstractArray{T,N}, img, I, border::Fill, offset) where {T,N}
-    R = CartesianRange(indices(img))
+function copy_win!(buf::AbstractArray, img, I, border::Fill, offset)
+    R = CartesianIndices(axes(img))
     Ioff = I+offset
-    for J in CartesianRange(indices(buf))
+    for J in CartesianIndices(axes(buf))
         K = Ioff+J
         buf[J] = K ∈ R ? img[K] : convert(eltype(img), border.value)
     end
@@ -355,7 +356,7 @@ end
 
 Calculate the running min/max over a window of width `window[d]` along
 dimension `d`, centered on the current point. The returned array has
-the same indices as the input `A`.
+the same axes as the input `A`.
 """
 function extrema_filter(A::AbstractArray{T,N}, window::NTuple{N,Integer}) where {T,N}
     _extrema_filter!([(a,a) for a in A], window...)
@@ -387,14 +388,14 @@ function _extrema_filter1!(A::AbstractArray{Tuple{T,T}}, window::Int, cache) whe
     # U[1], L[1] are the location of the global (within the window) maximum and minimum
     # U[2], L[2] are the maximum and minimum over (U1, end] and (L1, end], respectively
     W = Wedge{Int}(window+1)
-    tmp = Array{Tuple{T,T}}(window)
+    tmp = Array{Tuple{T,T}}(undef, window)
     c = z = first(cache)
 
-    inds = indices(A)
+    inds = axes(A)
     inds1 = inds[1]
     halfwindow = window>>1
     iw = min(last(inds1), first(inds1)+window-1)
-    for J in CartesianRange(tail(inds))
+    for J in CartesianIndices(tail(inds))
         empty!(W)
         # Leading edge. We can't overwrite any values yet in A because
         # we'll need them again in later computations.
@@ -406,10 +407,10 @@ function _extrema_filter1!(A::AbstractArray{Tuple{T,T}}, window::Int, cache) whe
         for i = iw+1:last(inds1)
             A[i-window, J] = c
             if i == window+front(W.U)
-                shift!(W.U)
+                popfirst!(W.U)
             end
             if i == window+front(W.L)
-                shift!(W.L)
+                popfirst!(W.L)
             end
             addtoback!(W, A, i, J)
             c, cache = cyclecache(cache, getextrema(A, W, J))
@@ -419,10 +420,10 @@ function _extrema_filter1!(A::AbstractArray{Tuple{T,T}}, window::Int, cache) whe
                 A[i, J] = c
             end
             if i == front(W.U)
-                shift!(W.U)
+                popfirst!(W.U)
             end
             if i == front(W.L)
-                shift!(W.L)
+                popfirst!(W.L)
             end
             c, cache = cyclecache(cache, getextrema(A, W, J))
         end
