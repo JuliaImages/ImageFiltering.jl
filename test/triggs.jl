@@ -30,18 +30,18 @@ using Test
 
         kernel = KernelFactors.IIRGaussian(2.0)
         @test_throws DimensionMismatch imfilter([1.0, 2.0], (kernel,))
-    # end
+    end
 
-    # @testset "commutivity" begin
+    @testset "commutivity" begin
         img = 1:8
         k1 = KernelFactors.IIRGaussian(2)
         k2 = centered(ones(3)/3)
         for border in (Pad(:replicate), Fill(0))
             @test imfilter(img, (k1, k2), border) ≈ imfilter(img, (k2, k1), border)
         end
-    # end
+    end
 
-    # @testset "images" begin
+    @testset "images" begin
         imgf = zeros(5, 7); imgf[3,4] = 1
         imgg = fill(Gray{Float32}(0), 5, 7); imgg[3,4] = 1
         imgc = fill(RGB{Float64}(0,0,0), 5, 7); imgc[3,4] = RGB(1,0,0)
