@@ -206,26 +206,12 @@ using Statistics, Test
         kernel1 = Kernel.LoG(σs)
         kernel2 = (KernelFactors.IIRGaussian(σs)..., Kernel.Laplacian())
         imgf1 = imfilter(img, kernel1)
-        # the next call fails bound checks
-        #    imgf2 = imfilter(img, kernel2)
-        #    @test cor(vec(imgf1), vec(imgf2)) > 0.8
-# begin substitute
-        flag = false
-        try
-            imgf2 = imfilter(img, kernel2)
-            @test cor(vec(imgf1), vec(imgf2)) > 0.8
-        catch JE
-            flag = isa(JE,BoundsError)
-            !flag && rethrow(JE)
-        end
-        @test_broken flag == false
-# end substitute
-
+        imgf2 = imfilter(img, kernel2)
+        @test cor(vec(imgf1), vec(imgf2)) > 0.8
         # Ensure that edge-trimming under successive stages of filtering works correctly
         ImageFiltering.fillbuf_nan[] = true
         kernel3 = (Kernel.Laplacian(), KernelFactors.IIRGaussian(σs)...)
-        # FIXME: the next test is failing for some platforms
-        # @test !any(isnan, imfilter(img, kernel3))
+        @test !any(isnan, imfilter(img, kernel3))
         ImageFiltering.fillbuf_nan[] = false
         @test Kernel.LoG(2.5) == Kernel.LoG((2.5,2.5))
     end

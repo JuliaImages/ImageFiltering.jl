@@ -971,7 +971,7 @@ end
 
 function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::ReshapedIIR, border::NoPad, inds)
     indspre, ind, indspost = iterdims(inds, kern)
-    _imfilter_dim!(r, out, A, kern.data, CartesianIndices(indspre), ind, CartesianIndices(indspost), border[])
+    _imfilter_dim!(r, out, A, kern.data, indspre, ind, indspost, border[])
 end
 
 function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern, border::NoPad, inds)
