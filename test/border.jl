@@ -204,8 +204,7 @@ using Test
     @testset "Pad" begin
         @test Pad(:replicate,[1,2], [5,3]) == Pad(:replicate,(1,2), (5,3))
         @test @inferred(Pad{2}(:replicate, [1,2], [5,3])) == Pad(:replicate,(1,2), (5,3))
-        paderr = false ? TypeError : MethodError
-        @eval @test_throws $paderr Pad{3}(:replicate, [1,2], [5,3])
+        @eval @test_throws MethodError Pad{3}(:replicate, [1,2], [5,3])
         @test @inferred(Pad(:circular)(rand(3,5))) == Pad(:circular, (0,0),(3,5))
         @test @inferred(Pad(:circular)(centered(rand(3,5)))) == Pad{2}(:circular, (1,2),(1,2))
         @test @inferred(Pad(:symmetric)(Kernel.Laplacian())) == Pad{2}(:symmetric, (1,1),(1,1))
