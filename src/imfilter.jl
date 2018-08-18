@@ -1271,7 +1271,7 @@ function _imfilter_inplace_tuple!(r, out, img, kernel, Rbegin, inds, Rend, borde
                              out,
                              out,
                              tail(kernel),
-                             CartesianIndices(Rbegin.indices..., ind),
+                             CartesianIndices((Rbegin.indices..., ind)),
                              tail(inds),
                              _tail(Rend),
                              border)
