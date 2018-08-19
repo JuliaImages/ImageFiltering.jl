@@ -66,6 +66,12 @@ using Test
         imfilter!(CPU1(Algorithm.IIR()), out, imgf, KernelFactors.IIRGaussian(σ), 2, "replicate")
         @test out == ret
 
+        # for code coverage
+        # TODO: make into an actual test
+        kerng = KernelFactors.IIRGaussian(σ)
+        kern = (kerng,kerng)
+        imfilter(imgf, kern, NA())
+
         # When the image has NaNs
         imgfnan = copy(imgf)
         imgfnum = copy(imgf)
