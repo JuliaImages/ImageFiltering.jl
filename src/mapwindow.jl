@@ -9,7 +9,7 @@ using Statistics
 export mapwindow, mapwindow!
 
 """
-    mapwindow(f, img, window, [border="replicate"], [imginds=axes(img)]) -> imgf
+    mapwindow(f, img, window; [border="replicate"], [indices=axes(img)]) -> imgf
 
 Apply `f` to sliding windows of `img`, with window size or axes
 specified by `window`. For example, `mapwindow(median!, img, window)`
@@ -31,11 +31,11 @@ AbstractUnitRanges, in which case the specified ranges are used for
 `border` specifies how the edges of `img` should be handled; see
 `imfilter` for details.
 
-Finally `imginds` allows to omit unnecessary computations, if you want to do things
+Finally `indices` allows to omit unnecessary computations, if you want to do things
 like `mapwindow` on a subimage, or a strided variant of mapwindow.
 It works as follows:
 ```julia
-mapwindow(f, img, window, border, (2:5, 1:2:7)) == mapwindow(f,img,window,border)[2:5, 1:2:7]
+mapwindow(f, img, window, indices=(2:5, 1:2:7)) == mapwindow(f,img,window)[2:5, 1:2:7]
 ```
 Except more efficiently because it omits computation of the unused values.
 
@@ -51,8 +51,8 @@ and then `mapwindow(f, img, (m,n))` should filter at the 75th quantile.
 
 See also: [`imfilter`](@ref).
 """
-function mapwindow(f, img, window, border="replicate",
-                   imginds=default_imginds(img, window, border); callmode=:copy!)
+function mapwindow(f, img, window; border="replicate",
+                   indices=default_imginds(img, window, border), callmode=:copy!)
     if callmode != :copy!
         error("Only callmode=:copy! is currently supported")
     end
@@ -60,7 +60,7 @@ function mapwindow(f, img, window, border="replicate",
               img,
               resolve_window(window),
               resolve_border(border),
-              resolve_imginds(imginds))
+              resolve_imginds(indices))
 end
 
 function default_imginds(img, window, border)
@@ -79,19 +79,19 @@ function _mapwindow(f, img, window, border, imginds)
 end
 
 """
-    mapwindow!(f, out, img, window, border="replicate", imginds=axes(img))
+    mapwindow!(f, out, img, window; border="replicate", indices=axes(img))
 
 Variant of [mapwindow](@ref), with preallocated output.
 If `out` and `img` have overlapping memory regions, behaviour is undefined.
 """
-function mapwindow!(f, out, img, window, border="replicate",
-                    imginds=default_imginds(img, window, border))
+function mapwindow!(f, out, img, window; border="replicate",
+                    indices=default_imginds(img, window, border))
     mapwindow_kernel!(replace_function(f),
               out,
               img,
               resolve_window(window),
               resolve_border(border),
-              resolve_imginds(imginds))
+              resolve_imginds(indices))
 end
 
 function median_fast!(v)
@@ -438,5 +438,7 @@ end
 default_shape(::Any) = identity
 default_shape(::typeof(median_fast!)) = vec
 
+@deprecate mapwindow(f, img, window, border, indices=axes(img)) mapwindow(f,img,window,border=border,indices=imginds)
+@deprecate mapwindow!(f, out, img, window, border, indices=axes(img)) mapwindow!(f,out,img,window,border=border,indices=imginds)
 
 end
