@@ -438,7 +438,13 @@ end
 default_shape(::Any) = identity
 default_shape(::typeof(median_fast!)) = vec
 
-@deprecate mapwindow(f, img, window, border, indices=axes(img)) mapwindow(f,img,window,border=border,indices=imginds)
-@deprecate mapwindow!(f, out, img, window, border, indices=axes(img)) mapwindow!(f,out,img,window,border=border,indices=imginds)
+@deprecate mapwindow(f, img, window, border,
+                     indices=default_imginds(img,window,border)) begin
+    mapwindow(f,img,window,border=border,indices=indices)
+end
+@deprecate mapwindow!(f, out, img, window, border,
+                      indices=default_imginds(img,window,border)) begin 
+    mapwindow!(f,out,img,window,border=border,indices=indices)
+end
 
 end
