@@ -5,6 +5,7 @@ imfilter
 imfilter!
 imgradients
 mapwindow
+mapwindow!
 ```
 
 # Kernel
@@ -73,4 +74,3 @@ Algorithm.Mixed
 ```@docs
 KernelFactors.ReshapedOneD
 ```
-

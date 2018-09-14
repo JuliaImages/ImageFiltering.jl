@@ -97,37 +97,38 @@ using ImageFiltering, Statistics, Test
     ImageFiltering.MapWindow.replace_function(::typeof(replace_me)) = x -> 2
     @test mapwindow!(replace_me, randn(3), randn(3), (1,)) == [2,2,2]
 
-    function groundtruth(f, A, window::Tuple, border, imginds)
-        mapwindow(f,A,window,border)[imginds...]
+    function groundtruth(f, A, window::Tuple; indices=nothing)
+        mapwindow(f,A,window)[indices...]
     end
     for (f,img, window, imginds) ∈ [
-            (mean, randn(10), (1,), (1:2:10,)),
-            (median!, randn(10), (-1:1,), (1:2:8,)),
-            (mean, randn(10), (-1:1,), (1:2:8,)),
-            (mean, randn(10,5), (-1:1,0:0), (1:2:8,1:3)),
-            (mean, randn(10,5), (-1:1,0:0), (Base.OneTo(2),1:3)),
+            (mean   , randn(10)  , (1,)      , (1:2:10,)),
+            (median!, randn(10)  , (-1:1,)   , (1:2:8,)),
+            (mean   , randn(10)  , (-1:1,)   , (1:2:8,)),
+            (mean   , randn(10,5), (-1:1,0:0), (1:2:8,1:3)),
+            (mean   , randn(10,5), (-1:1,0:0), (Base.OneTo(2),1:3)),
         ]
 
-        border = "replicate"
-        expected = groundtruth(f,img,window,border,imginds)
-        @test expected == @inferred mapwindow(f,img,window,border,imginds)
+        expected = groundtruth(f,img,window,indices=imginds)
+        @test expected == @inferred mapwindow(f,img,window,indices=imginds)
         out = similar(expected)
-        @test expected == @inferred mapwindow!(f,out,img,window,border,imginds)
+        @test expected == @inferred mapwindow!(f,out,img,window,indices=imginds)
     end
-    for (inds, args) ∈ [((Base.OneTo(3),), ("replicate", 2:2:7)),
-                        ((2:7,), ("replicate", 2:7)),
+    for (inds, kw) ∈ [((Base.OneTo(3),), (border="replicate", indices=2:2:7)),
+                        ((2:7,), (indices=2:7,)),
                         ((Base.OneTo(10),), ())
                        ]
-        @test inds == axes(mapwindow(mean, randn(10), (3,), args...))
+        @test inds == axes(mapwindow(mean, randn(10), (3,); kw...))
     end
 
     img_48 = 10*collect(1:10)
-    @test mapwindow(first, img_48, (1,), Inner()) == img_48
-    res_48 = mapwindow(first, img_48, (0:1,), Inner())
+    @test mapwindow(first, img_48, (1,), border=Inner()) == img_48
+    res_48 = mapwindow(first, img_48, (0:1,), border=Inner())
     @test axes(res_48) === (Base.Slice(1:9),)
     @test res_48 == img_48[axes(res_48)...]
     inds_48 = 2:2:8
-    @test mapwindow(first, img_48, (0:2,), Inner(), inds_48) == img_48[inds_48]
+    @test mapwindow(first, img_48, (0:2,),
+                    border=Inner(),
+                    indices=inds_48) == img_48[inds_48]
 
     @testset "desugaring window argument #58" begin
         img58 = rand(10)
