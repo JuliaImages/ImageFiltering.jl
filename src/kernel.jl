@@ -212,13 +212,14 @@ constructed.
 See also: [`KernelFactors.gaussian`](@ref).
 """
 @inline gaussian(σs::NTuple{N,Real}, ls::NTuple{N,Integer}) where {N} =
-    broadcast(*, KernelFactors.gaussian(σs, ls)...)
+    kernelfactors(Tuple(KernelFactors.gaussian(σ, l) for (σ, l) in zip(σs, ls)))
 gaussian(σ::Tuple{Real}, l::Tuple{Integer}) = KernelFactors.gaussian(σ[1], l[1])
 gaussian(σ::Tuple{}, l::Tuple{}) = reshape([1])  # 0d
 gaussian(σs::AbstractVector{T}, ls::AbstractVector{I}) where {T<:Real,I<:Integer} =
     gaussian((σs...,), (ls...,))
 
-@inline gaussian(σs::NTuple{N,Real}) where {N} = broadcast(*, KernelFactors.gaussian(σs)...)
+@inline gaussian(σs::NTuple{N,Real}) where {N} =
+    kernelfactors(Tuple(KernelFactors.gaussian(σ) for σ in σs))
 gaussian(σs::AbstractVector{T}) where {T<:Real} = gaussian((σs...,))
 gaussian(σ::Tuple{Real}) = KernelFactors.gaussian(σ[1])
 gaussian(σ::Tuple{}) = reshape([1])
