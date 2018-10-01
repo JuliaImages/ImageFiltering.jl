@@ -199,7 +199,7 @@ bickley() = product2d(KernelFactors.bickley())
 bickley(extended, d) = (broadcast(*, KernelFactors.bickley(extended, d)...),)
 
 """
-    gaussian((σ1, σ2, ...), [(l1, l2, ...]) -> g
+    gaussian((σ1, σ2, ...), [(l1, l2, ...)]) -> g
     gaussian(σ)                  -> g
 
 Construct a multidimensional gaussian filter, with standard deviation
