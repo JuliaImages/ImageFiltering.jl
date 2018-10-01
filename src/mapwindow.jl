@@ -438,12 +438,24 @@ end
 default_shape(::Any) = identity
 default_shape(::typeof(median_fast!)) = vec
 
-@deprecate mapwindow(f, img, window, border,
-                     indices=default_imginds(img,window,border)) begin
+## Deprecations
+function mapwindow(f, img, window, border)
+    Base.depwarn("mapwindow(f, img, window, $border) is deprecated, use `mapwindow(f, img, window, border=$border)` instead.", :mapwindow)
+    mapwindow(f,img,window,border=border)
+end
+
+function mapwindow(f, img, window, border, indices)
+    Base.depwarn("mapwindow(f, img, window, $border, $indices) is deprecated, use `mapwindow(f, img, window, border=$border, indices=$indices)` instead.", :mapwindow)
     mapwindow(f,img,window,border=border,indices=indices)
 end
-@deprecate mapwindow!(f, out, img, window, border,
-                      indices=default_imginds(img,window,border)) begin 
+
+function mapwindow!(f, out, img, window, border)
+    Base.depwarn("mapwindow!(f, out, img, window, $border) is deprecated, use `mapwindow!(f, out, img, window, border=$border)` instead.", :mapwindow!)
+    mapwindow!(f,out,img,window,border=border)
+end
+
+function mapwindow!(f, out, img, window, border, indices)
+    Base.depwarn("mapwindow!(f, out, img, window, $border, $indices) is deprecated, use `mapwindow!(f, out, img, window, border=$border, indices=$indices)` instead.", :mapwindow!)
     mapwindow!(f,out,img,window,border=border,indices=indices)
 end
 
