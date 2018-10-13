@@ -1,3 +1,5 @@
+using FFTW
+
 @testset "fft" begin
     @testset "interface" begin
         @testset "1d" begin

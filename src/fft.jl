@@ -13,7 +13,7 @@ Convert point-spread function to optical transfer function
 See also: [`otf2psf`](@ref).
 """
 function psf2otf(psf::AbstractArray{T,N}, outsize::Tuple{Vararg{Integer}}=size(psf)) where {T,N}
-    psf = repeat(psf, ones(Int,length(outsize))...) # make dimension consistent
+    psf = repeat(psf, ntuple(n->1, length(outsize))...) # guarantee dimension consistent
     psfsize = size(psf)
 
     if psfsize != outsize
@@ -21,7 +21,7 @@ function psf2otf(psf::AbstractArray{T,N}, outsize::Tuple{Vararg{Integer}}=size(p
         all(pad .>= 0) || throw(DimensionMismatch("psf $psfsize too large for output otf $outsize."))
         lo_dim = tuple(zeros(Int,length(pad))...)
         hi_dim = pad
-        psf = padarray(psf,Fill(zero(T),lo_dim,hi_dim))
+        psf = padarray(psf,Fill(zero(T),lo_dim,hi_dim)) # dimension consitent needs to be guaranteed
     end
 
     shift = @. -floor(Int, psfsize/2)
@@ -40,13 +40,12 @@ See also: [`psf2otf`](@ref).
 """
 function otf2psf(otf::AbstractArray{T,N}, outsize::Tuple{Vararg{Integer}}=size(otf)) where {T,N}
     otfsize = size(otf)
-    outsize = (outsize..., 
-        tuple(ones(Int, length(otfsize) - length(outsize))...)...) # make dimension consistent
+    outsize = (outsize..., ntuple(n->1, length(otfsize) - length(outsize))...) # guarantee dimension consistent
     all(otfsize >= outsize ) || throw(DimensionMismatch("output psf $outsize too large for otf $otfsize."))
 
     psf = ifft(otf)
     shift = @. floor(Int, outsize/2)
     psf = circshift(psf,shift)
-    psf[map(x -> 1:x, outsize)...]
+    psf[map(x -> 1:x, outsize)...] # dimension consitent needs to be guaranteed
 end
 otf2psf(otf::AbstractArray, outsize::Integer...) = otf2psf(otf, tuple(outsize...))
