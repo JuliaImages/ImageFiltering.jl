@@ -1,12 +1,16 @@
 """
     otf = psf2otf(psf, [outsize = size(psf)])
-    otf = psf2otf(psf, dims...)
+    otf = psf2otf(psf, [dims...])
 
-    Convert point-spread function to optical transfer function
+Convert point-spread function to optical transfer function
 
-    The tuple `outsize` can be used to specify the size of the `otf` array
+!!! note
 
-    See also: [`otf2psf`](@ref).
+    * According to convolution theorem, for kernel H of small size, theoretically we have
+    `ifft(fft(I) .* psf2otf(H, size(I)))) == imfilter(I, reflect(H), "circular")` 
+    , where `relfect` is used to do convolution instead of correlation.
+
+See also: [`otf2psf`](@ref).
 """
 function psf2otf(psf::AbstractArray{T,N}, outsize::Tuple{Vararg{Integer}}=size(psf)) where {T,N}
     psf = repeat(psf, ones(Int,length(outsize))...) # make dimension consistent
@@ -28,7 +32,7 @@ psf2otf(psf::AbstractArray, outsize::Integer...) = psf2otf(psf, tuple(outsize...
 
 """
     psf = otf2psf(otf, [outsize = size(otf)])
-    psf = otf2psf(otf, dims...)
+    psf = otf2psf(otf, [dims...])
 
     Convert optical transfer function to point-spread function
 
