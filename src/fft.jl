@@ -6,7 +6,7 @@ Convert point-spread function to optical transfer function
 
 !!! note
 
-    * According to convolution theorem, for kernel H of small size, theoretically we have
+    According to convolution theorem, for kernel H of small size, theoretically we have
     `ifft(fft(I) .* psf2otf(H, size(I)))) == imfilter(I, reflect(H), "circular")` 
     , where `relfect` is used to do convolution instead of correlation.
 
@@ -34,9 +34,9 @@ psf2otf(psf::AbstractArray, outsize::Integer...) = psf2otf(psf, tuple(outsize...
     psf = otf2psf(otf, [outsize = size(otf)])
     psf = otf2psf(otf, [dims...])
 
-    Convert optical transfer function to point-spread function
+Convert optical transfer function to point-spread function
 
-    See also: [`psf2otf`](@ref).
+See also: [`psf2otf`](@ref).
 """
 function otf2psf(otf::AbstractArray{T,N}, outsize::Tuple{Vararg{Integer}}=size(otf)) where {T,N}
     otfsize = size(otf)
