@@ -9,7 +9,8 @@ using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
 export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm,
     imfilter, imfilter!,
     mapwindow, mapwindow!,
-    imgradients, padarray, centered, kernelfactors, reflect
+    imgradients, padarray, centered, kernelfactors, reflect,
+    psf2otf, otf2psf
 
 FixedColorant{T<:Normed} = Colorant{T}
 StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
@@ -39,6 +40,7 @@ using .Algorithm: Alg, FFT, FIR, FIRTiled, IIR, Mixed
 
 Alg(r::AbstractResource{A}) where {A<:Alg} = r.settings
 
+include("fft.jl")
 include("utils.jl")
 include("kernelfactors.jl")
 using .KernelFactors: TriggsSdika, IIRFilter, ReshapedOneD, iterdims, kernelfactors

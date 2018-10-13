@@ -17,5 +17,6 @@ include("gradient.jl")
 include("mapwindow.jl")
 include("basic.jl")
 include("gabor.jl")
+include("fft.jl")
 
 nothing
