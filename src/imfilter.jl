@@ -1303,14 +1303,14 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
     end
     for Iend in Rend
         # Initialize the left border
-        indleft = ind[1:k]
+        indleft = collect(Iterators.take(ind,k))
         for Ibegin in Rbegin
             leftborder!(out, img, kernel, Ibegin, indleft, Iend, border)
         end
         # Propagate forwards. We omit the final point in case border
         # is "replicate", so that the original value is still
         # available. rightborder! will handle that point.
-        for i = ind[k]+1:ind[end-1]
+        for i = range(first(ind)+k, stop = ind[end-1])
             @inbounds for Ibegin in Rbegin
                 tmp = accumfilter(img[Ibegin, i, Iend], one(T))
                 for j = 1:k
@@ -1325,7 +1325,7 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
             rightborder!(out, img, kernel, Ibegin, indright, Iend, border)
         end
         # Propagate backwards
-        for i = ind[end-l]:-1:ind[1]
+        for i = ind[end-l]:-1:first(ind)
             @inbounds for Ibegin in Rbegin
                 tmp = accumfilter(out[Ibegin, i, Iend], one(T))
                 for j = 1:l

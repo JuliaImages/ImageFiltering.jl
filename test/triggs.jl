@@ -84,6 +84,19 @@ using Test
         ret[1,1] = retnum[1,1] = 0
         @test ret ≈ retnum./retden
     end
+
+    @testset "OffsetArrays" begin
+        A = reshape(collect(1:100*100),100,100)
+        kern = ntuple(d->KernelFactors.IIRGaussian(5.0), 2)
+        B = imfilter(A, kern, NA())
+        for i = -5:5
+            for j = -5:5
+                C = OffsetArray(A,-1,-1)
+                D = imfilter(C, kern, NA())
+                @test collect(B) == collect(D)
+            end
+        end
+    end
 end
 
 nothing
