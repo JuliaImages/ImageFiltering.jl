@@ -236,10 +236,10 @@ function padfft(indk::AbstractUnitRange, l::Integer)
     range(first(indk), length=nextprod([2,3], l+lk)-l+1)
 end
 
-function padindices(img::AbstractArray{_,N}, border::Pad) where {_,N}
+function padindices(img::AbstractArray{<:Any,N}, border::Pad) where N
     throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"))
 end
-function padindices(img::AbstractArray{_,N}, border::Pad{N}) where {_,N}
+function padindices(img::AbstractArray{<:Any,N}, border::Pad{N}) where N
     _padindices(border, border.lo, axes(img), border.hi)
 end
 function padindices(img::AbstractArray, ::Type{P}) where P<:Pad
@@ -895,7 +895,7 @@ end
 function padarray(::Type{T}, img::AbstractArray, border::Fill) where T
     throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"))
 end
-function padarray(::Type{T}, img::AbstractArray{S,N}, f::Fill{_,N}) where {T,S,_,N}
+function padarray(::Type{T}, img::AbstractArray{<:Any,N}, f::Fill{<:Any,N}) where {T,N}
     paxs = map((l,r,h)->first(r)-l:last(r)+h, f.lo, axes(img), f.hi)
     A = similar(arraytype(img, T), paxs)
     try

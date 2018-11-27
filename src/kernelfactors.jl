@@ -137,11 +137,11 @@ end
 @inline function _iterdims(indspre, ::Tuple{}, inds, v)
     _iterdims((indspre..., inds[1]), (), tail(inds), v)  # consume inds and push to indspre
 end
-@inline function _iterdims(indspre::NTuple{Npre}, ::Tuple{}, inds, v::ReshapedOneD{_,N,Npre}) where {_,N,Npre}
+@inline function _iterdims(indspre::NTuple{Npre}, ::Tuple{}, inds, v::ReshapedOneD{<:Any,N,Npre}) where {N,Npre}
     indspre, inds[1], tail(inds)   # return the "central" and trailing dimensions
 end
 
-function indexsplit(I::CartesianIndex{N}, v::ReshapedOneD{_,N}) where {_,N}
+function indexsplit(I::CartesianIndex{N}, v::ReshapedOneD{<:Any,N}) where N
     ipre, i, ipost = _iterdims((), (), Tuple(I), v)
     CartesianIndex(ipre), i, CartesianIndex(ipost)
 end
