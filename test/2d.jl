@@ -235,4 +235,33 @@ end
     @test axes(imgf) == axes(img)
 end
 
-nothing
+@testset "Borders (issue #85)" begin
+    A = ones(8, 8)
+    r1 = imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0))
+    r2 = imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(10))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    r1 = imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, (3,3)))
+    r2 = imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(10, (3,3)))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    r1 = imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, (3,3),(3,3)))
+    r2 = imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(10, (3,3), (3,3)))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    r1 = imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, [3,3],[3,3]))
+    r2 = imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(10, [3,3], [3,3]))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    r1 = imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, Kernel.gaussian((1,1),(3,3))))
+    r2 = imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(10, Kernel.gaussian((1,1),(3,3))))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    err = ArgumentError("Fill{Int64,1}(0, (3,), (3,)) lacks the proper padding sizes for an array with 2 dimensions")
+    @test_throws err imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, (3,)))
+end

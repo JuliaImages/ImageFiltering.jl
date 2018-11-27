@@ -23,7 +23,7 @@ function imfilter(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border
 end
 
 # Step 4: if necessary, allocate the ouput
-@inline function imfilter(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny, args...) where T
+@inline function imfilter(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractBorder, args...) where T
     imfilter!(allocate_output(T, img, kernel, border), img, kernel, border, args...)
 end
 
@@ -46,7 +46,7 @@ function imfilter(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::Pr
     imfilter(r, T, img, kernel, borderinstance(border))
 end
 
-function imfilter(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny) where T
+function imfilter(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractBorder) where T
     imfilter!(r, allocate_output(T, img, kernel, border), img, kernel, border)
 end
 
@@ -602,11 +602,11 @@ function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, 
 end
 
 # Step 5: if necessary, pick an algorithm
-function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny)
+function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::AbstractBorder)
     imfilter!(out, img, kernel, border, filter_algorithm(out, img, kernel))
 end
 
-function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::BorderSpecAny, alg::Alg)
+function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::AbstractBorder, alg::Alg)
     local ret
     try
         ret = imfilter!(default_resource(alg_defaults(alg, out, kernel)), out, img, kernel, border)
@@ -692,14 +692,23 @@ function _imfilter_na!(r::AbstractResource,
     end
 end
 
-# Any other kind of padding
+# Any other kind of not-fully-specified padding
 function imfilter!(r::AbstractResource,
                    out::AbstractArray{S,N},
                    img::AbstractArray{T,N},
                    kernel::ProcessedKernel,
-                   border::BorderSpec) where {S,T,N}
+                   border::BorderSpecAny) where {S,T,N}
     bord = border(kernel, img, Alg(r))  # if it's FFT, the size of img is also relevant
-    A = padarray(S, img, bord)
+    imfilter!(r, out, img, kernel, bord)
+end
+
+# Any fully-specified padding
+function imfilter!(r::AbstractResource,
+                   out::AbstractArray{S,N},
+                   img::AbstractArray{T,N},
+                   kernel::ProcessedKernel,
+                   border::AbstractBorder) where {S,T,N}
+    A = padarray(S, img, border)
     # By specifying NoPad(), we ensure that dispatch will never
     # accidentally "go back" to an earlier routine and apply more
     # padding
@@ -1290,7 +1299,7 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
 @noinline function _imfilter_dim!(r::AbstractResource,
                                   out, img, kernel::TriggsSdika{T,k,l},
                                   Rbegin::CartesianIndices, ind::AbstractUnitRange,
-                                  Rend::CartesianIndices, border::BorderSpec) where {T,k,l}
+                                  Rend::CartesianIndices, border::AbstractBorder) where {T,k,l}
     if iscopy(kernel)
         if !(out === img)
             copyto!(out, img)

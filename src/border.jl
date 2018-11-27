@@ -702,6 +702,9 @@ struct Inner{N} <: AbstractBorder
     hi::Dims{N}
 end
 
+Base.ndims(::Inner{N}) where N = N
+Base.ndims(::Type{Inner{N}}) where N = N
+
 """
     NA()
     NA(lo, hi)
@@ -1029,6 +1032,11 @@ shrink(ind::Base.OneTo, pad::AbstractUnitRange) = shrink(UnitRange(ind), pad)
 allocate_output(::Type{T}, img, kernel, border) where {T} = similar(img, T)
 function allocate_output(::Type{T}, img, kernel, ::Inner{0}) where T
     inds = interior(img, kernel)
+    similar(img, T, inds)
+end
+function allocate_output(::Type{T}, img, kernel, inr::Inner) where T
+    ndims(img) == ndims(inr) || throw(DimensionMismatch("dimensionality of img and the border must agree, got $(ndims(img)) and $(ndims(inr))"))
+    inds = inner.(inr.lo, axes(img), inr.hi)
     similar(img, T, inds)
 end
 allocate_output(img, kernel, border) = allocate_output(filter_type(img, kernel), img, kernel, border)
