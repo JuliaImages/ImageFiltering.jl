@@ -28,13 +28,13 @@ function checkextended(inds::Indices, n)
 end
 checkextended(a::AbstractArray, n) = checkextended(axes(a), n)
 
-_reshape(A::OffsetArray{_,N}, ::Val{N}) where {_,N} = A
+_reshape(A::OffsetArray{<:Any,N}, ::Val{N}) where N = A
 _reshape(A::OffsetArray, ::Val{N}) where {N} = OffsetArray(reshape(parent(A), Val(N)), fill_to_length(A.offsets, -1, Val(N)))
 _reshape(A::AbstractArray, ::Val{N}) where {N} = reshape(A, Val(N))
 
 _vec(a::AbstractVector) = a
 _vec(a::AbstractArray) = (checkextended(a, 1); a)
-_vec(a::OffsetArray{_,1}) where {_} = a
+_vec(a::OffsetArray{<:Any,1}) = a
 function _vec(a::OffsetArray)
     inds = axes(a)
     checkextended(inds, 1)
@@ -44,7 +44,7 @@ end
 
 samedims(::Val{N}, kernel) where {N} = _reshape(kernel, Val(N))
 samedims(::Val{N}, kernel::Tuple) where {N} = map(k->_reshape(k, Val(N)), kernel)
-samedims(::AbstractArray{T,N}, kernel) where {T,N} = samedims(Val(N), kernel)
+samedims(::AbstractArray{<:Any,N}, kernel) where {N} = samedims(Val(N), kernel)
 
 _tail(R::CartesianIndices{0}) = R
 _tail(R::CartesianIndices) = CartesianIndices(tail(axes(R)))
