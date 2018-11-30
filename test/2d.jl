@@ -262,6 +262,77 @@ end
     @test r1[4,4] == r2[4,4]
     @test r1[1,1] != r2[1,1]
 
-    err = ArgumentError("Fill{Int64,1}(0, (3,), (3,)) lacks the proper padding sizes for an array with 2 dimensions")
+    B = fill!(similar(A), 0)
+    C = fill!(similar(A), 0)
+    r1 = imfilter!(B, A, Kernel.gaussian((1,1),(3,3)), Fill(0))
+    r2 = imfilter!(C, A,  Kernel.gaussian((1,1),(3,3)), Fill(10))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    fill!(B, 0); fill!(C, 0)
+    r1 = imfilter!(B, A, Kernel.gaussian((1,1),(3,3)), Fill(0, (3,3)))
+    r2 = imfilter!(C, A,  Kernel.gaussian((1,1),(3,3)), Fill(10, (3,3)))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    fill!(B, 0); fill!(C, 0)
+    r1 = imfilter!(B, A, Kernel.gaussian((1,1),(3,3)), Fill(0, (3,3),(3,3)))
+    r2 = imfilter!(C, A,  Kernel.gaussian((1,1),(3,3)), Fill(10, (3,3),(3,3)))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    fill!(B, 0); fill!(C, 0)
+    r1 = imfilter!(B, A, Kernel.gaussian((1,1),(3,3)), Fill(0, [3,3],[3,3]))
+    r2 = imfilter!(C, A,  Kernel.gaussian((1,1),(3,3)), Fill(10, [3,3],[3,3]))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+
+    g = collect(KernelFactors.gaussian(1,3))
+    r1 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,0}(centered(g)),), Fill(0))
+    r2 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,0}(centered(g)),), Fill(10))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    r1 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,0}(centered(g)),), Fill(0, (3,3)))
+    r2 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,0}(centered(g)),), Fill(10, (3,3)))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    r1 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,0}(centered(g)),), Fill(0, (3,3),(3,3)))
+    r2 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,0}(centered(g)),), Fill(10, (3,3),(3,3)))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    r1 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,0}(centered(g)),), Fill(0, [3,3],[3,3]))
+    r2 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,0}(centered(g)),), Fill(10, [3,3],[3,3]))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    r1 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,0}(centered(g)),), Fill(0))
+    r2 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,0}(centered(g)),), Fill(10))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    r1 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,1}(centered(g)),), Fill(0, (3,3)))
+    r2 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,1}(centered(g)),), Fill(10, (3,3)))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    r1 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,1}(centered(g)),), Fill(0, (3,3),(3,3)))
+    r2 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,1}(centered(g)),), Fill(10, (3,3),(3,3)))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    r1 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,1}(centered(g)),), Fill(0, [3,3],[3,3]))
+    r2 = imfilter(A, ( ImageFiltering.ReshapedOneD{2,1}(centered(g)),), Fill(10, [3,3],[3,3]))
+    @test r1[4,4] == r2[4,4]
+    @test r1[1,1] != r2[1,1]
+
+    err = ArgumentError("Fill{$Int,1}(0, (3,), (3,)) lacks the proper padding sizes for an array with 2 dimensions")
     @test_throws err imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, (3,)))
+    err = DimensionMismatch("requested indices (1:8, 0:9) and kernel indices (Base.Slice(-1:1), Base.Slice(0:0)) do not agree with indices of padded input, (Base.Slice(0:9), Base.Slice(1:8))")
+    @test_throws err imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, (1,0)))
+    @test_throws DimensionMismatch imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, (0,1)))
+    @test_throws DimensionMismatch imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, (0,0)))
 end
