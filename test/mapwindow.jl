@@ -1,4 +1,5 @@
 using ImageFiltering, Statistics, Test
+using ImageFiltering: IdentityUnitRange
 
 @testset "mapwindow" begin
     function groundtruth(f, A, window::Tuple)
@@ -123,7 +124,7 @@ using ImageFiltering, Statistics, Test
     img_48 = 10*collect(1:10)
     @test mapwindow(first, img_48, (1,), border=Inner()) == img_48
     res_48 = mapwindow(first, img_48, (0:1,), border=Inner())
-    @test axes(res_48) === (Base.Slice(1:9),)
+    @test axes(res_48) === (IdentityUnitRange(1:9),)
     @test res_48 == img_48[axes(res_48)...]
     inds_48 = 2:2:8
     @test mapwindow(first, img_48, (0:2,),

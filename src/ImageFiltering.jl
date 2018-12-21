@@ -5,6 +5,7 @@ using Colors, FixedPointNumbers, ImageCore, MappedArrays, FFTViews, OffsetArrays
 using Statistics, LinearAlgebra
 using ColorVectorSpace  # for filtering RGB arrays
 using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
+using OffsetArrays: IdentityUnitRange   # using the one in OffsetArrays makes this work with multiple Julia versions
 
 export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm,
     imfilter, imfilter!,
@@ -14,6 +15,13 @@ export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm,
 FixedColorant{T<:Normed} = Colorant{T}
 StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
 OffsetVector{T} = OffsetArray{T,1}
+
+# Add a fix that should have been included in julia-1.0.3
+if isdefined(Broadcast, :_sametype) && !isdefined(Broadcast, :axistype)
+    axistype(a::T, b::T) where T = a
+    axistype(a, b) = UnitRange{Int}(a)
+    Broadcast._bcs1(a, b) = Broadcast._bcsm(b, a) ? axistype(b, a) : (Broadcast._bcsm(a, b) ? axistype(a, b) : throw(DimensionMismatch("arrays could not be broadcast to a common size")))
+end
 
 # Needed for type-stability
 function Base.transpose(A::StaticOffsetArray{T,2}) where T
