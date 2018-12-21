@@ -1,6 +1,7 @@
 using ImageFiltering, ImageCore, OffsetArrays, Colors, FFTViews, ColorVectorSpace, ComputationalResources, FixedPointNumbers
 using LinearAlgebra
 using Test
+using ImageFiltering: IdentityUnitRange
 
 @testset "tiling" begin
     m = zeros(UInt8, 20, 20)
@@ -330,9 +331,11 @@ end
     @test r1[1,1] != r2[1,1]
 
     err = ArgumentError("Fill{$Int,1}(0, (3,), (3,)) lacks the proper padding sizes for an array with 2 dimensions")
-    @test_throws err imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, (3,)))
-    err = DimensionMismatch("requested indices (1:8, 0:9) and kernel indices (Base.Slice(-1:1), Base.Slice(0:0)) do not agree with indices of padded input, (Base.Slice(0:9), Base.Slice(1:8))")
-    @test_throws err imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, (1,0)))
-    @test_throws DimensionMismatch imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, (0,1)))
-    @test_throws DimensionMismatch imfilter(A, Kernel.gaussian((1,1),(3,3)), Fill(0, (0,0)))
+    kern = Kernel.gaussian((1,1),(3,3))
+    @test_throws err imfilter(A, kern, Fill(0, (3,)))
+    kernf = ImageFiltering.factorkernel(kern)
+    err = DimensionMismatch("requested indices (1:8, 0:9) and kernel indices $(axes(kernf[1])) do not agree with indices of padded input, $((IdentityUnitRange(0:9), IdentityUnitRange(1:8)))")
+    @test_throws err imfilter(A, kern, Fill(0, (1,0)))
+    @test_throws DimensionMismatch imfilter(A, kern, Fill(0, (0,1)))
+    @test_throws DimensionMismatch imfilter(A, kern, Fill(0, (0,0)))
 end

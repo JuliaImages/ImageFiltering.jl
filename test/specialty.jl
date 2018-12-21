@@ -1,5 +1,6 @@
 using ImageFiltering, ImageCore, OffsetArrays, Colors, FixedPointNumbers
 using Statistics, Test
+using ImageFiltering: IdentityUnitRange
 
 @testset "specialty" begin
     @testset "Laplacian" begin
@@ -164,17 +165,17 @@ using Statistics, Test
         for kern in (Kernel.gaussian((1.3,)), Kernel.gaussian((1.3,),(7,)))
             @test kern ≈ gaussiancmp(1.3, axes(kern,1))
         end
-        @test KernelFactors.gaussian(2, 9) ≈ gaussiancmp(2, Base.Slice(-4:4))
+        @test KernelFactors.gaussian(2, 9) ≈ gaussiancmp(2, IdentityUnitRange(-4:4))
         k = KernelFactors.gaussian((2,3), (9,7))
-        @test vec(k[1]) ≈ gaussiancmp(2, Base.Slice(-4:4))
-        @test vec(k[2]) ≈ gaussiancmp(3, Base.Slice(-3:3))
+        @test vec(k[1]) ≈ gaussiancmp(2, IdentityUnitRange(-4:4))
+        @test vec(k[2]) ≈ gaussiancmp(3, IdentityUnitRange(-3:3))
         @test sum(KernelFactors.gaussian(5)) ≈ 1
         for k = (KernelFactors.gaussian((2,3)), KernelFactors.gaussian([2,3]), KernelFactors.gaussian([2,3], [9,7]))
             @test sum(k[1]) ≈ 1
             @test sum(k[2]) ≈ 1
         end
-        @test Kernel.gaussian((2,), (9,)) ≈ gaussiancmp(2, Base.Slice(-4:4))
-        @test Kernel.gaussian((2,3), (9,7)) ≈ gaussiancmp(2, Base.Slice(-4:4)).*gaussiancmp(3, Base.Slice(-3:3))'
+        @test Kernel.gaussian((2,), (9,)) ≈ gaussiancmp(2, IdentityUnitRange(-4:4))
+        @test Kernel.gaussian((2,3), (9,7)) ≈ gaussiancmp(2, IdentityUnitRange(-4:4)).*gaussiancmp(3, IdentityUnitRange(-3:3))'
         @test sum(Kernel.gaussian(5)) ≈ 1
         for k = (Kernel.gaussian((2,3)), Kernel.gaussian([2,3]), Kernel.gaussian([2,3], [9,7]))
             @test sum(k) ≈ 1

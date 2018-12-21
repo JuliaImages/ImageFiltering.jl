@@ -5,6 +5,7 @@ using Colors, FixedPointNumbers, ImageCore, MappedArrays, FFTViews, OffsetArrays
 using Statistics, LinearAlgebra
 using ColorVectorSpace  # for filtering RGB arrays
 using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
+using OffsetArrays: IdentityUnitRange   # using the one in OffsetArrays makes this work with multiple Julia versions
 
 export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm,
     imfilter, imfilter!,
