@@ -1,4 +1,6 @@
-using ImageFiltering, OffsetArrays, Logging, Test
+using ImageFiltering, OffsetArrays, Logging, ImageMetadata, Test
+import AxisArrays
+using AxisArrays: AxisArray, Axis
 
 @testset "basic" begin
     v = OffsetArray([1,2,3], -1:1)
@@ -57,6 +59,33 @@ using ImageFiltering, OffsetArrays, Logging, Test
     end
     @test occursin("too small for accuracy", read(fname, String))
     rm(fname)
+end
+
+@testset "centered" begin
+    check_range(r, f, l) = (@test first(r) == f; @test last(r) == l)
+    check_range_axes(r, f, l) = check_range(axes(r)[1], f, l)
+
+    check_range(axes(centered(1:3))[1], -1, 1)
+    a = AxisArray(rand(3, 3), Axis{:y}(0.1:0.1:0.3), Axis{:x}(1:3))
+    ca = centered(a)
+    axs = axes(ca)
+    check_range(axs[1], -1, 1)
+    check_range(axs[2], -1, 1)
+    axs = AxisArrays.axes(ca)
+    check_range(axs[1].val, 0.1, 0.3)
+    check_range(axs[2].val, 1, 3)
+    check_range_axes(axs[1].val, -1, 1)
+    check_range_axes(axs[1].val, -1, 1)
+    am = ImageMeta(a; prop1="simple")
+    ca = centered(am)
+    axs = axes(ca)
+    check_range(axs[1], -1, 1)
+    check_range(axs[2], -1, 1)
+    axs = AxisArrays.axes(ca)
+    check_range(axs[1].val, 0.1, 0.3)
+    check_range(axs[2].val, 1, 3)
+    check_range_axes(axs[1].val, -1, 1)
+    check_range_axes(axs[1].val, -1, 1)
 end
 
 nothing
