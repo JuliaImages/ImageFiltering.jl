@@ -51,7 +51,7 @@ end
     kernel = OffsetArray(kern, -1:0, 1:2)
     for img in (imgf, imgi, imgg, imgc)
         targetimg = zeros(typeof(img[1]*kern[1]), size(img))
-        targetimg[3:4,2:3] = rot180(kern)*img[3,4]
+        targetimg[3:4,2:3] = rot180(kern) .* img[3,4]
         @test @inferred(imfilter(img, kernel)) ≈ targetimg
         @test @inferred(imfilter(img, (kernel,))) ≈ targetimg
         @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32.(targetimg)
@@ -88,7 +88,7 @@ end
     kern = parent(kernel[1]).*parent(kernel[2])
     for img in (imgf, imgi, imgg, imgc)
         targetimg = zeros(typeof(img[1]*kern[1]), size(img))
-        targetimg[3:4,2:3] = rot180(kern)*img[3,4]
+        targetimg[3:4,2:3] = rot180(kern) .* img[3,4]
         ret = similar(targetimg)
         @test @inferred(imfilter(img, kernel)) ≈ targetimg
         @test @inferred(imfilter(f32type(img), img, kernel)) ≈ float32.(targetimg)

@@ -1395,7 +1395,7 @@ function _rightborder!(out, img, kernel::TriggsSdika{T,k,l}, Ibegin, indright, I
     # Initialize the v values at and beyond the right edge
     uplus = iplus/(1-kernel.asum)
     vplus = uplus/(1-kernel.bsum)
-    vright = kernel.M * rightΔu(out, uplus, Ibegin, last(indright), Iend, kernel) + vplus
+    vright = kernel.M * rightΔu(out, uplus, Ibegin, last(indright), Iend, kernel) .+ vplus
     out[Ibegin, last(indright), Iend] = vright[1]
     # Propagate inward
     n = 1
