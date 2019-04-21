@@ -4,16 +4,14 @@ os:
   - linux
   - osx
 julia:
-  - 0.7
   - 1.0
+  - 1.1
   - nightly
 notifications:
   email: false
 
-script:
- - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
- - julia -e 'import Pkg; Pkg.clone(pwd()); Pkg.build("ImageFiltering")'
- - julia --check-bounds=yes --color=yes -e 'import Pkg; Pkg.test("ImageFiltering"; coverage=true)'
+# use default julia script for test
+
 # control of actual deployment is in the Documenter make script
 jobs:
   include:
