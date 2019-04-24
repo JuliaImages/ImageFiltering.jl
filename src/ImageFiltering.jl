@@ -8,7 +8,10 @@ using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
 using OffsetArrays: IdentityUnitRange   # using the one in OffsetArrays makes this work with multiple Julia versions
 using Requires
 
-export Kernel, KernelFactors, Pad, Fill, Inner, NA, NoPad, Algorithm,
+export Kernel, KernelFactors,
+    Pad, Fill, Inner, NA, NoPad,
+    BorderArray,
+    Algorithm,
     imfilter, imfilter!,
     mapwindow, mapwindow!,
     imgradients, padarray, centered, kernelfactors, reflect
@@ -65,6 +68,7 @@ using .Kernel: Laplacian, reflect, ando3, ando4, ando5, scharr, bickley, prewitt
 NDimKernel{N,K} = Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N}}
 
 include("border.jl")
+include("borderarray.jl")
 
 BorderSpec{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}
 BorderSpecNoNa{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}

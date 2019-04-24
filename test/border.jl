@@ -2,6 +2,23 @@ using ImageFiltering, OffsetArrays, Colors, FixedPointNumbers, Random
 using Test
 
 @testset "Border" begin
+    borders = []
+    push!(borders, Inner())
+    push!(borders, Fill(0, (1,2), (3,4)))
+    for _ in 1:10
+        s = rand([:replicate, :circular, :symmetric, :reflect])
+        pad = Pad(s, (rand(0:4),rand(0:4)), (rand(0:4), rand(0:4)))
+        push!(borders, pad)
+    end
+    @testset "BorderArray consistent with padarray $b" for b in borders
+        A = randn(5,5)
+        B = BorderArray(A, b)
+        @test padarray(A, b) == B
+        for I in CartesianIndices(A)
+            @test A[I] == B[I]
+        end
+    end
+
     @testset "padarray" begin
         A = reshape(1:25, 5, 5)
         @test @inferred(padarray(A, Fill(0,(2,2),(2,2)))) == OffsetArray(
