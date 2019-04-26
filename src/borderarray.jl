@@ -1,13 +1,64 @@
 using Base: @propagate_inbounds
 
+function compatible_dimensions(arr::AbstractArray, border::Inner)
+    true
+end
+
+function compatible_dimensions(arr,border)
+    ndims(arr) == ndims(border)
+end
+
+"""
+    BorderArray(inner::AbstractArray, border::AbstractBorder) <: AbstractArray
+
+Construct a thin wrapper around the array `inner`, with given `border`. No data is copied in the constructor, instead border values are computed on the fly in `getindex` calls. Usful for stencil computations. See also [padarray](@ref).
+
+# Examples
+```julia
+julia> using ImageFiltering
+
+julia> arr = reshape(1:6, (2,3))
+2×3 reshape(::UnitRange{Int64}, 2, 3) with eltype Int64:
+ 1  3  5
+ 2  4  6
+
+julia> BorderArray(arr, Pad((1,1)))
+BorderArray{Int64,2,Base.ReshapedArray{Int64,2,UnitRange{Int64},Tuple{}},Pad{2}} with indices 0:3×0:4:
+ 1  1  3  5  5
+ 1  1  3  5  5
+ 2  2  4  6  6
+ 2  2  4  6  6
+
+julia> BorderArray(arr, Fill(10, (2,1)))
+BorderArray{Int64,2,Base.ReshapedArray{Int64,2,UnitRange{Int64},Tuple{}},Fill{Int64,2}} with indices -1:4×0:4:
+ 10  10  10  10  10
+ 10  10  10  10  10
+ 10   1   3   5  10
+ 10   2   4   6  10
+ 10  10  10  10  10
+ 10  10  10  10  10
+```
+"""
 struct BorderArray{T,N,A,B} <: AbstractArray{T,N}
     inner::A
     border::B
     function BorderArray(arr::AbstractArray{T,N}, border::AbstractBorder) where {T,N}
+        if !compatible_dimensions(arr, border)
+            throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(arr)) dimensions"))
+        end
         A = typeof(arr)
         B = typeof(border)
         new{T,N,A,B}(arr, border)
     end
+end
+
+# these are adaped from OffsetArrays
+function Base.similar(A::BorderArray, ::Type{T}, dims::Dims) where T
+    B = similar(A.inner, T, dims)
+end
+const OffsetAxis = Union{Integer, UnitRange, Base.OneTo, IdentityUnitRange}
+function Base.similar(A::BorderArray, ::Type{T}, inds::Tuple{OffsetAxis,Vararg{OffsetAxis}}) where T
+    similar(A.inner, T, axes(A))
 end
 
 @inline function Base.axes(o::BorderArray)
@@ -87,4 +138,33 @@ function Base.checkbounds(::Type{Bool}, arr::BorderArray, index::CartesianIndex)
     map(axes(arr), index.I) do r, i
         checkindex(Bool, r, i)
     end |> all
+end
+
+function Base.copy!(dst::AbstractArray, src::BorderArray)
+    axes(dst) == axes(src) || throw(DimensionMismatch("axes(dst) == axes(src) must hold."))
+    _copy!(dst, src, src.border)
+end
+function Base.copy!(dst::AbstractArray{T,1} where T, src::BorderArray{T,1,A,B} where B where A where T)
+    # fix ambiguity
+    axes(dst) == axes(src) || throw(DimensionMismatch("axes(dst) == axes(src) must hold."))
+    _copy!(dst, src, src.border)
+end
+
+function _copy!(dst, src, ::Inner)
+    copyto!(dst, src.inner)
+end
+
+function _copy!(dst, src, ::Pad)
+    inds = padindices(src.inner, src.border)
+    copydata!(dst, src.inner, inds)
+end
+
+function _copy!(dst, src, ::Fill)
+    try
+        fill!(dst, src.border.value)
+    catch
+        error("Unable to fill! an array of element type $(eltype(dst)) with the value $(src.border.value). Supply an appropriate value to `Fill`, such as `zero(eltype(A))`.")
+    end
+    dst[axes(src.inner)...] = src.inner
+    dst
 end
