@@ -18,6 +18,12 @@ using Test
             @test A[I] == B[I]
         end
     end
+    @testset "BorderArray" begin
+        @test_throws ArgumentError BorderArray(randn(3), Fill(0.))
+        @test_throws ArgumentError BorderArray(randn(3), Fill(nothing, (1,)))
+        @inferred BorderArray(randn(3), Fill(0., (1,)))
+        @inferred BorderArray(randn(3), Fill(0, (1,)))
+    end
 
     @testset "padarray" begin
         A = reshape(1:25, 5, 5)
@@ -207,14 +213,13 @@ using Test
         B[1,1] = 0
         @test B != A
         A = rand(RGB{N0f8}, 3, 5)
-        ret = @test_throws ErrorException padarray(A, Fill(0, (0,0), (0,0)))
-        # FIXME: exact phrase depends on showarg in Interpolations
-        # @test occursin("element type ColorTypes.RGB", ret.value.msg)
-        # This is a temporary substitute:
+        ret = @test_throws ArgumentError padarray(A, Fill(0, (0,0), (0,0)))
         @test occursin("RGB", ret.value.msg)
+        @test occursin("convert", ret.value.msg)
         A = bitrand(3, 5)
-        ret = @test_throws ErrorException padarray(A, Fill(7, (0,0), (0,0)))
-        @test occursin("element type Bool", ret.value.msg)
+        ret = @test_throws ArgumentError padarray(A, Fill(7, (0,0), (0,0)))
+        @test occursin("Bool", ret.value.msg)
+        @test occursin("convert", ret.value.msg)
         @test isa(parent(padarray(A, Fill(false, (1,1), (1,1)))), BitArray)
     end
 

@@ -8,6 +8,21 @@ function compatible_dimensions(arr,border)
     ndims(arr) == ndims(border)
 end
 
+function convert_border_eltype(inner, border::Fill)
+    T = eltype(inner)
+    val::T = try
+        convert(T, border.value)
+    catch err
+        msg = "Cannot convert elements of border=$border to eltype(inner)=$T."
+        throw(ArgumentError(msg))
+    end
+    Fill(val, border.lo, border.hi)
+end
+
+function convert_border_eltype(inner, border)
+    border
+end
+
 """
     BorderArray(inner::AbstractArray, border::AbstractBorder) <: AbstractArray
 
@@ -44,8 +59,11 @@ struct BorderArray{T,N,A,B} <: AbstractArray{T,N}
     border::B
     function BorderArray(arr::AbstractArray{T,N}, border::AbstractBorder) where {T,N}
         if !compatible_dimensions(arr, border)
-            throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(arr)) dimensions"))
+            msg = "$border lacks the proper padding sizes
+            for an array with $(ndims(arr)) dimensions."
+            throw(ArgumentError(msg))
         end
+        border = convert_border_eltype(arr, border)
         A = typeof(arr)
         B = typeof(border)
         new{T,N,A,B}(arr, border)
