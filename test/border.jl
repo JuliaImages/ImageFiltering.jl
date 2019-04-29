@@ -14,6 +14,7 @@ using Test
         A = randn(5,5)
         B = BorderArray(A, b)
         @test padarray(A, b) == B
+        @inferred B[1,1]
         for I in CartesianIndices(A)
             @test A[I] == B[I]
         end
@@ -23,6 +24,10 @@ using Test
         @test_throws ArgumentError BorderArray(randn(3), Fill(nothing, (1,)))
         @inferred BorderArray(randn(3), Fill(0., (1,)))
         @inferred BorderArray(randn(3), Fill(0, (1,)))
+        ba1 = BorderArray(randn(3), Fill(zero(Int    ), (1,)))
+        ba2 = BorderArray(randn(3), Fill(zero(Float64), (1,)))
+        @test typeof(ba1) === typeof(ba2)
+        @inferred ba1[1]
     end
 
     @testset "padarray" begin
