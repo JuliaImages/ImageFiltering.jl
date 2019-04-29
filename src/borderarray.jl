@@ -52,7 +52,7 @@ struct BorderArray{T,N,A,B} <: AbstractArray{T,N}
     end
 end
 
-# these are adaped from OffsetArrays
+# these are adapted from OffsetArrays
 function Base.similar(A::BorderArray, ::Type{T}, dims::Dims) where T
     B = similar(A.inner, T, dims)
 end
