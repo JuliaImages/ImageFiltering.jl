@@ -59,8 +59,7 @@ struct BorderArray{T,N,A,B} <: AbstractArray{T,N}
     border::B
     function BorderArray(arr::AbstractArray{T,N}, border::AbstractBorder) where {T,N}
         if !compatible_dimensions(arr, border)
-            msg = "$border lacks the proper padding sizes
-            for an array with $(ndims(arr)) dimensions."
+            msg = "$border lacks the proper padding sizes for an array with $(ndims(arr)) dimensions."
             throw(ArgumentError(msg))
         end
         border = convert_border_eltype(arr, border)
