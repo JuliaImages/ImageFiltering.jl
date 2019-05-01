@@ -236,8 +236,12 @@ function padfft(indk::AbstractUnitRange, l::Integer)
     range(first(indk), length=nextprod([2,3], l+lk)-l+1)
 end
 
+function error_bad_padding_size(inner, border)
+    ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(inner)) dimensions")
+end
+
 function padindices(img::AbstractArray{<:Any,N}, border::Pad) where N
-    throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"))
+    throw(error_bad_padding_size(img, border))
 end
 function padindices(img::AbstractArray{<:Any,N}, border::Pad{N}) where N
     _padindices(border, border.lo, axes(img), border.hi)

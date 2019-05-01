@@ -57,15 +57,14 @@ BorderArray{Int64,2,Base.ReshapedArray{Int64,2,UnitRange{Int64},Tuple{}},Fill{In
 struct BorderArray{T,N,A,B} <: AbstractArray{T,N}
     inner::A
     border::B
-    function BorderArray(arr::AbstractArray{T,N}, border::AbstractBorder) where {T,N}
-        if !compatible_dimensions(arr, border)
-            msg = "$border lacks the proper padding sizes for an array with $(ndims(arr)) dimensions."
-            throw(ArgumentError(msg))
+    function BorderArray(inner::AbstractArray{T,N}, border::AbstractBorder) where {T,N}
+        if !compatible_dimensions(inner, border)
+            throw(error_bad_padding_size(inner, border))
         end
-        border = convert_border_eltype(arr, border)
-        A = typeof(arr)
+        border = convert_border_eltype(inner, border)
+        A = typeof(inner)
         B = typeof(border)
-        new{T,N,A,B}(arr, border)
+        new{T,N,A,B}(inner, border)
     end
 end
 
