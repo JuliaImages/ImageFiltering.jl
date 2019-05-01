@@ -236,8 +236,12 @@ function padfft(indk::AbstractUnitRange, l::Integer)
     range(first(indk), length=nextprod([2,3], l+lk)-l+1)
 end
 
+function error_bad_padding_size(inner, border)
+    ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(inner)) dimensions")
+end
+
 function padindices(img::AbstractArray{<:Any,N}, border::Pad) where N
-    throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"))
+    throw(error_bad_padding_size(img, border))
 end
 function padindices(img::AbstractArray{<:Any,N}, border::Pad{N}) where N
     _padindices(border, border.lo, axes(img), border.hi)
@@ -652,13 +656,11 @@ The command `padarray(A,Fill(0,(1,1,1)))` yields
 ---
 
 """
-padarray(img::AbstractArray, border::Pad)  = padarray(eltype(img), img, border)
-function padarray(::Type{T}, img::AbstractArray, border::Pad) where T
-    inds = padindices(img, border)
-    # like img[inds...] except that we can control the element type
-    newinds = map(Base.axes1, inds)
-    dest = similar(img, T, newinds)
-    copydata!(dest, img, inds)
+padarray(img::AbstractArray, border::AbstractBorder)  = padarray(eltype(img), img, border)
+function padarray(::Type{T}, img::AbstractArray, border) where {T}
+    ba = BorderArray(img, border)
+    out = similar(ba, T)
+    copy!(out, ba)
 end
 
 padarray(img, ::Type{P}) where {P} = img[padindices(img, P)...]      # just to throw the nice error
@@ -684,7 +686,8 @@ function copydata!(dest::OffsetArray, img, inds::Tuple{Vararg{OffsetArray}})
     dest
 end
 
-Base.ndims(::Pad{N}) where {N} = N
+Base.ndims(b::AbstractBorder) = ndims(typeof(b))
+Base.ndims(::Type{Pad{N}}) where {N} = N
 
 # Make these separate types because the dispatch almost surely needs to be different
 """
@@ -702,7 +705,6 @@ struct Inner{N} <: AbstractBorder
     hi::Dims{N}
 end
 
-Base.ndims(::Inner{N}) where N = N
 Base.ndims(::Type{Inner{N}}) where N = N
 
 """
@@ -742,10 +744,6 @@ for T in (:Inner, :NA)
         (p::$T{0})(kernel) = $T(calculate_padding(kernel))
     end
 end
-
-padarray(img, border::Inner) = padarray(eltype(img), img, border)
-padarray(::Type{T}, img::AbstractArray{T}, border::Inner) where {T} = copy(img)
-padarray(::Type{T}, img::AbstractArray, border::Inner) where {T} = copyto!(similar(Array{T}, axes(img)), img)
 
 """
 ```julia
@@ -806,6 +804,7 @@ struct Fill{T,N} <: AbstractBorder
     Fill{T,N}(value::T) where {T,N} = new{T,N}(value)
     Fill{T,N}(value::T, lo::Dims{N}, hi::Dims{N}) where {T,N} = new{T,N}(value, lo, hi)
 end
+Base.ndims(::Type{Fill{T,N}}) where {T,N} = N
 
 """
 ```julia
@@ -894,22 +893,6 @@ function (p::Fill)(kernel, img, ::FFT)
     newinds = map(padfft, inds, map(length, axes(img)))
     Fill(p.value, newinds)
 end
-
-function padarray(::Type{T}, img::AbstractArray, border::Fill) where T
-    throw(ArgumentError("$border lacks the proper padding sizes for an array with $(ndims(img)) dimensions"))
-end
-function padarray(::Type{T}, img::AbstractArray{<:Any,N}, f::Fill{<:Any,N}) where {T,N}
-    paxs = map((l,r,h)->first(r)-l:last(r)+h, f.lo, axes(img), f.hi)
-    A = similar(arraytype(img, T), paxs)
-    try
-        fill!(A, f.value)
-    catch
-        error("Unable to fill! an array of element type $(eltype(A)) with the value $(f.value). Supply an appropriate value to `Fill`, such as `zero(eltype(A))`.")
-    end
-    A[axes(img)...] = img
-    A
-end
-padarray(img::AbstractArray, f::Fill) = padarray(eltype(img), img, f)
 
 # There are other ways to define these, but using `mod` makes it safe
 # for cases where the padding is bigger than length(inds)

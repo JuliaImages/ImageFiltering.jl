@@ -53,6 +53,7 @@ reflect
 
 ```@docs
 padarray
+BorderArray
 Pad
 Fill
 Inner
