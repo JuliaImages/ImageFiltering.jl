@@ -1,4 +1,4 @@
-using ImageFiltering, OffsetArrays, Logging, ImageMetadata, Test
+using ImageFiltering, OffsetArrays, Logging, ImageMetadata, FixedPointNumbers, Test
 import AxisArrays
 using AxisArrays: AxisArray, Axis
 
@@ -88,4 +88,26 @@ end
     check_range_axes(axs[1].val, -1, 1)
 end
 
-nothing
+@testset "freqkernel/spacekernel" begin
+    k = centered(reshape([1,-1], 2, 1))
+    kfft = freqkernel(k, (31, 31))
+    @test size(kfft) == (31, 31)
+    k2 = real.(spacekernel(kfft, axes(k)))
+    @test k2 ≈ k
+    kfft = freqkernel(k, (31, 31); rfft=true)
+    @test size(kfft) == (16, 31)
+    k2 = spacekernel(kfft, axes(k); rfftsz=31)
+    @test k2 ≈ k
+
+    for T in (Float64, Float32, Float16, N0f16)
+        k = T.(Kernel.gaussian(3))
+        kfft = freqkernel(k)
+        @test size(kfft) == size(k)
+        k2 = real.(spacekernel(kfft))
+        @test T.(k2) ≈ k
+
+        kfft = freqkernel(k; rfft=true)
+        k2 = spacekernel(kfft; rfftsz=size(k, 1))
+        @test T.(k2) ≈ k
+    end
+end

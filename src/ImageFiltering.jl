@@ -14,7 +14,8 @@ export Kernel, KernelFactors,
     Algorithm,
     imfilter, imfilter!,
     mapwindow, mapwindow!,
-    imgradients, padarray, centered, kernelfactors, reflect
+    imgradients, padarray, centered, kernelfactors, reflect,
+    freqkernel, spacekernel
 
 FixedColorant{T<:Normed} = Colorant{T}
 StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
