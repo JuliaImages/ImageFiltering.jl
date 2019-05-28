@@ -86,6 +86,16 @@ end
     check_range(axs[2].val, 1, 3)
     check_range_axes(axs[1].val, -1, 1)
     check_range_axes(axs[1].val, -1, 1)
+
+    a = rand(3, 3)
+    ca = centered(a)
+    cca = centered(ca)
+    c_view_a = centered(view(ca, :, 0:0))
+    c_slice_a = centered(a[:, 2:2])
+    @test a[2, 2] == ca[0, 0]
+    @test a[2, 2] == cca[0, 0]
+    @test a[2, 2] == c_view_a[0, 0]
+    @test a[2, 2] == c_slice_a[0, 0]
 end
 
 @testset "freqkernel/spacekernel" begin
