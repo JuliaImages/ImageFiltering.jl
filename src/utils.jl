@@ -12,7 +12,6 @@ arbitrary axes.
 See also: [`imfilter`](@ref).
 """
 function centered(A::AbstractArray)
-    all(isodd.(size(A))) || error("entries must be odd, got $A")
     offsetted = first.(axes(A)) .- 1
     total_offsets = .-((size(A) .+ 1 ) .÷ 2)
     OffsetArray(A, total_offsets .- offsetted)
