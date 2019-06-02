@@ -11,7 +11,11 @@ arbitrary axes.
 
 See also: [`imfilter`](@ref).
 """
-centered(A::AbstractArray) = OffsetArray(A, map(n->-((n+1)>>1), size(A)))
+function centered(A::AbstractArray)
+    offsetted = first.(axes(A)) .- 1
+    total_offsets = .-((size(A) .+ 1 ) .÷ 2)
+    OffsetArray(A, total_offsets .- offsetted)
+end
 
 """
     kernfft = freqkernel([T::Type], kern, sz=size(kern); rfft=false)
