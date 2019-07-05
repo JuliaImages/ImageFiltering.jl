@@ -1,6 +1,7 @@
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
+benchmark/tune.json
 docs/build
 docs/site
 Manifest.toml

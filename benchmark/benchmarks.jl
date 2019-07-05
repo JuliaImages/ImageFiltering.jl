@@ -1,4 +1,8 @@
 using ImageFiltering
-using PkgBenchmark
+using TestImages, ImageTransformations
+using BenchmarkTools
 
-include("mapwindow.jl")
+const SUITE = BenchmarkGroup(["ImageFIltering"])
+
+include("utils.jl")
+include("imfilter.jl")
