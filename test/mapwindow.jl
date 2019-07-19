@@ -141,4 +141,14 @@ using ImageFiltering: IdentityUnitRange
             @test truth == mapwindow!(median,out, img58, window)
         end
     end
+
+    @testset ">3D mapwindow #105" begin
+        img105 = ones(5,5,5,5,5)
+        out105 = mapwindow(sum, img105, [1,1,1,1,3]; border = Fill(0))
+        foo = centered([1])
+        bar = centered([1,1,1])
+        @test out105 == imfilter(img105, kernelfactors((foo, foo, foo, foo, bar)), Fill(0))
+        out1052 = mapwindow(sum, img105, [1,1,1,1,3])
+        @test all(isequal(3.0), out1052)
+    end
 end

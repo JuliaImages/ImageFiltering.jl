@@ -291,7 +291,7 @@ docopy!(buf, img, padinds::NTuple{1}) = buf[:] = view(img, padinds[1])
 docopy!(buf, img, padinds::NTuple{2}) = buf[:,:] = view(img, padinds[1], padinds[2])
 docopy!(buf, img, padinds::NTuple{3}) = buf[:,:,:] = view(img, padinds[1], padinds[2], padinds[3])
 @inline function docopy!(buf, img, padinds::NTuple{N}) where N
-    colons = ntuple(d->Colon(), Val{N})
+    colons = ntuple(d->Colon(), Val{N}())
     buf[colons...] = view(img, padinds...)
 end
 
