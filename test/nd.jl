@@ -1,6 +1,16 @@
 using ImageFiltering, OffsetArrays, ComputationalResources
 using Test
 
+import Base: *, +
+
+struct WrappedFloat
+    x::Float64
+end
+Base.zero(w::WrappedFloat) = WrappedFloat(0.0)
+Base.zero(::Type{WrappedFloat}) = WrappedFloat(0.0)
+*(w::WrappedFloat, x::Float64) = WrappedFloat(w.x*x)
++(w1::WrappedFloat, w2::WrappedFloat) = WrappedFloat(w1.x+w2.x)
+
 @testset "1d" begin
     img = 1:8
     # Exercise all the different ways to call imfilter
@@ -81,6 +91,12 @@ using Test
         inds = axes(imgf,1)
         @test all(x->x==0, imgf[first(inds):-2]) && all(x->x==0, imgf[2:last(inds)])
     end
+
+    # Issue #110
+    img = reinterpret(WrappedFloat, rand(128))
+    kern = centered(rand(31))
+    imgf = imfilter(img, kern)
+    @test imgf == imfilter(img, kern, ImageFiltering.FIR())
 end
 
 @testset "2d widening" begin

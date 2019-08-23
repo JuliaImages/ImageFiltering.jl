@@ -1531,7 +1531,7 @@ end
 # allocated by the time this gets called.
 function filter_algorithm(out, img, kernel::Union{ArrayType,Tuple{Vararg{ArrayType}}})
     L = maxlen(kernel)
-    if L > 30
+    if L > 30 && eltype(img) <: Union{Number,Colorant}
         return FFT()
     end
     sz = map(length, calculate_padding(kernel))
