@@ -39,6 +39,15 @@ mapwindow(f, img, window, indices=(2:5, 1:2:7)) == mapwindow(f,img,window)[2:5, 
 ```
 Except more efficiently because it omits computation of the unused values.
 
+Because the data in the buffer `buf` that is received by `f` is copied from `img`, and the
+buffer's memory is reused, `f` should not return references to `buf`.
+This
+```julia
+f = buf->copy(buf) # as opposed to f = buf->buf
+mapwindow(f, img, window, indices=(2:5, 1:2:7))
+```
+would work as expected.
+
 For functions that can only take `AbstractVector` inputs, you might have to
 first specialize `default_shape`:
 
