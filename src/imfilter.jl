@@ -1195,7 +1195,8 @@ function _imfilter_fft!(r::AbstractCPU{FFT},
     else
         # Exploit the periodic boundary conditions of FFTView
         dest = FFTView(out)
-        src = OffsetArray(view(FFTView(Af), axes(dest)...), axes(dest))
+        # src = OffsetArray(view(FFTView(Af), axes(dest)...), axes(dest))
+        src = view(FFTView(Af), axes(dest)...)
         copyto!(dest, src)
     end
     out
