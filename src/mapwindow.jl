@@ -378,10 +378,23 @@ extrema_filter(A::AbstractArray{T,N}, window::Integer) where {T,N} = extrema_fil
 function _extrema_filter!(A::Array, w1, w...)
     if w1 > 1
         a = first(A)
-        cache = ntuple(i->a, w1>>1)
-        _extrema_filter1!(A, w1, cache)
+        if w1 <= 20
+            cache = ntuple(i->a, w1>>1)
+            _extrema_filter1!(A, w1, cache)
+        else
+            n = w1>>1
+            cache = CircularDeque{typeof(a)}(n)
+            for i = 1:n
+                push!(cache, a)
+            end
+            _extrema_filter1!(A, w1, cache)
+        end
     end
-    _extrema_filter!(permutedims(A, [2:ndims(A);1]), w...)
+    if ndims(A) > 1
+        _extrema_filter!(permutedims(A, [2:ndims(A);1]), w...)
+    else
+        return A
+    end
 end
 _extrema_filter!(A::Array) = A
 
@@ -442,7 +455,12 @@ function _extrema_filter1!(A::AbstractArray{Tuple{T,T}}, window::Int, cache) whe
 end
 
 # This is slightly faster than a circular buffer
-@inline cyclecache(b, x) = b[1], (Base.tail(b)..., x)
+@inline cyclecache(b::Tuple, x) = b[1], (Base.tail(b)..., x)
+@inline function cyclecache(b::CircularDeque, x)
+    ret1 = popfirst!(b)
+    push!(b, x)
+    return ret1, b
+end
 
 default_shape(::Any) = identity
 default_shape(::typeof(median_fast!)) = vec
