@@ -22,11 +22,12 @@ TiledIteration = "06e1c1a7-607b-532d-9fad-de7d9aa2abac"
 
 [compat]
 DataStructures = ">= 0.4.6"
+FFTViews = "0.3"
 FFTW = ">= 0.0.3"
 FixedPointNumbers = ">= 0.3.0"
 StaticArrays = ">= 0.0.5"
+TiledIteration = "0.2"
 julia = "1"
-FFTViews = "0.3"
 
 [extras]
 AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
