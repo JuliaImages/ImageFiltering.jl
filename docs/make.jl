@@ -9,4 +9,4 @@ deploydocs(repo   = "github.com/JuliaImages/ImageFiltering.jl.git",
            target = "build",
            deps   = nothing,
            make   = nothing,
-           julia  = "0.5")
+           julia  = "1.2")
