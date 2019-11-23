@@ -585,7 +585,7 @@ function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, 
     imfilter!(r, out, img, factorkernel(kernel), args...)
 end
 
-function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, args...)
+function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel)
     imfilter!(out, img, kernel, Pad(:replicate))
 end
 
