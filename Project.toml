@@ -23,7 +23,7 @@ TiledIteration = "06e1c1a7-607b-532d-9fad-de7d9aa2abac"
 [compat]
 CatIndices = "0.2"
 ColorVectorSpace = "0.6, 0.7, 0.8"
-Colors = "0.9"
+Colors = "0.9, 0.10"
 ComputationalResources = "0.3"
 DataStructures = "0.14, 0.15, 0.16, 0.17"
 FFTViews = "0.3"
