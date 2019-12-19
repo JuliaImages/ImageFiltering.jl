@@ -1,4 +1,4 @@
-using ImageFiltering, OffsetArrays, Logging, ImageMetadata, FixedPointNumbers, Test
+using ImageFiltering, ImageCore, OffsetArrays, Logging, ImageMetadata, Test
 import AxisArrays
 using AxisArrays: AxisArray, Axis
 

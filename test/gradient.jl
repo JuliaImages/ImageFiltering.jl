@@ -1,4 +1,4 @@
-using ImageFiltering, Colors, ColorVectorSpace, FixedPointNumbers
+using ImageFiltering, ImageCore, ColorVectorSpace
 using Test
 
 @testset "gradient" begin

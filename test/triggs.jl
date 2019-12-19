@@ -1,4 +1,4 @@
-using ImageFiltering, Colors, ComputationalResources, FixedPointNumbers
+using ImageFiltering, ImageCore, ComputationalResources
 using LinearAlgebra
 using Test
 

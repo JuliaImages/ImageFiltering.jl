@@ -79,7 +79,7 @@ end
 
 ffteltype(::Type{T}) where T<:Union{Float32,Float64} = T
 ffteltype(::Type{Float16}) = Float32
-ffteltype(::Type{T}) where T<:Normed = ffteltype(FixedPointNumbers.floattype(T))
+ffteltype(::Type{T}) where T<:Normed = ffteltype(floattype(T))
 ffteltype(::Type{T}) where T = Float64
 
 dummyind(::Base.OneTo) = Base.OneTo(1)
