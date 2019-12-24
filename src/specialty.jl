@@ -342,20 +342,20 @@ See also:  [`KernelFactors.scharr`](@ref) and [`Kernel.scharr`](@ref)
 The *bickley* option [7,8] designates the kernels
 ```math
 \\begin{aligned}
-\\mathbf{H}_{x_1} & = \\frac{1}{8}
+\\mathbf{H}_{x_1} & = \\frac{1}{12}
     \\begin{bmatrix}
         -1 & -4 & -1 \\\\
          0 & 0 & 0 \\\\
          1 & 4 & 1
     \\end{bmatrix}
 &
-\\mathbf{H}_{x_2} & = \\frac{1}{8}
+\\mathbf{H}_{x_2} & = \\frac{1}{12}
     \\begin{bmatrix}
         -1 & 0 & 1 \\\\
         -4 & 0 & 4 \\\\
         -1 & 0 & 1
     \\end{bmatrix} \\\\
-& = \\frac{1}{8}
+& = \\frac{1}{12}
     \\begin{bmatrix}
         -1 \\\\
         0  \\\\
@@ -365,7 +365,7 @@ The *bickley* option [7,8] designates the kernels
         1 & 4 & 1
     \\end{bmatrix}
 &
-&  = \\frac{1}{8}
+&  = \\frac{1}{12}
    \\begin{bmatrix}
         1 \\\\
         4  \\\\
