@@ -446,7 +446,7 @@ the accuracy with which the orientation of the gradient is estimated.
 ```julia
 using Images
 
-values = linspace(-1,1,128);
+values = LinRange(-1,1,128);
 w = 1.6*pi;
 
 # Define a function of a sinusoidal grating, f(x,y) = sin( (w*x)^2 + (w*y)^2 ),
@@ -472,7 +472,7 @@ for kernelfunc in (KernelFactors.prewitt, KernelFactors.sobel,
     error = mean(abs.(direction_true[2:end-1,2:end-1] -
                      direction_estimated[2:end-1,2:end-1]));
 
-    error = round(error,5);
+    error = round(error, digits=5);
     println("Using \$kernelfunc results in a mean absolute deviation of \$error")
 end
 
