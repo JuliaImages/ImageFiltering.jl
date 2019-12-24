@@ -492,7 +492,7 @@ Using ImageFiltering.KernelFactors.bickley results in a mean absolute deviation 
   5. S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
   6. H. Scharr and  J. Weickert, "An anisotropic diffusion algorithm with optimized rotation invariance," *Mustererkennung 2000*, pp. 460–467, 2000. [doi:10.1007/978-3-642-59802-9_58](http://dx.doi.org/doi:10.1007/978-3-642-59802-9_58)
   7. A. Belyaev, "Implicit image differentiation and filtering with applications to image sharpening," *SIAM Journal on Imaging Sciences*, vol. 6, no. 1, pp. 660–679, 2013. [doi:10.1137/12087092x](http://dx.doi.org/doi:10.1137/12087092x)
-  8. W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](http://dx.doi.org/doi:10.1137/12087092x)
+  8. W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](http://dx.doi.org/doi:10.1093/qjmam/1.1.35)
 
 ***
 
