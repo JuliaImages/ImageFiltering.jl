@@ -74,7 +74,7 @@ function Base.similar(A::BorderArray, ::Type{T}, dims::Dims) where T
 end
 const OffsetAxis = Union{Integer, UnitRange, Base.OneTo, IdentityUnitRange}
 function Base.similar(A::BorderArray, ::Type{T}, inds::Tuple{OffsetAxis,Vararg{OffsetAxis}}) where T
-    similar(A.inner, T, axes(A))
+    similar(A.inner, T, inds)
 end
 
 @inline function Base.axes(o::BorderArray)
@@ -91,7 +91,7 @@ end
 
 @inline function _outeraxes(arr, border)
     map(axes(arr), border.lo, border.hi) do r, lo, hi
-        (first(r)-lo):(last(r)+hi)
+        IdentityUnitRange((first(r)-lo):(last(r)+hi))
     end
 end
 
