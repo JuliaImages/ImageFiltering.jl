@@ -1,4 +1,4 @@
-using ImageFiltering, OffsetArrays, Colors, FixedPointNumbers, Random
+using ImageFiltering, OffsetArrays, ImageCore, Random
 using Test
 
 @testset "Border" begin

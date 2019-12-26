@@ -1,4 +1,4 @@
-using ImageFiltering, ImageCore, OffsetArrays, Colors, FixedPointNumbers
+using ImageFiltering, ImageCore, OffsetArrays
 using Statistics, Test
 using ImageFiltering: IdentityUnitRange
 
