@@ -342,20 +342,20 @@ See also:  [`KernelFactors.scharr`](@ref) and [`Kernel.scharr`](@ref)
 The *bickley* option [7,8] designates the kernels
 ```math
 \\begin{aligned}
-\\mathbf{H}_{x_1} & = \\frac{1}{8}
+\\mathbf{H}_{x_1} & = \\frac{1}{12}
     \\begin{bmatrix}
         -1 & -4 & -1 \\\\
          0 & 0 & 0 \\\\
          1 & 4 & 1
     \\end{bmatrix}
 &
-\\mathbf{H}_{x_2} & = \\frac{1}{8}
+\\mathbf{H}_{x_2} & = \\frac{1}{12}
     \\begin{bmatrix}
         -1 & 0 & 1 \\\\
         -4 & 0 & 4 \\\\
         -1 & 0 & 1
     \\end{bmatrix} \\\\
-& = \\frac{1}{8}
+& = \\frac{1}{12}
     \\begin{bmatrix}
         -1 \\\\
         0  \\\\
@@ -365,7 +365,7 @@ The *bickley* option [7,8] designates the kernels
         1 & 4 & 1
     \\end{bmatrix}
 &
-&  = \\frac{1}{8}
+&  = \\frac{1}{12}
    \\begin{bmatrix}
         1 \\\\
         4  \\\\
@@ -446,7 +446,7 @@ the accuracy with which the orientation of the gradient is estimated.
 ```julia
 using Images
 
-values = linspace(-1,1,128);
+values = LinRange(-1,1,128);
 w = 1.6*pi;
 
 # Define a function of a sinusoidal grating, f(x,y) = sin( (w*x)^2 + (w*y)^2 ),
@@ -472,7 +472,7 @@ for kernelfunc in (KernelFactors.prewitt, KernelFactors.sobel,
     error = mean(abs.(direction_true[2:end-1,2:end-1] -
                      direction_estimated[2:end-1,2:end-1]));
 
-    error = round(error,5);
+    error = round(error, digits=5);
     println("Using \$kernelfunc results in a mean absolute deviation of \$error")
 end
 
@@ -492,7 +492,7 @@ Using ImageFiltering.KernelFactors.bickley results in a mean absolute deviation 
   5. S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
   6. H. Scharr and  J. Weickert, "An anisotropic diffusion algorithm with optimized rotation invariance," *Mustererkennung 2000*, pp. 460–467, 2000. [doi:10.1007/978-3-642-59802-9_58](http://dx.doi.org/doi:10.1007/978-3-642-59802-9_58)
   7. A. Belyaev, "Implicit image differentiation and filtering with applications to image sharpening," *SIAM Journal on Imaging Sciences*, vol. 6, no. 1, pp. 660–679, 2013. [doi:10.1137/12087092x](http://dx.doi.org/doi:10.1137/12087092x)
-  8. W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](http://dx.doi.org/doi:10.1137/12087092x)
+  8. W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](http://dx.doi.org/doi:10.1093/qjmam/1.1.35)
 
 ***
 
