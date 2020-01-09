@@ -448,7 +448,7 @@ returns values starting from the right border.
 See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
 [`NoPad`](@ref)
 
-### `"symmetric"`
+### `"reflect"`
 The border pixels reflect relative to a position between pixels. That is, the
 border pixel is omitted when mirroring.
 ```math
@@ -461,7 +461,7 @@ border pixel is omitted when mirroring.
 See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
 [`NoPad`](@ref)
 
-### `"reflect"`
+### `"symmetric"`
 The border pixels reflect relative to the edge itself.
 ```math
 \\boxed{
