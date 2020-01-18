@@ -334,7 +334,7 @@ end
     kern = Kernel.gaussian((1,1),(3,3))
     @test_throws err imfilter(A, kern, Fill(0, (3,)))
     kernf = ImageFiltering.factorkernel(kern)
-    err = DimensionMismatch("requested indices (1:8, 0:9) and kernel indices $(axes(kernf[1])) do not agree with indices of padded input, $((IdentityUnitRange(0:9), IdentityUnitRange(1:8)))")
+    err = DimensionMismatch("requested indices (1:8, 0:9) and kernel indices $(axes(kernf[1])) do not agree with indices of padded input, (0:9, 1:8)")
     @test_throws err imfilter(A, kern, Fill(0, (1,0)))
     @test_throws DimensionMismatch imfilter(A, kern, Fill(0, (0,1)))
     @test_throws DimensionMismatch imfilter(A, kern, Fill(0, (0,0)))
