@@ -95,7 +95,7 @@ function __init__()
         centered(a::AxisArrays.AxisArray) = AxisArrays.AxisArray(centered(a.data), centered.(AxisArrays.axes(a)))
     end
     @require ImageMetadata="bc367c6b-8a6b-528e-b4bd-a4b897500b49" begin
-        centered(a::ImageMetadata.ImageMeta) = ImageMetadata.ImageMeta(centered(a.data), ImageMetadata.properties(a))
+        centered(a::ImageMetadata.ImageMeta) = ImageMetadata.ImageMeta(centered(ImageMetadata.arraydata(a)), ImageMetadata.properties(a))
     end
 end
 

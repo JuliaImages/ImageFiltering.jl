@@ -277,8 +277,8 @@ using Test
         b_both = BorderArray(b_front, Fill(1.0, (0,), (5,)))
         b_sim = similar(b_both)
         @test axes(b_sim) == axes(b_both)
-	@test axes(b_sim) === (IdentityUnitRange(-2:15),)
-	@test axes(similar(b_sim, Int32, IdentityUnitRange(-1:3))) === (IdentityUnitRange(-1:3),)
+        @test axes(b_sim) == (IdentityUnitRange(-2:15),)
+        @test axes(similar(b_sim, Int32, IdentityUnitRange(-1:3))) == (IdentityUnitRange(-1:3),)
         @test all(LinearIndices(b_front) .== LinearIndices(OffsetArray(zeros(13), -3)))
     end
 end

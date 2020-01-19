@@ -339,10 +339,10 @@ end
 
 function addtoback!(W::Wedge, A, i, J)
     mn, mx = A[i, J]
-    @inbounds while !isempty(W.L) && mn < A[back(W.L), J][1]
+    @inbounds while !isempty(W.L) && mn < A[last(W.L), J][1]
         pop!(W.L)
     end
-    @inbounds while !isempty(W.U) && mx > A[back(W.U), J][2]
+    @inbounds while !isempty(W.U) && mx > A[last(W.U), J][2]
         pop!(W.U)
     end
     push!(W.L, i)
@@ -357,7 +357,7 @@ function Base.empty!(W::Wedge)
 end
 
 @inline function getextrema(A, W::Wedge, J)
-    (A[front(W.L), J][1], A[front(W.U), J][2])
+    (A[first(W.L), J][1], A[first(W.U), J][2])
 end
 
 """
@@ -428,10 +428,10 @@ function _extrema_filter1!(A::AbstractArray{Tuple{T,T}}, window::Int, cache) whe
         # Process the rest of the "column"
         for i = iw+1:last(inds1)
             A[i-window, J] = c
-            if i == window+front(W.U)
+            if i == window+first(W.U)
                 popfirst!(W.U)
             end
-            if i == window+front(W.L)
+            if i == window+first(W.L)
                 popfirst!(W.L)
             end
             addtoback!(W, A, i, J)
@@ -441,10 +441,10 @@ function _extrema_filter1!(A::AbstractArray{Tuple{T,T}}, window::Int, cache) whe
             if i >= first(inds1)
                 A[i, J] = c
             end
-            if i == front(W.U)
+            if i == first(W.U)
                 popfirst!(W.U)
             end
-            if i == front(W.L)
+            if i == first(W.L)
                 popfirst!(W.L)
             end
             c, cache = cyclecache(cache, getextrema(A, W, J))
