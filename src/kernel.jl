@@ -46,7 +46,7 @@ dimension), and the `diff2` kernel computes the gradient along the x-axis
 (second dimension).
 
 # Citation
-P.-E. Danielsson and O. Seger, "Generalized and separable sobel operators," in  *Machine Vision for Three-Dimensional Scenes*,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. [doi:10.1016/b978-0-12-266722-0.50016-6](http://dx.doi.org/doi:10.1016/b978-0-12-266722-0.50016-6)
+P.-E. Danielsson and O. Seger, "Generalized and separable sobel operators," in  *Machine Vision for Three-Dimensional Scenes*,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. [doi:10.1016/b978-0-12-266722-0.50016-6](https://doi.org/doi:10.1016/b978-0-12-266722-0.50016-6)
 
 See also: [`KernelFactors.sobel`](@ref), [`Kernel.prewitt`](@ref),
 [`Kernel.ando3`](@ref), [`Kernel.scharr`](@ref), [`Kernel.bickley`](@ref) and
@@ -88,7 +88,7 @@ Return ``3 \\times 3`` for two-dimensional gradient compution using  Ando's
 (second dimension).
 
 # Citation
-S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](https://doi.org/doi:10.1109/34.841757)
 
 See also: [`KernelFactors.ando3`](@ref), [`Kernel.ando4`](@ref),
 [`Kernel.ando5`](@ref) and  [`ImageFiltering.imgradients`](@ref).
@@ -108,7 +108,7 @@ y-axis (first dimension), and  the `diff2` kernel computes the gradient along
 the x-axis (second dimension).
 
 # Citation
-S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](https://doi.org/doi:10.1109/34.841757)
 
 See also: [`KernelFactors.ando4`](@ref), [`Kernel.ando3`](@ref),
 [`Kernel.ando5`](@ref) and [`ImageFiltering.imgradients`](@ref).
@@ -137,7 +137,7 @@ y-axis (first dimension), and the `diff2` kernel computes the gradient along the
 x-axis (second dimension).
 
 # Citation
-S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](https://doi.org/doi:10.1109/34.841757)
 
 See also: [`KernelFactors.ando5`](@ref), [`Kernel.ando3`](@ref),
 [`Kernel.ando4`](@ref) and  [`ImageFiltering.imgradients`](@ref).
@@ -166,7 +166,7 @@ operator. The `diff1` kernel computes the gradient along the y-axis (first dimen
 and the `diff2` kernel  computes the gradient along the x-axis (second dimension).
 
 # Citation
-H. Scharr and  J. Weickert, "An anisotropic diffusion algorithm with optimized rotation invariance," *Mustererkennung 2000*, pp. 460–467, 2000. [doi:10.1007/978-3-642-59802-9_58](http://dx.doi.org/doi:10.1007/978-3-642-59802-9_58)
+H. Scharr and  J. Weickert, "An anisotropic diffusion algorithm with optimized rotation invariance," *Mustererkennung 2000*, pp. 460–467, 2000. [doi:10.1007/978-3-642-59802-9_58](https://doi.org/doi:10.1007/978-3-642-59802-9_58)
 
 See also: [`KernelFactors.scharr`](@ref), [`Kernel.prewitt`](@ref),
 [`Kernel.ando3`](@ref), [`Kernel.bickley`](@ref) and
@@ -187,7 +187,7 @@ Bickley operator. The `diff1` kernel computes the gradient along the y-axis
 (second dimension).
 
 # Citation
-W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](http://dx.doi.org/doi:10.1137/12087092x)
+W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](https://doi.org/doi:10.1137/12087092x)
 
 
 See also: [`KernelFactors.bickley`](@ref), [`Kernel.prewitt`](@ref),

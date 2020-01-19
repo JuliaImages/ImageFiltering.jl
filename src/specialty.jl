@@ -485,14 +485,14 @@ Using ImageFiltering.KernelFactors.scharr results in a mean absolute deviation o
 Using ImageFiltering.KernelFactors.bickley results in a mean absolute deviation of 0.00038
 ```
 # References
-  1. B. Jahne, *Digital Image Processing* (5th ed.). Springer Publishing Company, Incorporated, 2005. [10.1007/3-540-27563-0](http://dx.doi.org/10.1007/3-540-27563-0)
-  2. M. Patra  and  M. Karttunen, "Stencils with isotropic discretization error for differential operators," *Numer. Methods Partial Differential Eq.*, vol. 22, pp. 936–953, 2006. [doi:10.1002/num.20129](http://dx.doi.org/doi:10.1002/num.20129)
+  1. B. Jahne, *Digital Image Processing* (5th ed.). Springer Publishing Company, Incorporated, 2005. [10.1007/3-540-27563-0](https://doi.org/10.1007/3-540-27563-0)
+  2. M. Patra  and  M. Karttunen, "Stencils with isotropic discretization error for differential operators," *Numer. Methods Partial Differential Eq.*, vol. 22, pp. 936–953, 2006. [doi:10.1002/num.20129](https://doi.org/doi:10.1002/num.20129)
   3. J. M. Prewitt, "Object enhancement and extraction," *Picture processing and Psychopictorics*, vol. 10, no. 1, pp. 15–19, 1970.
-  4. P.-E. Danielsson and O. Seger, "Generalized and separable sobel operators," in  *Machine Vision for Three-Dimensional Scenes*,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. [doi:10.1016/b978-0-12-266722-0.50016-6](http://dx.doi.org/doi:10.1016/b978-0-12-266722-0.50016-6)
-  5. S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
-  6. H. Scharr and  J. Weickert, "An anisotropic diffusion algorithm with optimized rotation invariance," *Mustererkennung 2000*, pp. 460–467, 2000. [doi:10.1007/978-3-642-59802-9_58](http://dx.doi.org/doi:10.1007/978-3-642-59802-9_58)
-  7. A. Belyaev, "Implicit image differentiation and filtering with applications to image sharpening," *SIAM Journal on Imaging Sciences*, vol. 6, no. 1, pp. 660–679, 2013. [doi:10.1137/12087092x](http://dx.doi.org/doi:10.1137/12087092x)
-  8. W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](http://dx.doi.org/doi:10.1093/qjmam/1.1.35)
+  4. P.-E. Danielsson and O. Seger, "Generalized and separable sobel operators," in  *Machine Vision for Three-Dimensional Scenes*,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. [doi:10.1016/b978-0-12-266722-0.50016-6](https://doi.org/doi:10.1016/b978-0-12-266722-0.50016-6)
+  5. S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](https://doi.org/doi:10.1109/34.841757)
+  6. H. Scharr and  J. Weickert, "An anisotropic diffusion algorithm with optimized rotation invariance," *Mustererkennung 2000*, pp. 460–467, 2000. [doi:10.1007/978-3-642-59802-9_58](https://doi.org/doi:10.1007/978-3-642-59802-9_58)
+  7. A. Belyaev, "Implicit image differentiation and filtering with applications to image sharpening," *SIAM Journal on Imaging Sciences*, vol. 6, no. 1, pp. 660–679, 2013. [doi:10.1137/12087092x](https://doi.org/doi:10.1137/12087092x)
+  8. W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](https://doi.org/doi:10.1093/qjmam/1.1.35)
 
 ***
 
