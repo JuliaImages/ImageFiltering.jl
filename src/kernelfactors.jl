@@ -158,7 +158,7 @@ Return factored  Sobel filters for dimensions 1 and 2 of a two-dimensional
 image. Each is a 2-tuple of one-dimensional filters.
 
 # Citation
-P.-E. Danielsson and O. Seger, "Generalized and separable sobel operators," in  *Machine Vision for Three-Dimensional Scenes*,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. [doi:10.1016/b978-0-12-266722-0.50016-6](http://dx.doi.org/doi:10.1016/b978-0-12-266722-0.50016-6)
+P.-E. Danielsson and O. Seger, "Generalized and separable sobel operators," in  *Machine Vision for Three-Dimensional Scenes*,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. [doi:10.1016/b978-0-12-266722-0.50016-6](https://doi.org/doi:10.1016/b978-0-12-266722-0.50016-6)
 
 See also: [`Kernel.sobel`](@ref)  and [`ImageFiltering.imgradients`](@ref).
 """
@@ -223,7 +223,7 @@ Return factored Scharr filters for dimensions 1 and 2 of your image.  Each is a
 2-tuple of one-dimensional filters.
 
 # Citation
-H. Scharr and  J. Weickert, "An anisotropic diffusion algorithm with optimized rotation invariance," *Mustererkennung 2000*, pp. 460–467, 2000. [doi:10.1007/978-3-642-59802-9_58](http://dx.doi.org/doi:10.1007/978-3-642-59802-9_58)
+H. Scharr and  J. Weickert, "An anisotropic diffusion algorithm with optimized rotation invariance," *Mustererkennung 2000*, pp. 460–467, 2000. [doi:10.1007/978-3-642-59802-9_58](https://doi.org/doi:10.1007/978-3-642-59802-9_58)
 
 
 See also: [`Kernel.scharr`](@ref) and [`ImageFiltering.imgradients`](@ref).
@@ -258,7 +258,7 @@ Return factored Bickley filters for dimensions 1 and 2 of your image.  Each is
 a 2-tuple of one-dimensional filters.
 
 # Citation
-W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](http://dx.doi.org/doi:10.1137/12087092x)
+W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](https://doi.org/doi:10.1137/12087092x)
 
 See also: [`Kernel.bickley`](@ref) and [`ImageFiltering.imgradients`](@ref).
 """
@@ -300,7 +300,7 @@ end
 Return a factored form of Ando's "optimal" ``3 \\times 3`` gradient filters for dimensions 1 and 2 of your image.
 
 # Citation
-S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](https://doi.org/doi:10.1109/34.841757)
 
 See also: [`Kernel.ando3`](@ref),[`KernelFactors.ando4`](@ref),
 [`KernelFactors.ando5`](@ref) and [`ImageFiltering.imgradients`](@ref).
@@ -334,7 +334,7 @@ Return separable approximations of Ando's "optimal" 4x4 filters for dimensions 1
 and 2 of your image.
 
 # Citation
-S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](https://doi.org/doi:10.1109/34.841757)
 
 See also: [`Kernel.ando4`](@ref) and [`ImageFiltering.imgradients`](@ref).
 """
@@ -353,7 +353,7 @@ Return a factored Ando filter (size 4) for computing the gradient in
 will have size 1 along that dimension.
 
 # Citation
-S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](https://doi.org/doi:10.1109/34.841757)
 
 See also: [`Kernel.ando4`](@ref) and [`ImageFiltering.imgradients`](@ref).
 """
@@ -373,7 +373,7 @@ Return a separable approximations of Ando's "optimal" 5x5 gradient filters for
 dimensions 1 and 2 of your image.
 
 # Citation
-S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](http://dx.doi.org/doi:10.1109/34.841757)
+S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](https://doi.org/doi:10.1109/34.841757)
 
 See also: [`Kernel.ando5`](@ref) and [`ImageFiltering.imgradients`](@ref).
 """
