@@ -391,10 +391,10 @@ function validate_gabor(σ::Real,λ::Real,γ::Real)
 end
 
 """
-    moffat(fwhm, β, ls) -> k
+    moffat(α, β, ls) -> k
 
 Constructs a 2D, symmetric Moffat kernel `k` with core width, `α`, and power, `β`.
-Size of kernel defaults to 4 * `fwhm` or as specified in `ls`.
+Size of kernel defaults to 4 * full-width-half-max or as specified in `ls`.
 See [this notebook](https://nbviewer.jupyter.org/github/ysbach/AO_2017/blob/master/04_Ground_Based_Concept.ipynb#1.2.-Moffat) for details.
 
 # Citation
