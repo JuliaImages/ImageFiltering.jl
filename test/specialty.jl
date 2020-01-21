@@ -222,7 +222,7 @@ using ImageFiltering: IdentityUnitRange
         β = rand()
         @test Kernel.moffat(α,β,2) == Kernel.moffat(α,β,(2,2))
 
-        fwhm = Int(ceil((α*2*sqrt(2^(1/β) - 1)) * 4))
+        fwhm = ceil(Int, (α*2*sqrt(2^(1/β) - 1)) * 4)
         @test Kernel.moffat(α, β) == Kernel.moffat(α, β, (fwhm, fwhm))
     end
 end

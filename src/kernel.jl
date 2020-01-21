@@ -405,14 +405,15 @@ function moffat(α::Real, β::Real, ls::Tuple{Integer, Integer})
     R = CartesianIndices(map(w->IdentityUnitRange(-w:w), ws))
     α2 = α^2
     amp = (β - 1)/(π * α2)
-    function df(I::CartesianIndex)
-        x = SVector(Tuple(I))
-        sum(x.^2)
-    end
-    [amp*((1+df(I)/α2)^-β) for I in R]
+    @. amp*((1+df(R)/α2)^-β)
 end
 moffat(α::Real, β::Real, ls::Integer)    = moffat(α, β, (ls,ls))
-moffat(α::Real, β::Real)                 = moffat(α, β, Int(ceil((α*2*sqrt(2^(1/β) - 1))*4)))
+moffat(α::Real, β::Real)                 = moffat(α, β, ceil(Int, (α*2*sqrt(2^(1/β) - 1))*4))
+
+@inline function df(I::CartesianIndex)
+    x = SVector(Tuple(I))
+    sum(x.^2)
+end
 
 """
     reflect(kernel) --> reflectedkernel
