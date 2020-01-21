@@ -391,6 +391,30 @@ function validate_gabor(σ::Real,λ::Real,γ::Real)
 end
 
 """
+    moffat(fwhm, β, ls) -> k
+
+Constructs a 2D, symmetric Moffat kernel `k` with core width, `α`, and power, `β`.
+Size of kernel defaults to 4 * `fwhm` or as specified in `ls`.
+See [this notebook](https://nbviewer.jupyter.org/github/ysbach/AO_2017/blob/master/04_Ground_Based_Concept.ipynb#1.2.-Moffat) for details.
+
+# Citation
+Moffat, A. F. J. "A theoretical investigation of focal stellar images in the photographic emulsion and application to photographic photometry." Astronomy and Astrophysics 3 (1969): 455.
+"""
+function moffat(α::Real, β::Real, ls::Tuple{Integer, Integer})
+    ws = map(n->(ceil(Int,n)>>1), ls)
+    R = CartesianIndices(map(w->IdentityUnitRange(-w:w), ws))
+    α2 = α^2
+    amp = (β - 1)/(π * α2)
+    function df(I::CartesianIndex)
+        x = SVector(Tuple(I))
+        sum(x.^2)
+    end
+    [amp*((1+df(I)/α2)^-β) for I in R]
+end
+moffat(α::Real, β::Real, ls::Integer)    = moffat(α, β, (ls,ls))
+moffat(α::Real, β::Real)                 = moffat(α, β, Int(ceil((α*2*sqrt(2^(1/β) - 1))*4)))
+
+"""
     reflect(kernel) --> reflectedkernel
 
 Compute the pointwise reflection around 0, 0, ... of the kernel
