@@ -216,6 +216,15 @@ using ImageFiltering: IdentityUnitRange
         ImageFiltering.fillbuf_nan[] = false
         @test Kernel.LoG(2.5) == Kernel.LoG((2.5,2.5))
     end
+
+    @testset "moffat" begin
+        α = rand()
+        β = rand()
+        @test Kernel.moffat(α,β,2) == Kernel.moffat(α,β,(2,2))
+
+        fwhm = Int(ceil((α*2*sqrt(2^(1/β) - 1))))
+        @test Kernel.moffat(α, β) == Kernel.moffat(α, β, (fwhm, fwhm))
+    end
 end
 
 nothing
