@@ -6,6 +6,9 @@ on:
 jobs:
   Benchmark:
     runs-on: ubuntu-latest
+    env:
+      # Add project root directory `.` to the load path:
+      JULIA_LOAD_PATH: '@:.:'
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@latest
