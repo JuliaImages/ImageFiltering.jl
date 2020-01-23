@@ -20,6 +20,8 @@ jobs:
         env:
           # Add project root directory `.` to the load path:
           JULIA_LOAD_PATH: '@:.:'
+      - name: Show
+        run: julia -e 'using BenchmarkCI; BenchmarkCI.displayjudgement()'
       - name: Post results
         run: julia -e "using BenchmarkCI; BenchmarkCI.postjudge()"
         env:
