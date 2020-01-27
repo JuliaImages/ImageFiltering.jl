@@ -55,10 +55,40 @@ end
     imfilter([r], img, kernel, [border="replicate"], [alg]) --> imgfilt
     imfilter(r, T, img, kernel, [border="replicate"], [alg]) --> imgfilt
 
-Filter a one, two or multidimensional array `img` with a `kernel` by computing
-their correlation.
+Filter a one, two, or multidimensional array `img` with a `kernel` by computing
+their correlation. The optional `T` allows you to choose the output element type.
+`r` an optional [ComputationalResource](https://github.com/timholy/ComputationalResources.jl)
+setting (currently `CPU1` and `CPUThreads` are supported for some algorithms).
+`border` is a string specifying boundary conditions (see the extended help for further details).
+`alg` allows you to choose the particular algorithm: `FIR()`
+(finite impulse response, aka traditional digital filtering) or `FFT()`
+(Fourier-based filtering). If no choice is specified, one will be chosen based
+on the size of the image and kernel in a way that strives to deliver good
+performance. Some kernels, like [`KernelFactors.IIRGaussian`](@ref), do not support
+alternative algorithms.
 
-# Details
+`kernel[0,0,..]` corresponds to the origin (zero displacement) of
+the kernel; you can use `centered` to place the origin at the array center, or
+use the OffsetArrays package to set `kernel`'s indices manually. For example, to
+filter with a random *centered* 3x3 kernel, you could use either of the
+following:
+
+    kernel = centered(rand(3,3))
+    kernel = OffsetArray(rand(3,3), -1:1, -1:1)
+
+The `kernel` parameter can be specified as an array or as a "factored kernel", a
+tuple `(filt1, filt2, ...)` of filters to apply along each axis of the image. In
+cases where you know your kernel is separable, this format can speed processing.
+Each of these should have the same dimensionality as the image itself, and be
+shaped in a manner that indicates the filtering axis, e.g., a 3x1 filter for
+filtering the first dimension and a 1x3 filter for filtering the second
+dimension. In two dimensions, any kernel passed as a single matrix is checked
+for separability; if you want to eliminate that check, pass the kernel as a
+single-element tuple, `(kernel,)`.
+
+
+# Extended help
+
 The term *filtering* emerges in the context of a Fourier transformation of
 an image, which maps an image from its canonical spatial domain to its
 concomitant frequency domain. Manipulating an image in the frequency domain
@@ -367,53 +397,9 @@ reshapes the multidimensional arrays into column vectors and proceeds in an
 analogous manner. Naturally, the result of the matrix multiplication will need
 to be reshaped into an appropriate multidimensional array.
 
-# Options
-The following subsections describe valid options for the function arguments in
-more detail.
 
-## Choices for `r`
-You can dispatch to different implementations by passing in a resource `r`
-as defined by the [ComputationalResources](https://github.com/timholy/ComputationalResources.jl) package.
-For example,
+## More on boundary conditions
 
-```julia
-    imfilter(ArrayFireLibs(), img, kernel)
-```
-would request that the computation be performed on the GPU using the
-ArrayFire libraries.
-
-## Choices for `T`
-
-Optionally, you can control the element type of the output image by
-passing in a type `T` as the first argument.
-
-## Choices for `img`
-
-You can specify a one, two or multidimensional array defining your image.
-
-## Choices for `kernel`
-
-The `kernel[0,0,..]` parameter corresponds to the origin (zero displacement) of
-the kernel; you can use `centered` to place the origin at the array center, or
-use the OffsetArrays package to set `kernel`'s indices manually. For example, to
-filter with a random *centered* 3x3 kernel, you could use either of the
-following:
-
-    kernel = centered(rand(3,3))
-    kernel = OffsetArray(rand(3,3), -1:1, -1:1)
-
-The `kernel` parameter can be specified as an array or as a "factored kernel", a
-tuple `(filt1, filt2, ...)` of filters to apply along each axis of the image. In
-cases where you know your kernel is separable, this format can speed processing.
-Each of these should have the same dimensionality as the image itself, and be
-shaped in a manner that indicates the filtering axis, e.g., a 3x1 filter for
-filtering the first dimension and a 1x3 filter for filtering the second
-dimension. In two dimensions, any kernel passed as a single matrix is checked
-for separability; if you want to eliminate that check, pass the kernel as a
-single-element tuple, `(kernel,)`.
-
-
-## Choices for `border`
 At the image edge, `border` is used to specify the padding which will be used
 to extrapolate the image beyond its original bounds. As an indicative example
 of each option the results of the padding are illustrated on an image consisting of
@@ -501,15 +487,8 @@ See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
 [`NoPad`](@ref)
 
 
-## Choices for `alg`
-The `alg` parameter allows you to choose the particular algorithm: `FIR()`
-(finite impulse response, aka traditional digital filtering) or `FFT()`
-(Fourier-based filtering). If no choice is specified, one will be chosen based
-on the size of the image and kernel in a way that strives to deliver good
-performance. Alternatively you can use a custom filter type, like
-[`KernelFactors.IIRGaussian`](@ref).
-
 # Examples
+
 The following subsections highlight some common use cases.
 
 ## Convolution versus correlation
