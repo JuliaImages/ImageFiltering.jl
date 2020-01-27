@@ -64,7 +64,7 @@ ArrayLike{T} = Union{ArrayType{T}, AnyIIR{T}}
 
 include("kernel.jl")
 using .Kernel
-using .Kernel: Laplacian, reflect, ando3, ando4, ando5, scharr, bickley, prewitt, sobel, gabor
+using .Kernel: Laplacian, reflect, ando3, ando4, ando5, scharr, bickley, prewitt, sobel, gabor, moffat
 
 NDimKernel{N,K} = Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N}}
 
