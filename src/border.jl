@@ -681,11 +681,6 @@ function copydata!(dest, img, inds)
     dest
 end
 
-function copydata!(dest::OffsetArray, img, inds::Tuple{Vararg{OffsetArray}})
-    copydata!(parent(dest), img, map(parent, inds))
-    dest
-end
-
 Base.ndims(b::AbstractBorder) = ndims(typeof(b))
 Base.ndims(::Type{Pad{N}}) where {N} = N
 

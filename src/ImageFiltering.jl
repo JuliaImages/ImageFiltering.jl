@@ -19,7 +19,6 @@ export Kernel, KernelFactors,
 
 FixedColorant{T<:Normed} = Colorant{T}
 StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
-OffsetVector{T} = OffsetArray{T,1}
 
 # Add a fix that should have been included in julia-1.0.3
 if isdefined(Broadcast, :_sametype) && !isdefined(Broadcast, :axistype)
