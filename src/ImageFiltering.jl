@@ -15,7 +15,8 @@ export Kernel, KernelFactors,
     imfilter, imfilter!,
     mapwindow, mapwindow!,
     imgradients, padarray, centered, kernelfactors, reflect,
-    freqkernel, spacekernel
+    freqkernel, spacekernel,
+    sliding_window
 
 FixedColorant{T<:Normed} = Colorant{T}
 StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
@@ -80,6 +81,7 @@ const ProcessedKernel = Tuple
 include("imfilter.jl")
 include("specialty.jl")
 
+include("sliding_window.jl")
 include("mapwindow.jl")
 using .MapWindow
 

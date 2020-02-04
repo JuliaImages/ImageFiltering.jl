@@ -2,7 +2,7 @@ module MapWindow
 
 using DataStructures, TiledIteration
 using ..ImageFiltering: BorderSpecAny, Pad, Fill, Inner,
-    borderinstance, _interior, padindex, imfilter
+    borderinstance, _interior, padindex, imfilter, resolve_window
 using Base: Indices, tail
 using Statistics
 
@@ -112,20 +112,6 @@ end
 
 replace_function(f) = f
 replace_function(::typeof(median!)) = median_fast!
-
-function resolve_window(window::Dims)
-    all(isodd(w) for w in window) || error("entries in window must be odd, got $window")
-    halfsize = map(w->w>>1, window)
-    map(h -> -h:h,halfsize)
-end
-function resolve_window(window::Integer)
-    isodd(window) || error("window must be odd, got $window")
-    h = window>>1
-    (-h:h,)
-end
-resolve_window(window::AbstractArray) = resolve_window((window...,))
-resolve_window(window::AbstractUnitRange) = (window,)
-resolve_window(window::Indices) = window
 
 resolve_border(border::AbstractString) = borderinstance(border)
 resolve_border(border::BorderSpecAny) = border

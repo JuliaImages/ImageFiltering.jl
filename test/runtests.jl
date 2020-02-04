@@ -7,6 +7,7 @@ aif = detect_ambiguities(ImageFiltering, Kernel, KernelFactors, Base)
 asa = detect_ambiguities(StaticArrays, Base)
 @test isempty(setdiff(aif, asa))
 
+include("sliding_window.jl")
 include("border.jl")
 include("nd.jl")
 include("2d.jl")
