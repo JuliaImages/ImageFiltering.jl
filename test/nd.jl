@@ -92,6 +92,9 @@ Base.zero(::Type{WrappedFloat}) = WrappedFloat(0.0)
         @test all(x->x==0, imgf[first(inds):-2]) && all(x->x==0, imgf[2:last(inds)])
     end
 
+    # Input with NaN
+    @test isnan.(imfilter([NaN;1:100],centered(ones(31)))) == ((0:100) .<= 15)
+
     # Issue #110
     img = reinterpret(WrappedFloat, rand(128))
     kern = centered(rand(31))
