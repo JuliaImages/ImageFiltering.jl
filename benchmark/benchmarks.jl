@@ -45,10 +45,11 @@ let grp = SUITE["imfilter"]
             trues = map(i->true, sz)
             twos  = map(i->2, sz)
             szstr = sz2str(sz)
-            kerniir = KernelFactors.IIRGaussian(Float32.(twos))
-            for (kname, kern) in zip(("densesmall", "denselarge", "factored"),
-                                      (kerninsep[length(sz)], Kernel.DoG(twos), KernelFactors.sobel(trues, 1)[1]))
-                grp[kname*"_"*aname*"_"*szstr]  = @benchmarkable imfilter($img, ($kern,), "replicate", ImageFiltering.FIR())
+            kerniir = KernelFactors.IIRGaussian(map(i->10.0f0, sz))
+            kerng   = KernelFactors.gaussian(map(i->10.0f0, sz))
+            for (kname, kern) in zip(("densesmall", "denselarge", "factoredsmall", "factoredlarge"),
+                                      ((kerninsep[length(sz)],), (Kernel.DoG(twos),), KernelFactors.sobel(trues, 1), kerng))
+                grp[kname*"_"*aname*"_"*szstr]  = @benchmarkable imfilter($img, $kern, "replicate", ImageFiltering.FIR())
             end
             grp["IIRGaussian_"*aname*"_"*szstr] = @benchmarkable imfilter($img, $kerniir, "replicate", ImageFiltering.IIR())
             grp["FFT_"*aname*"_"*szstr]         = @benchmarkable imfilter($img, $(Kernel.DoG(twos),), "replicate", ImageFiltering.FFT())
