@@ -3,6 +3,19 @@ using PkgBenchmark
 using BenchmarkTools
 using Statistics: quantile, mean, median!
 
+function makeimages(sz)
+    imgF32      = rand(Float32, sz)
+    imgN0f8     = Array(rand(N0f8, sz))
+    imggrayF32  = Array(rand(Gray{Float32}, sz))
+    imggrayN0f8 = Array(rand(Gray{N0f8}, sz))
+    imgrgbF32   = Array(rand(RGB{Float32}, sz))
+    imgrgbN0f8  = Array(rand(RGB{N0f8}, sz))
+    return ("F32"=>imgF32, "N0f8"=>imgN0f8, "GrayF32"=>imggrayF32,
+            "GrayN0f8"=>imggrayN0f8, "RGBF32"=>imgrgbF32, "RGBN0f8"=>imgrgbN0f8)
+end
+
+sz2str(sz) = join(map(string, sz), '×')
+
 SUITE = BenchmarkGroup()
 SUITE["mapwindow"] = BenchmarkGroup()
 
@@ -20,27 +33,25 @@ let grp = SUITE["mapwindow"]
     grp["expensive f"] = @benchmarkable mapwindow(x -> quantile(vec(x), 0.7), $img3d, (3,3,3))
 end
 
-SUITE["2d"] = BenchmarkGroup()
-let grp = SUITE["2d"]
-    imgF32      = rand(Float32, 100, 100)
-    imgN0f8     = Array(rand(N0f8, 100, 100))
-    imggrayF32  = Array(rand(Gray{Float32}, 100, 100))
-    imggrayN0f8 = Array(rand(Gray{N0f8}, 100, 100))
-    imgrgbF32   = Array(rand(RGB{Float32}, 100, 100))
-    imgrgbN0f8  = Array(rand(RGB{N0f8}, 100, 100))
-    kern3x3     = (centered([ 1/5  1/4  1/7;
+SUITE["imfilter"] = BenchmarkGroup()
+let grp = SUITE["imfilter"]
+    kerninsep   = (centered([-1, 0, 1]),
+                   centered([ 1/5  1/4  1/7;
                               1/2  1/3 -1/11;
-                             -1/25 1/9 -1/7]),)
-    kernsobel   = KernelFactors.sobel()[1]
-    kerniir     = KernelFactors.IIRGaussian(Float32.((5.2, 1.3)))
-    for (name, img) in zip(("F32", "N0f8", "GrayF32", "GrayN0f8", "RGBF32", "RGBN0f8"),
-                            (imgF32, imgN0f8, imggrayF32, imggrayN0f8, imgrgbF32, imgrgbN0f8))
-        for (kname, kern) in zip(("dense", "factored"), (kern3x3, kernsobel))
-            grp[kname*"_"*name] = @benchmarkable imfilter($img, $kern, "replicate", ImageFiltering.FIR())
+                             -1/25 1/9 -1/7]),   # has full rank so won't be factored
+                   centered(rand(3, 3, 3)))
+    for sz in ((100, 100), (2048, 2048), (2048,), (100, 100, 100))
+        for (aname, img) in makeimages(sz)
+            trues = map(i->true, sz)
+            twos  = map(i->2, sz)
+            szstr = sz2str(sz)
+            kerniir = KernelFactors.IIRGaussian(Float32.(twos))
+            for (kname, kern) in zip(("densesmall", "denselarge", "factored"),
+                                      (kerninsep[length(sz)], Kernel.DoG(twos), KernelFactors.sobel(trues, 1)[1]))
+                grp[kname*"_"*aname*"_"*szstr]  = @benchmarkable imfilter($img, ($kern,), "replicate", ImageFiltering.FIR())
+            end
+            grp["IIRGaussian_"*aname*"_"*szstr] = @benchmarkable imfilter($img, $kerniir, "replicate", ImageFiltering.IIR())
+            grp["FFT_"*aname*"_"*szstr]         = @benchmarkable imfilter($img, $(Kernel.DoG(twos),), "replicate", ImageFiltering.FFT())
         end
-    end
-    for (name, img) in zip(("F32", "N0f8", "GrayF32", "GrayN0f8", "RGBF32", "RGBN0f8"),
-                            (imgF32, imgN0f8, imggrayF32, imggrayN0f8, imgrgbF32, imgrgbN0f8))
-        grp["IIRGaussian_"*name] = @benchmarkable imfilter($img, $kerniir, "replicate", ImageFiltering.IIR())
     end
 end
