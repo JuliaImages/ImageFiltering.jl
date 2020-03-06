@@ -219,7 +219,7 @@ using ImageFiltering: IdentityUnitRange
 
     @testset "moffat" begin
         α = rand()
-        β = rand()
+        β = 2 * rand() + 3  #generate random float between 3 and 5 where commonly used
         @test Kernel.moffat(α,β,2) == Kernel.moffat(α,β,(2,2))
 
         fwhm = ceil(Int, (α*2*sqrt(2^(1/β) - 1)) * 4)
