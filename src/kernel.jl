@@ -12,6 +12,7 @@ dimensionality. The following kernels are supported:
   - `LoG` (Laplacian-of-Gaussian)
   - `Laplacian`
   - `gabor`
+  - `moffat`
 
 See also: [`KernelFactors`](@ref).
 """
