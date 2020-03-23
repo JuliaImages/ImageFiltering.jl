@@ -1,5 +1,6 @@
 using ImageFiltering, Statistics, Test
 using ImageFiltering: IdentityUnitRange
+using OffsetArrays
 
 @testset "mapwindow" begin
     function groundtruth(f, A, window::Tuple)
@@ -71,6 +72,19 @@ using ImageFiltering: IdentityUnitRange
         Amin = groundtruth(min, A, w)
         @test minval == Amin
     end
+    # offsets
+    @testset "offsets" begin
+        arrays = [rand(5), rand(5,5), rand(5,5,5)]
+        @testset "offsets ($f, $offset, $window, $dim)" for f in (extrema,maximum,minimum),
+                                                            offset in -5:5,
+                                                            window in [1:2:9; [0:2,-2:0]],
+                                                            (dim,a) in enumerate(arrays)
+            offsets = ntuple(_->offset,dim)
+            windows = ntuple(_->window,dim)
+            @test OffsetArray(mapwindow(f,a,windows),offsets) == mapwindow(f,OffsetArray(a,offsets),windows)
+        end
+    end
+
 
     # median
     for f in (median, median!)

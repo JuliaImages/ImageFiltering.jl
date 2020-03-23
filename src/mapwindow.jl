@@ -210,9 +210,6 @@ function _indices_of_interiour_range(
     idx1 = _intersectionindices(fullimgr, kmin .+ imgr)
     idx2 = _intersectionindices(fullimgr, kmax .+ imgr)
     idx = intersect(idx1, idx2)
-    @assert imgr[idx] .+ kmin ⊆ fullimgr
-    @assert imgr[idx] .+ kmax ⊆ fullimgr
-    idx
 end
 
 function _indices_of_interiour_indices(fullimginds, imginds, kerinds)
@@ -375,7 +372,7 @@ extrema_filter(A::AbstractArray, window) = error("`window` must have the same nu
 
 extrema_filter(A::AbstractArray{T,N}, window::Integer) where {T,N} = extrema_filter(A, ntuple(d->window, Val{N}))
 
-function _extrema_filter!(A::Array, w1, w...)
+function _extrema_filter!(A::AbstractArray, w1, w...)
     if w1 > 1
         a = first(A)
         if w1 <= 20
@@ -396,7 +393,7 @@ function _extrema_filter!(A::Array, w1, w...)
         return A
     end
 end
-_extrema_filter!(A::Array) = A
+_extrema_filter!(A::AbstractArray) = A
 
 # Extrema-filtering along "columns" (dimension 1). This implements Lemire
 # Algorithm 1, with the following modifications:
