@@ -1,4 +1,15 @@
 
+"""
+    sliding_window(f, arr::AbstractArray, window;
+        border=:replicate, [provisioning,]
+    )
+
+!!! compat "Julia 1.2"
+    sliding_window is only available on Julia 1.2 and higher.
+"""
+function sliding_window end
+
+
 abstract type GetindexProvisioning end
 struct CopyProvisioning <: GetindexProvisioning end
 struct ViewProvisioning <: GetindexProvisioning end
@@ -79,21 +90,6 @@ resolve_provisioning(p::GetindexProvisioning) = p
 
 default_provisioning(::typeof(padarray)) = ViewProvisioning()
 default_provisioning(::Type{<:BorderArray}) = CopyProvisioning()
-
-function resolve_window(window::Dims)
-    all(isodd(w) for w in window) || error("entries in window must be odd, got $window")
-    halfsize = map(w->w>>1, window)
-    map(h -> -h:h,halfsize)
-end
-function resolve_window(window::Integer)
-    isodd(window) || error("window must be odd, got $window")
-    h = window>>1
-    (-h:h,)
-end
-resolve_window(window::AbstractArray) = resolve_window((window...,))
-resolve_window(window::AbstractUnitRange) = (window,)
-resolve_window(window::Indices) = window
-resolve_window(window::Tuple{}) = window
 
 function sliding_window(f_pad, arr::AbstractArray, window;
         border=:replicate,

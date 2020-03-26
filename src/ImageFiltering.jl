@@ -8,6 +8,8 @@ using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
 using OffsetArrays: IdentityUnitRange   # using the one in OffsetArrays makes this work with multiple Julia versions
 using Requires
 
+const SUPPORT_SLIDING_WINDOW = VERSION >= v"1.2"
+
 export Kernel, KernelFactors,
     Pad, Fill, Inner, NA, NoPad,
     BorderArray,
@@ -15,8 +17,11 @@ export Kernel, KernelFactors,
     imfilter, imfilter!,
     mapwindow, mapwindow!,
     imgradients, padarray, centered, kernelfactors, reflect,
-    freqkernel, spacekernel,
-    sliding_window
+    freqkernel, spacekernel
+
+if SUPPORT_SLIDING_WINDOW
+    export sliding_window
+end
 
 FixedColorant{T<:Normed} = Colorant{T}
 StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
@@ -81,7 +86,25 @@ const ProcessedKernel = Tuple
 include("imfilter.jl")
 include("specialty.jl")
 
-include("sliding_window.jl")
+function resolve_window(window::Dims)
+    all(isodd(w) for w in window) || error("entries in window must be odd, got $window")
+    halfsize = map(w->w>>1, window)
+    map(h -> -h:h,halfsize)
+end
+function resolve_window(window::Integer)
+    isodd(window) || error("window must be odd, got $window")
+    h = window>>1
+    (-h:h,)
+end
+resolve_window(window::AbstractArray) = resolve_window((window...,))
+resolve_window(window::AbstractUnitRange) = (window,)
+resolve_window(window::Indices) = window
+resolve_window(window::Tuple{}) = window
+
+if SUPPORT_SLIDING_WINDOW
+    include("sliding_window.jl")
+end
+
 include("mapwindow.jl")
 using .MapWindow
 

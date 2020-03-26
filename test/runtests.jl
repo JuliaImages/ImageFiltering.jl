@@ -7,7 +7,11 @@ aif = detect_ambiguities(ImageFiltering, Kernel, KernelFactors, Base)
 asa = detect_ambiguities(StaticArrays, Base)
 @test isempty(setdiff(aif, asa))
 
-include("sliding_window.jl")
+if ImageFiltering.SUPPORT_SLIDING_WINDOW
+    include("sliding_window.jl")
+else
+    @info "`sliding_window` not supported, skipping tests."
+end
 include("border.jl")
 include("nd.jl")
 include("2d.jl")
