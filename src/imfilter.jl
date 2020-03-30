@@ -996,10 +996,13 @@ end
 
 function __imfilter_inbounds!(r, out, A, kern, border, R, z)
     Rk = CartesianIndices(axes(kern))
+    Rkhead, Rktail = safehead(Rk), safetail(Rk)
     for I in safetail(R), i in safehead(R)
         tmp = z
-        @inbounds for J in safetail(Rk), j in safehead(Rk)
-            tmp += safe_for_prod(A[i+j,I+J], tmp)*kern[j,J]
+        @inbounds for J in Rktail
+            for j in Rkhead
+                tmp += safe_for_prod(A[i+j,I+J], tmp)*kern[j,J]
+            end
         end
         @inbounds out[i,I] = tmp
     end
