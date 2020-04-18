@@ -442,7 +442,7 @@ function tophat(r::Real, sizes::Tuple{Integer, Integer})
             kern[idx] = amplitude
         end
     end
-    return kern
+    return kern ./ sum(kern) # renormalize 
 end
 
 """
