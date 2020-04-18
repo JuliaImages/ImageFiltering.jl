@@ -24,6 +24,7 @@ Kernel.DoG
 Kernel.LoG
 Kernel.Laplacian
 Kernel.moffat
+Kernel.tophat
 ```
 
 # KernelFactors
