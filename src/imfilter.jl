@@ -631,7 +631,7 @@ end
 
 """
     imfilter!(imgfilt, img, kernel, [border="replicate"], [alg])
-    imfilter!(r, imgfilt, img, kernel, border, [inds])
+    imfilter!(r, imgfilt, img, kernel, border::Pad)
     imfilter!(r, imgfilt, img, kernel, border::NoPad, [inds=axes(imgfilt)])
 
 Filter an array `img` with kernel `kernel` by computing their
@@ -739,6 +739,10 @@ end
 # cascaded kernels, and even implement multithreadable tiling for FIR
 # filtering.
 
+function imfilter!(::AbstractResource, ::AbstractArray, ::AbstractArray, ::ProcessedKernel, border::AbstractBorder, ::Indices)
+    error("Invalid border strategy `$border`: only `NoPad()` is supported.")
+end
+
 # Trivial kernel (a copy operation)
 function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{}, ::NoPad, inds::Indices=axes(out))
     R = CartesianIndices(inds)
@@ -753,7 +757,7 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
 end
 
 # A filter cascade (2 or more filters)
-function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=axes(out))
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds::Indices=axes(out))
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border, inds)
     # For multiple stages of filtering, we introduce a second buffer
@@ -766,7 +770,7 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
 end
 
 ### Use a tiled algorithm for the cascaded case
-function imfilter!(r::AbstractCPU{FIRTiled{N}}, out::AbstractArray{S,N}, A::AbstractArray{T,N}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=axes(out)) where {S,T,N}
+function imfilter!(r::AbstractCPU{FIRTiled{N}}, out::AbstractArray{S,N}, A::AbstractArray{T,N}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds::Indices=axes(out)) where {S,T,N}
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border, inds)
     tmp = tile_allocate(filter_type(A, kernel), r.settings.tilesize, kernel)

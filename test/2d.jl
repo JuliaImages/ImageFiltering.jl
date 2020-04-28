@@ -2,6 +2,7 @@ using ImageFiltering, ImageCore, OffsetArrays, FFTViews, ColorVectorSpace, Compu
 using LinearAlgebra
 using Test
 using ImageFiltering: IdentityUnitRange
+using ImageFiltering: borderinstance
 
 @testset "tiling" begin
     m = zeros(UInt8, 20, 20)
@@ -100,6 +101,7 @@ end
                 @test @inferred(imfilter(f32type(img), img, kernel, border, alg)) ≈ float32.(targetimg)
             end
             @test_throws MethodError imfilter!(CPU1(Algorithm.FIR()), ret, img, kernel, border, Algorithm.FFT())
+            @test_throws ErrorException imfilter!(CPU1(Algorithm.FIR()), ret, img, kernel, borderinstance(border), axes(ret)) #167
         end
         targetimg_inner = OffsetArray(targetimg[2:end, 1:end-2], 2:5, 1:5)
         @test @inferred(imfilter(img, kernel, Inner())) ≈ targetimg_inner
