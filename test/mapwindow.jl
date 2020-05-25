@@ -129,7 +129,7 @@ using OffsetArrays
         @test expected == @inferred mapwindow!(f,out,img,window,indices=imginds)
     end
     for (inds, kw) ∈ [((Base.OneTo(3),), (border="replicate", indices=2:2:7)),
-                        ((2:7,), (indices=2:7,)),
+                        (axes(2:7), (indices=2:7,)),
                         ((Base.OneTo(10),), ())
                        ]
         @test inds == axes(mapwindow(mean, randn(10), (3,); kw...))

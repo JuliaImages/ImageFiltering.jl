@@ -153,28 +153,26 @@ end
 struct _IdentityTransformer <: _IndexTransformer end
 @inline Base.getindex(t::_IdentityTransformer, inds) = inds
 
-function _IndexTransformer(ranges)
-    stride = map(step, ranges)
-    offset1 = map(first, ranges)
-    offset = offset1 .- stride
+function _IndexTransformer(from_ranges::NTuple{N,AbstractUnitRange}, to_ranges) where {N}
+    stride = map(step, to_ranges)
+    offset = first.(to_ranges) .- first.(from_ranges) .* stride
     _AffineTransformer(offset, stride)
 end
 
-function _IndexTransformer(ranges::NTuple{N,Base.OneTo}) where {N}
-    _IdentityTransformer()
+function _IndexTransformer(from_ranges::NTuple{N,AbstractUnitRange}, to_ranges::NTuple{N,AbstractUnitRange}) where {N}
+    offset = first.(to_ranges) .- first.(from_ranges)
+    _OffsetTransformer(offset)
 end
 
-function _IndexTransformer(ranges::NTuple{N,AbstractUnitRange}) where {N}
-    offset1 = map(first, ranges)
-    offset = offset1 .- 1
-    _OffsetTransformer(offset)
+function _IndexTransformer(::NTuple{N,Base.OneTo}, ::NTuple{N,Base.OneTo}) where {N}
+    _IdentityTransformer()
 end
 
 compute_output_range(r::AbstractUnitRange) = r
 compute_output_range(r::AbstractRange) = Base.OneTo(length(r))
 
 function compute_output_indices(imginds)
-    ranges = map(compute_output_range, imginds)
+    ranges = map(i->compute_output_range(axes(i,1)), imginds)
     # Base.similar does not like if some but not all ranges are Base.OneTo
     homogenize(ranges)
 end
@@ -197,7 +195,7 @@ end
 function _indexof(r::AbstractRange, x)
     T = eltype(r)
     @assert x ∈ r
-    i = one(T) + T((x - first(r)) / step(r))
+    i = T(firstindex(r) + (x - first(r)) / step(r))
     @assert r[i] == x
     i
 end
@@ -210,6 +208,9 @@ function _indices_of_interiour_range(
     idx1 = _intersectionindices(fullimgr, kmin .+ imgr)
     idx2 = _intersectionindices(fullimgr, kmax .+ imgr)
     idx = intersect(idx1, idx2)
+    @assert imgr[idx] .+ kmin ⊆ fullimgr
+    @assert imgr[idx] .+ kmax ⊆ fullimgr
+    idx
 end
 
 function _indices_of_interiour_indices(fullimginds, imginds, kerinds)
@@ -255,13 +256,13 @@ function mapwindow_kernel!(f,
 
     @assert map(length, imginds) == map(length, axes(out))
 
-    indind_full = map(r -> Base.OneTo(length(r)), imginds)
+    indind_full = map(r -> axes(r,1), imginds)
     indind_inner = _indices_of_interiour_indices(axes(img), imginds, window)
     Rindind_full = CartesianIndices(indind_full)
     Rindind_inner = CartesianIndices(indind_inner)
 
-    outindtrafo = _IndexTransformer(axes(out))
-    imgindtrafo = _IndexTransformer(imginds)
+    outindtrafo = _IndexTransformer(indind_full, axes(out))
+    imgindtrafo = _IndexTransformer(indind_full, imginds)
 
     buf, bufrs = allocate_buffer(f, img, window)
     Rbuf = CartesianIndices(size(buf))
