@@ -5,6 +5,7 @@ using ..ImageFiltering: BorderSpecAny, Pad, Fill, Inner,
     borderinstance, _interior, padindex, imfilter
 using Base: Indices, tail
 using Statistics
+using OffsetArrays
 
 export mapwindow, mapwindow!
 
@@ -72,14 +73,18 @@ function mapwindow(f, img, window; border="replicate",
               resolve_imginds(indices))
 end
 
+# a unit range `r` having `r == axes(r)` which keeps its axes with
+# broadcasting (e.g., `axes(r.+1) == axes(r)`), unlike Base.IdentityUnitRange
+self_offset(r::AbstractUnitRange) = OffsetArrays.IdOffsetRange(1:length(r), first(r)-one(eltype(r)))
+
 function default_imginds(img, window, border)
     axes(img)
 end
 function default_imginds(img, window, border::Inner)
     imginds = axes(img)
     win = resolve_window(window)
-    indind = _indices_of_interiour_indices(imginds, imginds, win)
-    map((II, r) -> r[II], indind, imginds)
+    indind = _indices_of_interiour_indices(imginds, imginds, win)::Tuple{Vararg{AbstractUnitRange}}
+    map(self_offset, indind)
 end
 
 function _mapwindow(f, img, window, border, imginds)
@@ -188,7 +193,7 @@ function _intersectionindices(full::AbstractUnitRange, r::AbstractRange)
     else
         ret = _indexof(r,first(r_sub)):_indexof(r,last(r_sub))
     end
-    @assert intersect(full, r) == r[ret]
+    @assert r_sub == r[ret] || isempty(r_sub) && isempty(ret)
     ret
 end
 

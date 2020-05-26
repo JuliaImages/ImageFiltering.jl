@@ -1,6 +1,5 @@
 using ImageFiltering, Statistics, Test
 using ImageFiltering: IdentityUnitRange
-using OffsetArrays
 
 @testset "mapwindow" begin
     function groundtruth(f, A, window::Tuple)
@@ -74,14 +73,28 @@ using OffsetArrays
     end
     # offsets
     @testset "offsets" begin
-        arrays = [rand(5), rand(5,5), rand(5,5,5)]
+        n = 5
+        arrays = [rand(n), rand(n,n), rand(n,n,n)]
         @testset "offsets ($f, $offset, $window, $dim)" for f in (extrema,maximum,minimum),
                                                             offset in -5:5,
                                                             window in [1:2:9; [0:2,-2:0]],
+                                                            # broken: "reflect", NA(), NoPad()
+                                                            border in ["replicate", "symmetric", Fill(randn()), Inner()],
                                                             (dim,a) in enumerate(arrays)
             offsets = ntuple(_->offset,dim)
             windows = ntuple(_->window,dim)
-            @test OffsetArray(mapwindow(f,a,windows),offsets) == mapwindow(f,OffsetArray(a,offsets),windows)
+            winlen = window isa Number ? window : length(window)
+            wrapped_f = x->f(x)
+            for g in (f, wrapped_f)
+                mw(a) = mapwindow(g, a, windows, border=border)
+
+                if border == Inner() && winlen > n
+                    @test_throws DimensionMismatch mw(a)
+                    @test_throws DimensionMismatch mw(OffsetArray(a,offsets))
+                else
+                    @test OffsetArray(mw(a),offsets) == mw(OffsetArray(a,offsets))
+                end
+            end
         end
     end
 
@@ -144,6 +157,8 @@ using OffsetArrays
     @test mapwindow(first, img_48, (0:2,),
                     border=Inner(),
                     indices=inds_48) == img_48[inds_48]
+    res_shifted = mapwindow(minimum, img_48, -2:0, border=Inner())
+    @test res_shifted == OffsetArray(img_48[1:8], 3:10)
 
     @testset "desugaring window argument #58" begin
         img58 = rand(10)
