@@ -668,15 +668,18 @@ function _imfilter_na!(r::AbstractResource,
                        img::AbstractArray{T,N},
                        kernel::ProcessedKernel,
                        na) where {T,S,N}
-    naflag = na.(img)
-    hasnas = any(naflag)
-    if hasnas || !isseparable(kernel)
+    if !isseparable(kernel) || (naflag = _mapna(img,na); any(naflag))
         imfilter_na_inseparable!(r, out, img, naflag, kernel)
     else
         imfilter_na_separable!(r, out, img, kernel)
     end
     out
 end
+
+# for types that can't have NaNs, we can skip the isnan check
+_mapna(img::AbstractArray, na) = na.(img)
+_mapna(img::AbstractArray{T},
+       na::typeof(isnan)) where {T<:Union{Integer,FixedColorant}} = fill(false, axes(img))
 
 # Any other kind of not-fully-specified padding
 function imfilter!(r::AbstractResource,
