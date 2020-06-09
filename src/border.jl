@@ -705,44 +705,37 @@ struct Inner{N} <: AbstractBorder
     hi::Dims{N}
 end
 
+Inner(both::Int...) = Inner(both, both)
+Inner(both::Dims{N}) where {N} = Inner(both, both)
+Inner(lo::Tuple{}, hi::Tuple{}) = Inner{0}(lo, hi)
+Inner(lo::Dims{N}, hi::Tuple{}) where {N} = Inner{N}(lo, ntuple(d->0,Val(N)))
+Inner(lo::Tuple{}, hi::Dims{N}) where {N} = Inner{N}(ntuple(d->0,Val(N)), hi)
+Inner(inds::Indices{N}) where {N} = Inner{N}(map(lo,inds), map(hi,inds))
+Inner{N}(lo::AbstractVector, hi::AbstractVector) where {N} = Inner{N}((lo...,), (hi...,))
+Inner(lo::AbstractVector, hi::AbstractVector) = Inner((lo...,), (hi...,)) # not inferrable
+
+(p::Inner{0})(kernel, img, ::Alg) = p(kernel)
+(p::Inner{0})(kernel) = Inner(calculate_padding(kernel))
+
 Base.ndims(::Type{Inner{N}}) where N = N
 
 """
-    NA()
-    NA(lo, hi)
+    NA(na=isnan)
 
 Choose filtering using "NA" (Not Available) boundary conditions. This
 is most appropriate for filters that have only positive weights, such
-as blurring filters. Effectively, the output pixel value is normalized
-in the following way:
+as blurring filters. Effectively, the output value is normalized in the
+following way:
 
-              filtered img with Fill(0) boundary conditions
-    output =  ---------------------------------------------
-              filtered 1   with Fill(0) boundary conditions
+              filtered array with Fill(0) boundary conditions
+    output =  -----------------------------------------------
+              filtered 1     with Fill(0) boundary conditions
 
-As a consequence, filtering has the same behavior as
-`nanmean`. Indeed, invalid pixels in `img` can be marked as `NaN` and
-then they are effectively omitted from the filtered result.
+Array elements for which `na` returns `true` are also considered outside
+array boundaries.
 """
-struct NA{N} <: AbstractBorder
-    lo::Dims{N}
-    hi::Dims{N}
-end
-
-for T in (:Inner, :NA)
-    @eval begin
-        $T(both::Int...) = $T(both, both)
-        $T(both::Dims{N}) where {N} = $T(both, both)
-        $T(lo::Tuple{}, hi::Tuple{}) = $T{0}(lo, hi)
-        $T(lo::Dims{N}, hi::Tuple{}) where {N} = $T{N}(lo, ntuple(d->0,Val(N)))
-        $T(lo::Tuple{}, hi::Dims{N}) where {N} = $T{N}(ntuple(d->0,Val(N)), hi)
-        $T(inds::Indices{N}) where {N} = $T{N}(map(lo,inds), map(hi,inds))
-        $T{N}(lo::AbstractVector, hi::AbstractVector) where {N} = $T{N}((lo...,), (hi...,))
-        $T(lo::AbstractVector, hi::AbstractVector) = $T((lo...,), (hi...,)) # not inferrable
-
-        (p::$T{0})(kernel, img, ::Alg) = p(kernel)
-        (p::$T{0})(kernel) = $T(calculate_padding(kernel))
-    end
+struct NA{na} <: AbstractBorder
+    NA(na=isnan) = new{na}()
 end
 
 """

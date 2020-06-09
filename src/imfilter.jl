@@ -659,37 +659,23 @@ function imfilter!(r::AbstractResource,
                    out::AbstractArray{S,N},
                    img::AbstractArray{T,N},
                    kernel::ProcessedKernel,
-                   border::NA{0}) where {T,S,N}
-    _imfilter_na!(r, out, img, kernel, border)
+                   border::NA{na}) where {T,S,N,na}
+    _imfilter_na!(r, out, img, kernel, na)
 end
 
 function _imfilter_na!(r::AbstractResource,
                        out::AbstractArray{S,N},
                        img::AbstractArray{T,N},
                        kernel::ProcessedKernel,
-                       border::NA{0}) where {T,S,N}
-    nanflag = isnan.(img)
-    hasnans = any(nanflag)
-    if hasnans || !isseparable(kernel)
-        imfilter_na_inseparable!(r, out, img, nanflag, kernel)
+                       na) where {T,S,N}
+    naflag = na.(img)
+    hasnas = any(naflag)
+    if hasnas || !isseparable(kernel)
+        imfilter_na_inseparable!(r, out, img, naflag, kernel)
     else
         imfilter_na_separable!(r, out, img, kernel)
     end
     out
-end
-
-# for types that can't have NaNs, we can skip the isnan check
-function _imfilter_na!(r::AbstractResource,
-                       out::AbstractArray{S,N},
-                       img::AbstractArray{T,N},
-                       kernel::ProcessedKernel,
-                       border::NA{0}) where {S,T<:Union{Integer,FixedColorant},N}
-    if isseparable(kernel)
-        imfilter_na_separable!(r, out, img, kernel)
-    else
-        nanflag = fill(false, axes(img))
-        imfilter_na_inseparable!(r, out, img, nanflag, kernel)
-    end
 end
 
 # Any other kind of not-fully-specified padding
@@ -1424,32 +1410,30 @@ end
 
 ### NA boundary conditions
 
-function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple{Vararg{AnyIIR}}) where T
+function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, naflag, kernel::Tuple{Vararg{AnyIIR}}) where T
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
     copyto!(out, img)
-    out[nanflag] .= zero(T)
-    validpixels = copyto!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, nanflag))
+    out[naflag] .= zero(T)
+    validpixels = copyto!(similar(Array{eltype(T)}, axes(img)), mappedarray(!, naflag))
     # TriggsSdika is safe for inplace operations
     imfilter!(r, out, out, kernel, fc)
     imfilter!(r, validpixels, validpixels, kernel, fn)
     for I in eachindex(out)
         out[I] /= validpixels[I]
     end
-    out[nanflag] .= nan(T)
     out
 end
 
-function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple) where T
+function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, naflag, kernel::Tuple) where T
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
     imgtmp = copyto!(similar(out, axes(img)), img)
-    imgtmp[nanflag] .= zero(T)
-    validpixels = copyto!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, nanflag))
+    imgtmp[naflag] .= Ref(zero(T))
+    validpixels = copyto!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, naflag))
     imfilter!(r, out, imgtmp, kernel, fc)
     vp = imfilter(r, validpixels, kernel, fn)
     for I in eachindex(out)
         out[I] /= vp[I]
     end
-    out[nanflag] .= nan(T)
     out
 end
 
