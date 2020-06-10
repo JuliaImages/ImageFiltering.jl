@@ -280,6 +280,8 @@ using Test
         v = SVector.([1,2,3],[1,NaN,3])
         @test isequal(imfilter(v, OffsetArray([1,1],0:1), NA(x->any(isnan,x))),
                       SVector.([1,3,3],[1,3,3]))
+
+        @test imfilter(1:5, centered([1]), NA()) == 1:5
     end
 
     @testset "misc" begin
