@@ -220,7 +220,7 @@ using Test
         B[1,1] = 0
         @test B != A
         A = rand(RGB{N0f8}, 3, 5)
-        ret = @test_throws ArgumentError padarray(A, Fill(0, (0,0), (0,0)))
+        ret = @test_throws ArgumentError padarray(A, Fill(7, (0,0), (0,0)))
         @test occursin("RGB", ret.value.msg)
         @test occursin("convert", ret.value.msg)
         A = bitrand(3, 5)
