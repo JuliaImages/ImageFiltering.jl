@@ -740,7 +740,7 @@ end
 # filtering.
 
 function imfilter!(::AbstractResource, ::AbstractArray, ::AbstractArray, ::ProcessedKernel, border::AbstractBorder, ::Indices)
-    error("Invalid border strategy `$border`: only `NoPad()` is supported.")
+    error("Invalid border strategy `$border`: only `NoPad()` is supported.\n(You have called a stage of `imfilter`'s dispatch hierarchy after border-handling.)")
 end
 
 # Trivial kernel (a copy operation)
