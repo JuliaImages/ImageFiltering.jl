@@ -1,5 +1,5 @@
 """
-`Kernel` is a module implementing filtering kernels of full
+`Kernel` is a module implementing filtering (correlation) kernels of full
 dimensionality. The following kernels are supported:
 
   - `sobel`
@@ -41,10 +41,17 @@ end
     diff1, diff2 = sobel()
 ```
 
-Return ``3 \\times 3`` kernels for two-dimensional gradient compution using the
-Sobel operator. The `diff1` kernel computes the gradient along the y-axis (first
-dimension), and the `diff2` kernel computes the gradient along the x-axis
-(second dimension).
+Return ``3 \\times 3`` correlation kernels for two-dimensional gradient compution
+using the Sobel operator. The `diff1` kernel computes the gradient along the
+y-axis (first dimension), and the `diff2` kernel computes the gradient along the
+x-axis (second dimension). `diff1 == rotr90(diff2)`
+
+```julia
+    (diff,) = sobel(extended::NTuple{N,Bool}, d)
+```
+Return (a tuple of) the N-dimensional correlation kernel for gradient compution
+along the dimension `d` using the Sobel operator. If `extended[dim]` is false,
+`diff` will have size 1 along that dimension.
 
 # Citation
 P.-E. Danielsson and O. Seger, "Generalized and separable sobel operators," in  *Machine Vision for Three-Dimensional Scenes*,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. [doi:10.1016/b978-0-12-266722-0.50016-6](https://doi.org/doi:10.1016/b978-0-12-266722-0.50016-6)
@@ -62,10 +69,17 @@ sobel(extended, d) = (broadcast(*, KernelFactors.sobel(extended, d)...),)
     diff1, diff2 = prewitt()
 ```
 
-Return ``3 \\times 3`` kernels for two-dimensional gradient compution using the
-Prewitt operator.  The `diff1` kernel computes the gradient along the y-axis
-(first dimension), and the `diff2` kernel computes the gradient along the
-x-axis (second dimension).
+Return ``3 \\times 3`` correlation kernels for two-dimensional gradient compution
+using the Prewitt operator. The `diff1` kernel computes the gradient along the
+y-axis (first dimension), and the `diff2` kernel computes the gradient along the
+x-axis (second dimension). `diff1 == rotr90(diff2)`
+
+```julia
+    (diff,) = prewitt(extended::NTuple{N,Bool}, d)
+```
+Return (a tuple of) the N-dimensional correlation kernel for gradient compution
+along the dimension `d` using the Prewitt operator. If `extended[dim]` is false,
+`diff` will have size 1 along that dimension.
 
 # Citation
 J. M. Prewitt, "Object enhancement and extraction," *Picture processing and Psychopictorics*, vol. 10, no. 1, pp. 15–19, 1970.
@@ -83,10 +97,17 @@ prewitt(extended, d) = (broadcast(*, KernelFactors.prewitt(extended, d)...),)
     diff1, diff2 = ando3()
 ```
 
-Return ``3 \\times 3`` for two-dimensional gradient compution using  Ando's
-"optimal" filters. The `diff1` kernel computes the gradient along the y-axis
-(first dimension), and the `diff2` kernel computes the gradient along the x-axis
-(second dimension).
+Return ``3 \\times 3`` correlation kernels for two-dimensional gradient
+compution using Ando's "optimal" filters. The `diff1` kernel computes the
+gradient along the y-axis (first dimension), and the `diff2` kernel computes the
+gradient along the x-axis (second dimension). `diff1 == rotr90(diff2)`
+
+```julia
+    (diff,) = ando3(extended::NTuple{N,Bool}, d)
+```
+Return (a tuple of) the N-dimensional correlation kernel for gradient compution
+along the dimension `d` using Ando's "optimal" filters of size 3. If
+`extended[dim]` is false, `diff` will have size 1 along that dimension.
 
 # Citation
 S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](https://doi.org/doi:10.1109/34.841757)
@@ -103,10 +124,17 @@ ando3(extended, d) = (broadcast(*, KernelFactors.ando3(extended, d)...),)
     diff1, diff2 = ando4()
 ```
 
-Return ``4 \\times 4`` kernels for two-dimensional gradient compution using
-Ando's "optimal" filters.  The `diff1` kernel computes the gradient along the
-y-axis (first dimension), and  the `diff2` kernel computes the gradient along
-the x-axis (second dimension).
+Return ``4 \\times 4`` correlation  kernels for two-dimensional gradient
+compution using Ando's "optimal" filters.  The `diff1` kernel computes the
+gradient along the y-axis (first dimension), and  the `diff2` kernel computes
+the gradient along the x-axis (second dimension). `diff1 == rotr90(diff2)`
+
+```julia
+    (diff,) = ando4(extended::NTuple{N,Bool}, d)
+```
+Return (a tuple of) the N-dimensional correlation kernel for gradient compution
+along the dimension `d` using Ando's "optimal" filters of size 4. If
+`extended[dim]` is false, `diff` will have size 1 along that dimension.
 
 # Citation
 S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](https://doi.org/doi:10.1109/34.841757)
@@ -132,10 +160,17 @@ end
     diff1, diff2 = ando5()
 ```
 
-Return ``5 \\times 5`` kernels for two-dimensional gradient compution using
-Ando's "optimal" filters. The `diff1` kernel computes the gradient along the
-y-axis (first dimension), and the `diff2` kernel computes the gradient along the
-x-axis (second dimension).
+Return ``5 \\times 5`` correlation  kernels for two-dimensional gradient
+compution using Ando's "optimal" filters.  The `diff1` kernel computes the
+gradient along the y-axis (first dimension), and  the `diff2` kernel computes
+the gradient along the x-axis (second dimension). `diff1 == rotr90(diff2)`
+
+```julia
+    (diff,) = ando5(extended::NTuple{N,Bool}, d)
+```
+Return (a tuple of) the N-dimensional correlation kernel for gradient compution
+along the dimension `d` using Ando's "optimal" filters of size 5. If
+`extended[dim]` is false, `diff` will have size 1 along that dimension.
 
 # Citation
 S. Ando, "Consistent gradient operators," *IEEE Transactions on Pattern Analysis and Machine Intelligence*, vol. 22, no.3, pp. 252–265, 2000. [doi:10.1109/34.841757](https://doi.org/doi:10.1109/34.841757)
@@ -162,9 +197,17 @@ end
     diff1, diff2 = scharr()
 ```
 
-Return ``3 \\times 3`` kernels for two-dimensional gradient compution using the Scharr
-operator. The `diff1` kernel computes the gradient along the y-axis (first dimension),
-and the `diff2` kernel  computes the gradient along the x-axis (second dimension).
+Return ``3 \\times 3`` correlation kernels for two-dimensional gradient
+compution using the Scharr operator. The `diff1` kernel computes the gradient
+along the y-axis (first dimension), and the `diff2` kernel  computes the
+gradient along the x-axis (second dimension). `diff1 == rotr90(diff2)`
+
+```julia
+    (diff,) = scharr(extended::NTuple{N,Bool}, d)
+```
+Return (a tuple of) the N-dimensional correlation kernel for gradient compution
+along the dimension `d` using the Scharr operator. If `extended[dim]` is false,
+`diff` will have size 1 along that dimension.
 
 # Citation
 H. Scharr and  J. Weickert, "An anisotropic diffusion algorithm with optimized rotation invariance," *Mustererkennung 2000*, pp. 460–467, 2000. [doi:10.1007/978-3-642-59802-9_58](https://doi.org/doi:10.1007/978-3-642-59802-9_58)
@@ -182,10 +225,17 @@ scharr(extended, d) = (broadcast(*, KernelFactors.scharr(extended, d)...),)
     diff1, diff2 = bickley()
 ```
 
-Return ``3 \\times 3`` kernels for two-dimensional gradient compution using the
-Bickley operator. The `diff1` kernel computes the gradient along the y-axis
-(first dimension), and the `diff2` kernel computes the gradient along the x-axis
-(second dimension).
+Return ``3 \\times 3`` correlation kernels for two-dimensional gradient
+compution using the Bickley operator. The `diff1` kernel computes the gradient
+along the y-axis (first dimension), and the `diff2` kernel computes the gradient
+along the x-axis (second dimension). `diff1 == rotr90(diff2)`
+
+```julia
+    (diff,) = bickley(extended::NTuple{N,Bool}, d)
+```
+Return (a tuple of) the N-dimensional correlation kernel for gradient compution
+along the dimension `d` using the Bickley operator. If `extended[dim]` is false,
+`diff` will have size 1 along that dimension.
 
 # Citation
 W. G. Bickley, "Finite difference formulae for the square lattice," *The Quarterly Journal of Mechanics and Applied Mathematics*, vol. 1, no. 1, pp. 35–42, 1948.  [doi:10.1093/qjmam/1.1.35](https://doi.org/doi:10.1137/12087092x)
