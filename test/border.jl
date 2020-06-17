@@ -1,4 +1,4 @@
-using ImageFiltering, OffsetArrays, ImageCore, Random
+using ImageFiltering, OffsetArrays, ImageCore, Random, StaticArrays
 import OffsetArrays.IdentityUnitRange
 
 using Test
@@ -220,7 +220,7 @@ using Test
         B[1,1] = 0
         @test B != A
         A = rand(RGB{N0f8}, 3, 5)
-        ret = @test_throws ArgumentError padarray(A, Fill(0, (0,0), (0,0)))
+        ret = @test_throws ArgumentError padarray(A, Fill(7, (0,0), (0,0)))
         @test occursin("RGB", ret.value.msg)
         @test occursin("convert", ret.value.msg)
         A = bitrand(3, 5)
@@ -266,6 +266,22 @@ using Test
         @test @inferred(Fill(-1)(rand(3,5))) == Fill(-1, (0,0), (3,5))
         @test @inferred(Fill(-1)(centered(rand(3,5)))) == Fill(-1, (1,2), (1,2))
         @test @inferred(Fill(2)(Kernel.Laplacian(), rand(5,5), Algorithm.FIR())) == Fill(2, (1,1),(1,1))
+    end
+
+    @testset "NA" begin
+        @test imfilter(1:10, centered([1,1,1].//3), NA()) == [3//2; 2:9; 19//2]
+
+        x = [1,NaN,Inf,0,-Inf,Inf,NaN,NaN,1]
+        k = OffsetArray([1,1],0:1)
+        @test isequal(imfilter(x, k, NA()), [1,Inf,Inf,-Inf,NaN,Inf,NaN,1,1])
+        @test isequal(imfilter(x, k, NA(!isfinite)), [1,NaN,0,0,NaN,NaN,NaN,1,1])
+        @test isequal(imfilter(x, k, NA(x->false)), [NaN,NaN,Inf,-Inf,NaN,NaN,NaN,NaN,1])
+
+        v = SVector.([1,2,3],[1,NaN,3])
+        @test isequal(imfilter(v, OffsetArray([1,1],0:1), NA(x->any(isnan,x))),
+                      SVector.([1,3,3],[1,3,3]))
+
+        @test imfilter(1:5, centered([1]), NA()) == 1:5
     end
 
     @testset "misc" begin

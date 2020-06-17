@@ -631,7 +631,7 @@ end
 
 """
     imfilter!(imgfilt, img, kernel, [border="replicate"], [alg])
-    imfilter!(r, imgfilt, img, kernel, border, [inds])
+    imfilter!(r, imgfilt, img, kernel, border::Pad)
     imfilter!(r, imgfilt, img, kernel, border::NoPad, [inds=axes(imgfilt)])
 
 Filter an array `img` with kernel `kernel` by computing their
@@ -659,21 +659,21 @@ function imfilter!(r::AbstractResource,
                    out::AbstractArray{S,N},
                    img::AbstractArray{T,N},
                    kernel::ProcessedKernel,
-                   border::NA{0}) where {T,S,N}
-    _imfilter_na!(r, out, img, kernel, border)
+                   border::NA{na}) where {T,S,N,na}
+    _imfilter_na!(r, out, img, kernel, na)
 end
 
 function _imfilter_na!(r::AbstractResource,
                        out::AbstractArray{S,N},
                        img::AbstractArray{T,N},
                        kernel::ProcessedKernel,
-                       border::NA{0}) where {T,S,N}
-    nanflag = isnan.(img)
-    hasnans = any(nanflag)
-    if hasnans || !isseparable(kernel)
-        imfilter_na_inseparable!(r, out, img, nanflag, kernel)
-    else
+                       na) where {T,S,N}
+    naflag = na.(img)
+    hasna = any(naflag)
+    if isseparable(kernel) && !hasna
         imfilter_na_separable!(r, out, img, kernel)
+    else
+        imfilter_na_inseparable!(r, out, img, naflag, kernel)
     end
     out
 end
@@ -683,13 +683,14 @@ function _imfilter_na!(r::AbstractResource,
                        out::AbstractArray{S,N},
                        img::AbstractArray{T,N},
                        kernel::ProcessedKernel,
-                       border::NA{0}) where {S,T<:Union{Integer,FixedColorant},N}
-    if isseparable(kernel)
-        imfilter_na_separable!(r, out, img, kernel)
+                       na::typeof(isnan)) where {T<:Union{Integer,FixedColorant},S,N}
+    if !isseparable(kernel)
+        naflag = fill(false, axes(img))
+        imfilter_na_inseparable!(r, out, img, naflag, kernel)
     else
-        nanflag = fill(false, axes(img))
-        imfilter_na_inseparable!(r, out, img, nanflag, kernel)
+        imfilter_na_separable!(r, out, img, kernel)
     end
+    out
 end
 
 # Any other kind of not-fully-specified padding
@@ -739,6 +740,10 @@ end
 # cascaded kernels, and even implement multithreadable tiling for FIR
 # filtering.
 
+function imfilter!(::AbstractResource, ::AbstractArray, ::AbstractArray, ::ProcessedKernel, border::AbstractBorder, ::Indices)
+    error("Invalid border strategy `$border`: only `NoPad()` is supported.\n(You have called a stage of `imfilter`'s dispatch hierarchy after border-handling.)")
+end
+
 # Trivial kernel (a copy operation)
 function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{}, ::NoPad, inds::Indices=axes(out))
     R = CartesianIndices(inds)
@@ -753,7 +758,7 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
 end
 
 # A filter cascade (2 or more filters)
-function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=axes(out))
+function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds::Indices=axes(out))
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border, inds)
     # For multiple stages of filtering, we introduce a second buffer
@@ -766,7 +771,7 @@ function imfilter!(r::AbstractResource, out::AbstractArray, A::AbstractArray, ke
 end
 
 ### Use a tiled algorithm for the cascaded case
-function imfilter!(r::AbstractCPU{FIRTiled{N}}, out::AbstractArray{S,N}, A::AbstractArray{T,N}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds=axes(out)) where {S,T,N}
+function imfilter!(r::AbstractCPU{FIRTiled{N}}, out::AbstractArray{S,N}, A::AbstractArray{T,N}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds::Indices=axes(out)) where {S,T,N}
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border, inds)
     tmp = tile_allocate(filter_type(A, kernel), r.settings.tilesize, kernel)
@@ -1424,32 +1429,30 @@ end
 
 ### NA boundary conditions
 
-function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple{Vararg{AnyIIR}}) where T
+function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, naflag, kernel::Tuple{Vararg{AnyIIR}}) where T
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
     copyto!(out, img)
-    out[nanflag] .= zero(T)
-    validpixels = copyto!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, nanflag))
+    out[naflag] .= zero(T)
+    validpixels = copyto!(similar(Array{eltype(T)}, axes(img)), mappedarray(!, naflag))
     # TriggsSdika is safe for inplace operations
     imfilter!(r, out, out, kernel, fc)
     imfilter!(r, validpixels, validpixels, kernel, fn)
     for I in eachindex(out)
         out[I] /= validpixels[I]
     end
-    out[nanflag] .= nan(T)
     out
 end
 
-function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, nanflag, kernel::Tuple) where T
+function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, naflag, kernel::Tuple) where T
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
     imgtmp = copyto!(similar(out, axes(img)), img)
-    imgtmp[nanflag] .= zero(T)
-    validpixels = copyto!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, nanflag))
+    imgtmp[naflag] .= Ref(zero(T))
+    validpixels = copyto!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, naflag))
     imfilter!(r, out, imgtmp, kernel, fc)
     vp = imfilter(r, validpixels, kernel, fn)
     for I in eachindex(out)
         out[I] /= vp[I]
     end
-    out[nanflag] .= nan(T)
     out
 end
 

@@ -1,7 +1,7 @@
 name = "ImageFiltering"
 uuid = "6a3955dd-da59-5b1f-98d4-e7296123deb5"
 author = ["Tim Holy <tim.holy@gmail.com>", "Jan Weidner <jw3126@gmail.com>"]
-version = "0.6.12"
+version = "0.6.14"
 
 [deps]
 CatIndices = "aafaddc9-749c-510e-ac4f-586e18779b91"
