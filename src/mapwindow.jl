@@ -73,8 +73,9 @@ function mapwindow(f, img, window; border="replicate",
               resolve_imginds(indices))
 end
 
-# a unit range `r` having `r == axes(r)` which keeps its axes with
-# broadcasting (e.g., `axes(r.+1) == axes(r)`), unlike Base.IdentityUnitRange
+# a unit range `s` having the same values as `r` and `axes(s) == (s,)`,
+# which keeps its axes with broadcasting (e.g., `axes(s.+1) == axes(s)`),
+# unlike Base.IdentityUnitRange
 self_offset(r::AbstractUnitRange) = OffsetArrays.IdOffsetRange(1:length(r), first(r)-one(eltype(r)))
 
 function default_imginds(img, window, border)
@@ -198,7 +199,7 @@ function _intersectionindices(full::AbstractUnitRange, r::AbstractRange)
 end
 
 function _indexof(r::AbstractRange, x)
-    T = eltype(r)
+    T = eltype(axes(r,1))
     @assert x ∈ r
     i = T(firstindex(r) + (x - first(r)) / step(r))
     @assert r[i] == x
