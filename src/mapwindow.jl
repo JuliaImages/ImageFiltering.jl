@@ -5,6 +5,7 @@ using ..ImageFiltering: BorderSpecAny, Pad, Fill, Inner,
     borderinstance, _interior, padindex, imfilter
 using Base: Indices, tail
 using Statistics
+using OffsetArrays
 
 export mapwindow, mapwindow!
 
@@ -72,14 +73,19 @@ function mapwindow(f, img, window; border="replicate",
               resolve_imginds(indices))
 end
 
+# a unit range `s` having the same values as `r` and `axes(s) == (s,)`,
+# which keeps its axes with broadcasting (e.g., `axes(s.+1) == axes(s)`),
+# unlike Base.IdentityUnitRange
+self_offset(r::AbstractUnitRange) = OffsetArrays.IdOffsetRange(1:length(r), first(r)-one(eltype(r)))
+
 function default_imginds(img, window, border)
     axes(img)
 end
 function default_imginds(img, window, border::Inner)
     imginds = axes(img)
     win = resolve_window(window)
-    indind = _indices_of_interiour_indices(imginds, imginds, win)
-    map((II, r) -> r[II], indind, imginds)
+    indind = _indices_of_interiour_indices(imginds, imginds, win)::Tuple{Vararg{AbstractUnitRange}}
+    map(self_offset, indind)
 end
 
 function _mapwindow(f, img, window, border, imginds)
@@ -153,28 +159,26 @@ end
 struct _IdentityTransformer <: _IndexTransformer end
 @inline Base.getindex(t::_IdentityTransformer, inds) = inds
 
-function _IndexTransformer(ranges)
-    stride = map(step, ranges)
-    offset1 = map(first, ranges)
-    offset = offset1 .- stride
+function _IndexTransformer(from_ranges::NTuple{N,AbstractUnitRange}, to_ranges) where {N}
+    stride = map(step, to_ranges)
+    offset = first.(to_ranges) .- first.(from_ranges) .* stride
     _AffineTransformer(offset, stride)
 end
 
-function _IndexTransformer(ranges::NTuple{N,Base.OneTo}) where {N}
-    _IdentityTransformer()
+function _IndexTransformer(from_ranges::NTuple{N,AbstractUnitRange}, to_ranges::NTuple{N,AbstractUnitRange}) where {N}
+    offset = first.(to_ranges) .- first.(from_ranges)
+    _OffsetTransformer(offset)
 end
 
-function _IndexTransformer(ranges::NTuple{N,AbstractUnitRange}) where {N}
-    offset1 = map(first, ranges)
-    offset = offset1 .- 1
-    _OffsetTransformer(offset)
+function _IndexTransformer(::NTuple{N,Base.OneTo}, ::NTuple{N,Base.OneTo}) where {N}
+    _IdentityTransformer()
 end
 
 compute_output_range(r::AbstractUnitRange) = r
 compute_output_range(r::AbstractRange) = Base.OneTo(length(r))
 
 function compute_output_indices(imginds)
-    ranges = map(compute_output_range, imginds)
+    ranges = map(i->compute_output_range(axes(i,1)), imginds)
     # Base.similar does not like if some but not all ranges are Base.OneTo
     homogenize(ranges)
 end
@@ -190,14 +194,14 @@ function _intersectionindices(full::AbstractUnitRange, r::AbstractRange)
     else
         ret = _indexof(r,first(r_sub)):_indexof(r,last(r_sub))
     end
-    @assert intersect(full, r) == r[ret]
+    @assert r_sub == r[ret] || isempty(r_sub) && isempty(ret)
     ret
 end
 
 function _indexof(r::AbstractRange, x)
-    T = eltype(r)
+    T = eltype(axes(r,1))
     @assert x ∈ r
-    i = one(T) + T((x - first(r)) / step(r))
+    i = T(firstindex(r) + (x - first(r)) / step(r))
     @assert r[i] == x
     i
 end
@@ -258,13 +262,13 @@ function mapwindow_kernel!(f,
 
     @assert map(length, imginds) == map(length, axes(out))
 
-    indind_full = map(r -> Base.OneTo(length(r)), imginds)
+    indind_full = map(r -> axes(r,1), imginds)
     indind_inner = _indices_of_interiour_indices(axes(img), imginds, window)
     Rindind_full = CartesianIndices(indind_full)
     Rindind_inner = CartesianIndices(indind_inner)
 
-    outindtrafo = _IndexTransformer(axes(out))
-    imgindtrafo = _IndexTransformer(imginds)
+    outindtrafo = _IndexTransformer(indind_full, axes(out))
+    imgindtrafo = _IndexTransformer(indind_full, imginds)
 
     buf, bufrs = allocate_buffer(f, img, window)
     Rbuf = CartesianIndices(size(buf))
@@ -375,7 +379,7 @@ extrema_filter(A::AbstractArray, window) = error("`window` must have the same nu
 
 extrema_filter(A::AbstractArray{T,N}, window::Integer) where {T,N} = extrema_filter(A, ntuple(d->window, Val{N}))
 
-function _extrema_filter!(A::Array, w1, w...)
+function _extrema_filter!(A::AbstractArray, w1, w...)
     if w1 > 1
         a = first(A)
         if w1 <= 20
@@ -396,7 +400,7 @@ function _extrema_filter!(A::Array, w1, w...)
         return A
     end
 end
-_extrema_filter!(A::Array) = A
+_extrema_filter!(A::AbstractArray) = A
 
 # Extrema-filtering along "columns" (dimension 1). This implements Lemire
 # Algorithm 1, with the following modifications:
