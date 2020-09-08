@@ -7,6 +7,12 @@ aif = detect_ambiguities(ImageFiltering, Kernel, KernelFactors, Base)
 asa = detect_ambiguities(StaticArrays, Base)
 @test isempty(setdiff(aif, asa))
 
+function typestring(::Type{T}) where T   # from https://github.com/JuliaImages/ImageCore.jl/pull/133
+    buf = IOBuffer()
+    show(buf, T)
+    String(take!(buf))
+end
+
 include("border.jl")
 include("nd.jl")
 include("2d.jl")
