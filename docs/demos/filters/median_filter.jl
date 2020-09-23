@@ -1,27 +1,35 @@
 # ---
-# title: Median filters
+# title: Custom median filters
 # cover: assets/median.gif
 # author: Johnny Chen
 # date: 2020-09-23
 # ---
 
-# With `median` filter as an example, this demo shows how you could construct a custom kernal and
+# With median filter as an example, this demo shows how you could construct a custom kernel and
 # pass it to [`mapwindow`](@ref) for common stencil operations.
 
-# `ImageFiltering` does not provide you an out-of-box median filter (e.g., `medfilt2` in MATLAB).
-# This is because with [`mapwindow`](@ref) function, it is quite trivial a process to build and tailor one
-# such for your own usage.
+# Unlike other image processing toolboxes, `ImageFiltering.jl` does not provide you an out-of-box
+# function for median filters. It instead provides the more general [`mapwindow`](@ref) function,
+# which allows you to apply any function to the window around each pixel.
 
 using ImageFiltering, ImageCore, ImageShow # or you could just `using Images`
 using TestImages
 using Statistics
+using Random #hide
+Random.seed!(0) #hide
 
-img = float.(reshape(1:25, 5, 5))
+img = Float64[isodd(i) - isodd(j) for i = 1:5, j = 1:5]
+img[3, 3] = 1000
+img #hide #md
+
+#-
+
 patch_size = (3, 3)
 imgm = mapwindow(median, img, patch_size)
 
 # `mapwindow` provides a high-level interface to loop over the image and call a function (`median`
-# in this demo) on each patch/window. That said, it does the following loop in a more efficient way.
+# in this demo) on each patch/window. It's performing an operation that is nearly equivalent to the
+# loop below, albeit more efficiently:
 
 ## For simplicity, border condition is not included here.
 imgm = zeros(axes(img))
@@ -34,7 +42,10 @@ for I in R
 end
 imgm
 
-# As you can see, except for the borders, a hand-written loop works basically the same as `mapwindow`.
+# Compared to this hand-written loop, `mapwindow` offers additional flexibility in handling the
+# borders and allows you to process only a subset of the windows. For some functions (e.g., `min`,
+# `max`, and `extrema`), `mapwindow` uses a custom implementation that is far more efficient than
+# naively computing the function "freshly" on each window.
 
 # When the input array has `NaN` or some unwanted pixel values, a pre-filtering process is needed to
 # exclude them first. This can be done quite easily by compositing a given kernel operation and a
@@ -55,8 +66,8 @@ imgm = mapwindow(_median, img, patch_size)
 
 # Median filters are quite robust to outliers (unusual values), this property can be used to remove
 # salt&pepper noise. An image with `n`-level salt&papper noise is defined as: each pixel `p` has
-# `n/2` probabilty to be filled by `0`(the minimal gamut value) and `n/2` probabilty to be filled by
-# `1`(the maximal gamut value).
+# `n/2` probabilty to be filled by `0`(the minimal gamut value), `n/2` probabilty to be filled by
+# `1`(the maximal gamut value), and `1-n` probablity to be undamaged.
 
 img = testimage("cameraman")
 
