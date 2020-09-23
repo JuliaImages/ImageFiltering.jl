@@ -3,6 +3,8 @@
 *.jl.mem
 docs/build
 docs/site
+docs/Manifest.toml
+docs/src/democards
 /Manifest.toml
 /.benchmarkci
 /benchmark/*.json
