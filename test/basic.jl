@@ -35,7 +35,7 @@ using AxisArrays: AxisArray, Axis
 
     tiles = ImageFiltering.tile_allocate(Float32, (rand(3),rand(3)'))
     @test isa(tiles, Vector{Matrix{Float32}})
-    @test length(tiles) == 1
+    @test length(tiles) == Threads.nthreads()
 
     @test length(ImageFiltering.safetail(CartesianIndices(()))) == 1
     @test ImageFiltering.safetail(CartesianIndex(())) == CartesianIndex(())
