@@ -29,4 +29,4 @@ Packages that appear to perform just a subset of what ImageFiltering does:
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
 [docs-stable-url]: https://JuliaImages.github.io/ImageFiltering.jl/stable
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg
-[docs-dev-url]: https://JuliaImages.github.io/ImageFiltering.jl/latest
+[docs-dev-url]: https://JuliaImages.github.io/ImageFiltering.jl/dev
