@@ -972,7 +972,7 @@ function imfilter!(r::AbstractResource,
         # Check that inds is inbounds for out
         indsi, indsoi, indsAi, indski = inds[i], indso[i], indsA[i], indsk[i]
         if first(indsi) < first(indsoi) || last(indsi) > last(indsoi)
-            throw(DimensionMismatch("output indices $indso disagrees with requested indices $inds"))
+            throw(DimensionMismatch("output indices $indso disagree with requested indices $inds"))
         end
         # Check that input A is big enough not to throw a BoundsError
         if      first(indsAi) > first(indsi) + first(indski) ||
