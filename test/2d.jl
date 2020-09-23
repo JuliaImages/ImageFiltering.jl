@@ -332,7 +332,7 @@ end
     @test r1[4,4] == r2[4,4]
     @test r1[1,1] != r2[1,1]
 
-    err = ArgumentError("Fill{$Int,1}(0, (3,), (3,)) lacks the proper padding sizes for an array with 2 dimensions")
+    err = ArgumentError("$(typestring(Fill{Int,1}))(0, (3,), (3,)) lacks the proper padding sizes for an array with 2 dimensions")
     kern = Kernel.gaussian((1,1),(3,3))
     @test_throws err imfilter(A, kern, Fill(0, (3,)))
     kernf = ImageFiltering.factorkernel(kern)
