@@ -1,5 +1,13 @@
 [deps]
+DemoCards = "311a05b2-6137-4a5a-b473-18580a3d38b5"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+ImageCore = "a09fc81d-aa75-5fe9-8630-4744c3626534"
+ImageFiltering = "6a3955dd-da59-5b1f-98d4-e7296123deb5"
+ImageMagick = "6218d12a-5da1-5696-b52f-db25d2ecc6d1"
+ImageShow = "4e3cecfd-b093-5904-9786-8bbb286a6a31"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+TestImages = "5e47fb64-e119-507b-a336-dd2b206d9990"
 
 [compat]
+DemoCards = "0.3"
 Documenter = "0.24"
