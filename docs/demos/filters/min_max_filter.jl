@@ -3,17 +3,16 @@
 
 
 # In this tutorial we see how can we can effectively use max and min filter to distinguish 
-# between ramp("smooth") and ripple("texture") edges.We will using the mapwindow function of
+# between ramp("smooth") and ripple("texture") edges of B&W image.We will using the mapwindow function of
 # ImageFiltering.jl package.
 
-# Note : If you are using the terminal use imshow(<Image var. name>) to view the image.
-
+# Note : If you are using the terminal use imshow(<Image var. name>) to view the image. 
 
 using Images, ImageFiltering
 
 # We download an image from the internet and convert it into Grayscale image.
 # To work with your own image, use :
-# img_path = "<FULL PATH TO THE IMAGE"
+# img_path = "<FULL PATH TO THE IMAGE>"
 
 img_path = download("https://i.pinimg.com/originals/01/bc/8d/01bc8d82a3e2b4fa869f478479b97a3f.png")
 Img = Gray.(load(img_path));       
