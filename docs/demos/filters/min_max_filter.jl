@@ -6,7 +6,7 @@
 # ---
 
 # In this tutorial we see how can we can effectively use max and min filter to distinguish 
-# between ramp/smooth and ripple/texture edges  in grayscale images.
+# between smooth and texture edges  in grayscale images.
 
 # We will be using the [`mapwindow`](@ref) in `ImageFiltering.jl` which provides a genreal 
 # functionality to apply any function to the window around each pixel. 
@@ -69,4 +69,4 @@ mosaicview(img, ramp, edge, edge_smoothed; nrow = 2)
 ## save covers #src
 using ImageMagick #src
 mkpath("assets")  #src
-ImageMagick.save("assets/max_min.gif",cat(img,edge,edge_smoothed,map(clamp01nan,noise);dims=3);fps =1) #src
+ImageMagick.save("assets/max_min.gif",cat(img,edge,edge_smoothed,map(clamp01nan,ramp);dims=3);fps =1) #src
