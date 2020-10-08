@@ -1,7 +1,9 @@
 module ImageFiltering
 
 using FFTW
-using ImageCore, MappedArrays, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
+using ImageCore, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
+# Where possible we avoid a direct dependency to reduce the number of [compat] bounds
+using ImageCore.MappedArrays
 using Statistics, LinearAlgebra
 using ColorVectorSpace  # for filtering RGB arrays
 using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
