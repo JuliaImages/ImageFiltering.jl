@@ -204,6 +204,7 @@ Pad(style::Symbol, lo::Dims{N}, hi::Tuple{}) where {N} = Pad(style, lo, ntuple(d
 Pad(style::Symbol, lo::Tuple{}, hi::Dims{N}) where {N} = Pad(style, ntuple(d->0,Val(N)), hi)
 Pad(style::Symbol, lo::AbstractVector{Int}, hi::AbstractVector{Int}) = Pad(style, (lo...,), (hi...,))
 
+Pad(style::Symbol, ::Tuple{}) = Pad(style, (), ())    # ambiguity resolution
 Pad(style::Symbol, inds::Indices) = Pad(style, map(lo,inds), map(hi,inds))
 
 """
@@ -706,6 +707,7 @@ struct Inner{N} <: AbstractBorder
 end
 
 Inner(both::Int...) = Inner(both, both)
+Inner(::Tuple{}) = Inner((), ())   # ambiguity resolution
 Inner(both::Dims{N}) where {N} = Inner(both, both)
 Inner(lo::Tuple{}, hi::Tuple{}) = Inner{0}(lo, hi)
 Inner(lo::Dims{N}, hi::Tuple{}) where {N} = Inner{N}(lo, ntuple(d->0,Val(N)))
@@ -856,6 +858,7 @@ zero.
 Fill(value::T, both::Dims{N}) where {T,N} = Fill{T,N}(value, both, both)
 
 Fill(value, lo::AbstractVector, hi::AbstractVector) = Fill(value, (lo...,), (hi...,))
+Fill(value::T, ::Tuple{}) where {T} = Fill{T,0}(value, (), ())   # ambiguity resolution
 Fill(value::T, inds::Base.Indices{N}) where {T,N} = Fill{T,N}(value, map(lo,inds), map(hi,inds))
 
 """

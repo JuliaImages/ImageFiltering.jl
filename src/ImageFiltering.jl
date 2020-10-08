@@ -7,6 +7,7 @@ using ColorVectorSpace  # for filtering RGB arrays
 using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
 using OffsetArrays: IdentityUnitRange   # using the one in OffsetArrays makes this work with multiple Julia versions
 using Requires
+using SparseArrays   # only needed to fix an ambiguity in borderarray
 
 export Kernel, KernelFactors,
     Pad, Fill, Inner, NA, NoPad,

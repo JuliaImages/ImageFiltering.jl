@@ -67,14 +67,17 @@ struct BorderArray{T,N,A,B} <: AbstractArray{T,N}
         new{T,N,A,B}(inner, border)
     end
 end
+BorderVector{T,A,B} = BorderArray{T,1,A,B}
 
-# these are adapted from OffsetArrays
 function Base.similar(A::BorderArray, ::Type{T}, dims::Dims) where T
     B = similar(A.inner, T, dims)
 end
-const OffsetAxis = Union{Integer, UnitRange, Base.OneTo, IdentityUnitRange}
-function Base.similar(A::BorderArray, ::Type{T}, inds::Tuple{OffsetAxis,Vararg{OffsetAxis}}) where T
-    similar(A.inner, T, inds)
+const BaseAxisTypes = Union{Integer, Base.OneTo}
+const OffsetAxisTypes = Union{StaticArrays.HeterogeneousShape, OffsetArrays.IdOffsetRange}
+for Ax in (BaseAxisTypes, StaticArrays.HeterogeneousShape, OffsetAxisTypes)
+    @eval function Base.similar(A::BorderArray, ::Type{T}, inds::Tuple{$Ax,Vararg{$Ax}}) where T
+        similar(A.inner, T, inds)
+    end
 end
 
 @inline function Base.axes(o::BorderArray)
@@ -156,6 +159,10 @@ function Base.checkbounds(::Type{Bool}, arr::BorderArray, index::CartesianIndex)
     end |> all
 end
 
+function Base.copy!(dst::SparseVector, src::BorderVector)   # ambiguity resolution
+    axes(dst) == axes(src) || throw(DimensionMismatch("axes(dst) == axes(src) must hold."))
+    _copy!(dst, src, src.border)
+end
 function Base.copy!(dst::AbstractArray, src::BorderArray)
     axes(dst) == axes(src) || throw(DimensionMismatch("axes(dst) == axes(src) must hold."))
     _copy!(dst, src, src.border)
