@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Function reference · ImageFiltering</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link href="../democards/gridtheme.css" rel="stylesheet" type="text/css"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit">ImageFiltering</span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">ImageFiltering.jl</a></li><li><a class="tocitem" href="../democards/demos/">Examples</a></li><li class="is-active"><a class="tocitem" href>Function reference</a><ul class="internal"><li class="toplevel"><a class="tocitem" href="#Kernel-1"><span>Kernel</span></a></li><li class="toplevel"><a class="tocitem" href="#KernelFactors-1"><span>KernelFactors</span></a></li><li class="toplevel"><a class="tocitem" href="#Kernel-utilities-1"><span>Kernel utilities</span></a></li><li class="toplevel"><a class="tocitem" href="#Boundaries-and-padding-1"><span>Boundaries and padding</span></a></li><li class="toplevel"><a class="tocitem" href="#Algorithms-1"><span>Algorithms</span></a></li><li class="toplevel"><a class="tocitem" href="#Internal-machinery-1"><span>Internal machinery</span></a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Function reference</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Function reference</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/master/docs/src/function_reference.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Filtering-functions-1"><a class="docs-heading-anchor" href="#Filtering-functions-1">Filtering functions</a><a class="docs-heading-anchor-permalink" href="#Filtering-functions-1" title="Permalink"></a></h1><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.imfilter" href="#ImageFiltering.imfilter"><code>ImageFiltering.imfilter</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">imfilter([T], img, kernel, [border=&quot;replicate&quot;], [alg]) --&gt; imgfilt
+imfilter([r], img, kernel, [border=&quot;replicate&quot;], [alg]) --&gt; imgfilt
+imfilter(r, T, img, kernel, [border=&quot;replicate&quot;], [alg]) --&gt; imgfilt</code></pre><p>Filter a one, two or multidimensional array <code>img</code> with a <code>kernel</code> by computing their correlation.</p><p><strong>Details</strong></p><p>The term <em>filtering</em> emerges in the context of a Fourier transformation of an image, which maps an image from its canonical spatial domain to its concomitant frequency domain. Manipulating an image in the frequency domain amounts to retaining or discarding particular frequency components—a process analogous to sifting or filtering [1].  Because the Fourier transform establishes a link between the spatial and frequency representation of an image, one can interpret various image manipulations in the spatial domain as filtering operations which accept or reject specific frequencies.</p><p>The phrase <em>spatial filtering</em> is often used to emphasise that an operation is, at least conceptually, devised in the context of the spatial domain of an image. One further distinguishes between linear and non-linear spatial filtering. A filter is called linear if the operation performed on the pixels is linear, and is labeled non-linear otherwise.</p><p>An image filter can be represented by a function</p><div>\[ w: \{s\in \mathbb{Z} \mid -k_1 \le s \le k_1  \} \times  \{t \in \mathbb{Z} \mid -k_2 \le t \le k_2  \}   \rightarrow \mathbb{R},\]</div><p>where <span>$k_i  \in \mathbb{N}$</span> (i = 1,2). It is common to define <span>$k_1 = 2a+1$</span> and <span>$k_2 = 2b + 1$</span>, where <span>$a$</span> and <span>$b$</span> are integers, which ensures that the filter dimensions are of odd size. Typically, <span>$k_1$</span> equals <span>$k_2$</span> and so, dropping the subscripts, one speaks of a <span>$k \times k$</span> filter. Since the domain of the filter represents a grid of spatial coordinates, the filter is often called a mask and is visualized as a grid. For example, a <span>$3 \times 3$</span> mask can be potrayed as follows:</p><div>\[\scriptsize
+\begin{matrix}
+\boxed{
+\begin{matrix}
+\phantom{w(-9,-9)} \\
+w(-1,-1) \\
+\phantom{w(-9,-9)} \\
+\end{matrix}
+}
+
+&amp;
+
+\boxed{
+\begin{matrix}
+\phantom{w(-9,-9)} \\
+w(-1,0) \\
+\phantom{w(-9,-9)} \\
+\end{matrix}
+}
+ &amp;
+\boxed{
+\begin{matrix}
+\phantom{w(-9,-9)} \\
+w(-1,1) \\
+\phantom{w(-9,-9)} \\
+\end{matrix}
+}
+\\
+\\
+\boxed{
+\begin{matrix}
+\phantom{w(-9,-9)} \\
+w(0,-1) \\
+\phantom{w(-9,-9)} \\
+\end{matrix}
+}
+
+&amp;
+
+\boxed{
+\begin{matrix}
+\phantom{w(-9,-9)} \\
+w(0,0) \\
+\phantom{w(-9,-9)} \\
+\end{matrix}
+}
+ &amp;
+\boxed{
+\begin{matrix}
+\phantom{w(-9,-9)} \\
+w(0,1) \\
+\phantom{w(-9,-9)} \\
+\end{matrix}
+}
+\\
+\\
+\boxed{
+\begin{matrix}
+\phantom{w(-9,-9)} \\
+w(1,-1) \\
+\phantom{w(-9,-9)} \\
+\end{matrix}
+}
+
+&amp;
+
+\boxed{
+\begin{matrix}
+\phantom{w(-9,-9)} \\
+w(1,0) \\
+\phantom{w(-9,-9)} \\
+\end{matrix}
+}
+ &amp;
+\boxed{
+\begin{matrix}
+\phantom{w(-9,-9)} \\
+w(1,1) \\
+\phantom{w(-9,-9)} \\
+\end{matrix}
+}
+\end{matrix}.\]</div><p>The values of <span>$w(s,t)$</span> are referred to as <em>filter coefficients</em>.</p><p><strong>Discrete convolution versus correlation</strong></p><p>There are two fundamental and closely related operations that one regularly performs on an image with a filter. The operations are called discrete <em>correlation</em> and <em>convolution</em>.</p><p>The correlation operation, denoted by the symbol <span>$\star$</span>,  is given in two dimensions by the expression</p><div>\[\begin{aligned}
+g(x,y) = w(x,y) \star f(x,y) = \sum_{s = -a}^{a} \sum_{t=-b}^{b} w(s,t) f(x+s, y+t),
+\end{aligned}\]</div><p>whereas the comparable convolution operation, denoted by the symbol <span>$\ast$</span>, is given in two dimensions by</p><div>\[\begin{aligned}
+h(x,y) = w(x,y) \ast f(x,y) = \sum_{s = -a}^{a} \sum_{t=-b}^{b} w(s,t) f(x-s, y-t).
+\end{aligned}\]</div><p>Since a digital image is of finite extent, both of these operations are undefined at the borders of the image. In particular, for an image of size <span>$M \times N$</span>, the function <span>$f(x \pm s, y \pm t)$</span> is only defined for <span>$1 \le x \pm s \le N$</span> and <span>$1 \le y \pm t \le M$</span>. In practice one addresses this problem by artificially expanding the domain of the image. For example, one can pad the image with zeros. Other padding strategies are possible, and they are discussed in more detail in the <em>Options</em> section of this documentation.</p><p><strong>One-dimensional illustration</strong></p><p>The difference between correlation and convolution is best understood with recourse to a one-dimensional example  adapted from [1]. Suppose that a filter <span>$w:\{-1,0,1\}\rightarrow \mathbb{R}$</span> has coefficients</p><div>\[\begin{matrix}
+\boxed{1} &amp; \boxed{2} &amp; \boxed{3}
+\end{matrix}.\]</div><p>Consider a discrete unit impulse function <span>$f: \{x \in \mathbb{Z} \mid 1 \le x \le 7  \} \rightarrow \{0,1\}$</span>  that has been padded with zeros. The function can be visualised as an image</p><div>\[\boxed{
+\begin{matrix}
+0 &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{1} &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{0} &amp; 0
+\end{matrix}}.\]</div><p>The correlation operation can be interpreted as sliding <span>$w$</span> along the image and computing the sum of products at each location. For example,</p><div>\[\begin{matrix}
+0 &amp; 0 &amp; 0 &amp; 0 &amp; 1 &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+1 &amp; 2 &amp; 3  &amp;  &amp; &amp; &amp; &amp; &amp; \\
+&amp; 1 &amp; 2 &amp; 3  &amp;  &amp; &amp; &amp; &amp;  \\
+&amp; &amp; 1 &amp; 2 &amp; 3  &amp;  &amp; &amp; &amp;  \\
+&amp; &amp; &amp; 1 &amp; 2 &amp; 3  &amp;  &amp; &amp;  \\
+&amp; &amp; &amp; &amp; 1 &amp; 2 &amp; 3  &amp;  &amp;  \\
+&amp; &amp; &amp; &amp; &amp; 1 &amp; 2 &amp; 3  &amp;  \\
+&amp; &amp; &amp; &amp; &amp; &amp; 1 &amp; 2 &amp; 3,
+\end{matrix}\]</div><p>yields the output <span>$g: \{x \in \mathbb{Z} \mid 1 \le x \le 7  \} \rightarrow \mathbb{R}$</span>, which when visualized as a digital image, is equal to</p><div>\[\boxed{
+\begin{matrix}
+\boxed{0} &amp; \boxed{0} &amp; \boxed{3} &amp; \boxed{2} &amp; \boxed{1} &amp; \boxed{0} &amp; \boxed{0}
+\end{matrix}}.\]</div><p>The interpretation of the convolution operation is analogous to correlation, except that the filter <span>$w$</span> has been rotated by 180 degrees. In particular,</p><div>\[\begin{matrix}
+0 &amp; 0 &amp; 0 &amp; 0 &amp; 1 &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+3 &amp; 2 &amp; 1  &amp;  &amp; &amp; &amp; &amp; &amp; \\
+&amp; 3 &amp; 2 &amp; 1  &amp;  &amp; &amp; &amp; &amp;  \\
+&amp; &amp; 3 &amp; 2 &amp; 1  &amp;  &amp; &amp; &amp;  \\
+&amp; &amp; &amp; 3 &amp; 2 &amp; 1  &amp;  &amp; &amp;  \\
+&amp; &amp; &amp; &amp; 3 &amp; 2 &amp; 1  &amp;  &amp;  \\
+&amp; &amp; &amp; &amp; &amp; 3 &amp; 2 &amp; 1  &amp;  \\
+&amp; &amp; &amp; &amp; &amp; &amp; 3 &amp; 2 &amp; 1,
+\end{matrix}\]</div><p>yields the output <span>$h: \{x \in \mathbb{Z} \mid 1 \le x \le 7  \} \rightarrow \mathbb{R}$</span> equal to</p><div>\[\boxed{
+\begin{matrix}
+\boxed{0} &amp; \boxed{0} &amp; \boxed{1} &amp; \boxed{2} &amp; \boxed{3} &amp; \boxed{0} &amp; \boxed{0}
+\end{matrix}}.\]</div><p>Instead of rotating the filter mask, one could instead rotate <span>$f$</span> and still obtained the same convolution result. In fact, the conventional notation for convolution indicates that <span>$f$</span> is flipped and not <span>$w$</span>. If <span>$w$</span> is symmetric, then convolution and correlation give the same outcome.</p><p><strong>Two-dimensional illustration</strong></p><p>For a two-dimensional example, suppose the filter <span>$w:\{-1, 0 ,1\} \times  \{-1,0,1\} \rightarrow \mathbb{R}$</span>  has coefficients</p><div>\[ \begin{matrix}
+ \boxed{1} &amp; \boxed{2} &amp; \boxed{3} \\ \\
+ \boxed{4} &amp; \boxed{5} &amp; \boxed{6} \\ \\
+ \boxed{7} &amp; \boxed{8} &amp; \boxed{9}
+ \end{matrix},\]</div><p>and consider a two-dimensional discrete unit impulse function</p><div>\[ f:\{x \in \mathbb{Z} \mid 1 \le x \le 7  \} \times  \{y \in \mathbb{Z} \mid 1 \le y \le 7  \}\rightarrow \{ 0,1\}\]</div><p>that has been padded with zeros:</p><div>\[ \boxed{
+ \begin{matrix}
+   0 &amp;        0  &amp;        0  &amp;        0   &amp;        0  &amp;        0  &amp;   0  \\ \\
+   0 &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{0}  &amp; \boxed{0} &amp; \boxed{0} &amp;   0  \\ \\
+   0 &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{0}  &amp; \boxed{0} &amp; \boxed{0} &amp;   0 \\ \\
+   0 &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{1}  &amp; \boxed{0} &amp; \boxed{0} &amp;   0 \\ \\
+   0 &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{0}  &amp; \boxed{0} &amp; \boxed{0} &amp;   0 \\ \\
+   0 &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{0}  &amp; \boxed{0} &amp; \boxed{0} &amp;   0 \\ \\
+   0 &amp;        0  &amp;        0  &amp;        0   &amp;        0  &amp;        0  &amp;   0
+ \end{matrix}}.\]</div><p>The correlation operation <span>$w(x,y) \star f(x,y)$</span>  yields the output</p><div>\[ \boxed{
+ \begin{matrix}
+ \boxed{0} &amp; \boxed{0}  &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{0} \\ \\
+ \boxed{0} &amp;  \boxed{9} &amp; \boxed{8} &amp; \boxed{7} &amp; \boxed{0} \\ \\
+ \boxed{0} &amp;  \boxed{6} &amp; \boxed{5} &amp; \boxed{4} &amp; \boxed{0} \\ \\
+ \boxed{0} &amp;  \boxed{3} &amp; \boxed{2} &amp; \boxed{1} &amp; \boxed{0} \\ \\
+ \boxed{0} &amp; \boxed{0}  &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{0}
+ \end{matrix}},\]</div><p>whereas the convolution operation <span>$w(x,y) \ast f(x,y)$</span> produces</p><div>\[ \boxed{
+ \begin{matrix}
+ \boxed{0} &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{0} \\ \\
+ \boxed{0} &amp; \boxed{1} &amp; \boxed{2} &amp; \boxed{3} &amp; \boxed{0}\\ \\
+ \boxed{0} &amp; \boxed{4} &amp; \boxed{5} &amp; \boxed{6} &amp; \boxed{0} \\ \\
+ \boxed{0} &amp; \boxed{7} &amp; \boxed{8} &amp; \boxed{9} &amp; \boxed{0} \\ \\
+ \boxed{0} &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{0} &amp; \boxed{0}
+ \end{matrix}}.\]</div><p><strong>Discrete convolution and correlation as matrix multiplication</strong></p><p>Discrete convolution and correlation operations can also be formulated as a matrix multiplication, where one of the inputs is converted to a <a href="https://en.wikipedia.org/wiki/Toeplitz_matrix">Toeplitz</a> matrix, and the other is represented as a column vector. For example, consider a function <span>$f:\{x \in \mathbb{N} \mid 1 \le x \le M \} \rightarrow \mathbb{R}$</span> and a filter <span>$w: \{s \in \mathbb{N} \mid  -k_1 \le s \le k_1  \} \rightarrow \mathbb{R}$</span>. Then the matrix multiplication</p><div>\[\begin{bmatrix}
+w(-k_1) 	&amp;  0	    &amp; \ldots	&amp; 0		   &amp; 0			\\
+\vdots 	&amp; w(-k_1) 	&amp; \ldots	&amp; \vdots  &amp; 0	        \\
+w(k_1) 	    &amp; \vdots   &amp; \ldots	&amp; 0		   &amp; \vdots    \\
+0 	    	&amp; w(k_1)	&amp; \ldots   &amp; w(-k_1)  &amp; 0		    \\
+0 	        &amp; 0		    &amp; \ldots	&amp; \vdots  &amp; w(-k_1)	\\
+\vdots     &amp; \vdots	&amp; \ldots	&amp; w(k_1)   &amp; \vdots	\\
+0           &amp; 0         &amp; 0			&amp; 0		   &amp; w(k_1)
+\end{bmatrix}
+\begin{bmatrix}
+f(1) \\
+f(2) \\
+f(3) \\
+\vdots \\
+f(M)
+\end{bmatrix}\]</div><p>is equivalent to the convolution <span>$w(s) \ast f(x)$</span> assuming that the border of <span>$f(x)$</span> has been padded with zeros.</p><p>To represent multidimensional convolution as matrix multiplication one reshapes the multidimensional arrays into column vectors and proceeds in an analogous manner. Naturally, the result of the matrix multiplication will need to be reshaped into an appropriate multidimensional array.</p><p><strong>Options</strong></p><p>The following subsections describe valid options for the function arguments in more detail.</p><p><strong>Choices for <code>r</code></strong></p><p>You can dispatch to different implementations by passing in a resource <code>r</code> as defined by the <a href="https://github.com/timholy/ComputationalResources.jl">ComputationalResources</a> package. For example,</p><pre><code class="language-julia">    imfilter(ArrayFireLibs(), img, kernel)</code></pre><p>would request that the computation be performed on the GPU using the ArrayFire libraries.</p><p><strong>Choices for <code>T</code></strong></p><p>Optionally, you can control the element type of the output image by passing in a type <code>T</code> as the first argument.</p><p><strong>Choices for <code>img</code></strong></p><p>You can specify a one, two or multidimensional array defining your image.</p><p><strong>Choices for <code>kernel</code></strong></p><p>The <code>kernel[0,0,..]</code> parameter corresponds to the origin (zero displacement) of the kernel; you can use <code>centered</code> to place the origin at the array center, or use the OffsetArrays package to set <code>kernel</code>&#39;s indices manually. For example, to filter with a random <em>centered</em> 3x3 kernel, you could use either of the following:</p><pre><code class="language-none">kernel = centered(rand(3,3))
+kernel = OffsetArray(rand(3,3), -1:1, -1:1)</code></pre><p>The <code>kernel</code> parameter can be specified as an array or as a &quot;factored kernel&quot;, a tuple <code>(filt1, filt2, ...)</code> of filters to apply along each axis of the image. In cases where you know your kernel is separable, this format can speed processing. Each of these should have the same dimensionality as the image itself, and be shaped in a manner that indicates the filtering axis, e.g., a 3x1 filter for filtering the first dimension and a 1x3 filter for filtering the second dimension. In two dimensions, any kernel passed as a single matrix is checked for separability; if you want to eliminate that check, pass the kernel as a single-element tuple, <code>(kernel,)</code>.</p><p><strong>Choices for <code>border</code></strong></p><p>At the image edge, <code>border</code> is used to specify the padding which will be used to extrapolate the image beyond its original bounds. As an indicative example of each option the results of the padding are illustrated on an image consisting of a row of six pixels which are specified alphabetically: <span>$\boxed{a \, b \, c \, d \, e \, f}$</span>. We show the effects of padding only on the left and right border, but analogous consequences hold for the top and bottom border.</p><p><strong><code>&quot;replicate&quot;</code> (default)</strong></p><p>The border pixels extend beyond the image boundaries.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  a\, a\, a\, a  &amp;  a \, b \, c \, d \, e \, f &amp; f \, f \, f \, f
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a>, <a href="#ImageFiltering.NA"><code>NA</code></a>  and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong><code>&quot;circular&quot;</code></strong></p><p>The border pixels wrap around. For instance, indexing beyond the left border returns values starting from the right border.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  c\, d\, e\, f  &amp;  a \, b \, c \, d \, e \, f &amp; a \, b \, c \, d
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a>, <a href="#ImageFiltering.NA"><code>NA</code></a>  and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong><code>&quot;reflect&quot;</code></strong></p><p>The border pixels reflect relative to a position between pixels. That is, the border pixel is omitted when mirroring.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  e\, d\, c\, b  &amp;  a \, b \, c \, d \, e \, f &amp; e \, d \, c \, b
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a>, <a href="#ImageFiltering.NA"><code>NA</code></a>  and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong><code>&quot;symmetric&quot;</code></strong></p><p>The border pixels reflect relative to the edge itself.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  d\, c\, b\, a  &amp;  a \, b \, c \, d \, e \, f &amp; f \, e \, d \, c
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a>, <a href="#ImageFiltering.NA"><code>NA</code></a>  and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong><code>Fill(m)</code></strong></p><p>The border pixels are filled with a specified value <span>$m$</span>.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  m\, m\, m\, m  &amp;  a \, b \, c \, d \, e \, f &amp; m \, m \, m \, m
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a>, <a href="#ImageFiltering.NA"><code>NA</code></a>  and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong><code>Inner()</code></strong></p><p>Indicate that edges are to be discarded in filtering, only the interior of the result is to be returned.</p><p>See also: <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a>, <a href="#ImageFiltering.NA"><code>NA</code></a>  and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong><code>NA()</code></strong></p><p>Choose filtering using &quot;NA&quot; (Not Available) boundary conditions. This is most appropriate for filters that have only positive weights, such as blurring filters.</p><p>See also: <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a>, <a href="#ImageFiltering.NA"><code>NA</code></a>  and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong>Choices for <code>alg</code></strong></p><p>The <code>alg</code> parameter allows you to choose the particular algorithm: <code>FIR()</code> (finite impulse response, aka traditional digital filtering) or <code>FFT()</code> (Fourier-based filtering). If no choice is specified, one will be chosen based on the size of the image and kernel in a way that strives to deliver good performance. Alternatively you can use a custom filter type, like <a href="#ImageFiltering.KernelFactors.IIRGaussian"><code>KernelFactors.IIRGaussian</code></a>.</p><p><strong>Examples</strong></p><p>The following subsections highlight some common use cases.</p><p><strong>Convolution versus correlation</strong></p><pre><code class="language-julia">
+# Create a two-dimensional discrete unit impulse function.
+f = fill(0,(9,9));
+f[5,5] = 1;
+
+# Specify a filter coefficient mask and set the center of the mask as the origin.
+w = centered([1 2 3; 4 5 6 ; 7 8 9]);
+
+#=
+ The default operation of `imfilter` is correlation.  By reflecting `w` we
+ compute the convolution of `f` and `w`.  `Fill(0,w)` indicates that we wish to
+ pad the border of `f` with zeros. The amount of padding is automatically
+ determined by considering the length of w.
+=#
+correlation = imfilter(f,w,Fill(0,w))
+convolution = imfilter(f,reflect(w),Fill(0,w))
+</code></pre><p><strong>Miscellaneous border padding options</strong></p><pre><code class="language-julia"># Example function values f, and filter coefficients w.
+f = reshape(1.0:81.0,9,9)
+w = centered(reshape(1.0:9.0,3,3))
+
+# You can designate the type of padding by specifying an appropriate string.
+imfilter(f,w,&quot;replicate&quot;)
+imfilter(f,w,&quot;circular&quot;)
+imfilter(f,w,&quot;symmetric&quot;)
+imfilter(f,w,&quot;reflect&quot;)
+
+# Alternatively, you can explicitly use the Pad type to designate the padding style.
+imfilter(f,w,Pad(:replicate))
+imfilter(f,w,Pad(:circular))
+imfilter(f,w,Pad(:symmetric))
+imfilter(f,w,Pad(:reflect))
+
+# If you want to pad with a specific value then use the Fill type.
+imfilter(f,w,Fill(0,w))
+imfilter(f,w,Fill(1,w))
+imfilter(f,w,Fill(-1,w))
+
+#=
+  Specify &#39;Inner()&#39; if you want to retrieve the interior sub-array of f for which
+  the filtering operation is defined without padding.
+=#
+imfilter(f,w,Inner())</code></pre><p><strong>References</strong></p><ol><li>R. C. Gonzalez and R. E. Woods. <em>Digital Image Processing (3rd Edition)</em>.  Upper Saddle River, NJ, USA: Prentice-Hall,  2006.</li></ol><p>See also: <a href="#ImageFiltering.imfilter!"><code>imfilter!</code></a>, <a href="#ImageFiltering.centered"><code>centered</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.Fill"><code>Fill</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a>, <a href="#ImageFiltering.KernelFactors.IIRGaussian"><code>KernelFactors.IIRGaussian</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/imfilter.jl#L53-L571">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.imfilter!" href="#ImageFiltering.imfilter!"><code>ImageFiltering.imfilter!</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">imfilter!(imgfilt, img, kernel, [border=&quot;replicate&quot;], [alg])
+imfilter!(r, imgfilt, img, kernel, border::Pad)
+imfilter!(r, imgfilt, img, kernel, border::NoPad, [inds=axes(imgfilt)])</code></pre><p>Filter an array <code>img</code> with kernel <code>kernel</code> by computing their correlation, storing the result in <code>imgfilt</code>.</p><p>The indices of <code>imgfilt</code> determine the region over which the filtered image is computed–-you can use this fact to select just a specific region of interest, although be aware that the input <code>img</code> might still get padded.  Alteratively, explicitly provide the indices <code>inds</code> of <code>imgfilt</code> that you want to calculate, and use <code>NoPad</code> boundary conditions. In such cases, you are responsible for supplying appropriate padding: <code>img</code> must be indexable for all of the locations needed for calculating the output. This syntax is best-supported for FIR filtering; in particular, that that IIR filtering can lead to results that are inconsistent with respect to filtering the entire array.</p><p>See also: <a href="#ImageFiltering.imfilter"><code>imfilter</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/imfilter.jl#L632-L653">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.imgradients" href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    imgradients(img, kernelfun=KernelFactors.ando3, border=&quot;replicate&quot;) -&gt; gimg1, gimg2, ...</code></pre><p>Estimate the gradient of <code>img</code> in the direction of the first and second dimension at all points of the image, using a kernel specified by <code>kernelfun</code>.</p><p><strong>Output</strong></p><p>The gradient is returned as a tuple-of-arrays, one for each dimension of the input; <code>gimg1</code> corresponds to the derivative with respect to the first dimension, <code>gimg2</code> to the second, and so on.</p><p><strong>Details</strong></p><p>To appreciate the difference between various gradient estimation methods it is helpful to distinguish between: (1) a continuous scalar-valued <em>analogue</em> image <span>$f_\textrm{A}(x_1,x_2)$</span>, where <span>$x_1,x_2 \in \mathbb{R}$</span>, and (2) its discrete <em>digital</em> realization <span>$f_\textrm{D}(x_1&#39;,x_2&#39;)$</span>, where <span>$x_1&#39;,x_2&#39; \in \mathbb{N}$</span>, <span>$1 \le x_1&#39; \le M$</span> and <span>$1 \le x_2&#39; \le N$</span>.</p><p><strong>Analogue image</strong></p><p>The gradient of a continuous analogue image <span>$f_{\textrm{A}}(x_1,x_2)$</span> at location <span>$(x_1,x_2)$</span> is defined as the vector</p><div>\[\nabla \mathbf{f}_{\textrm{A}}(x_1,x_2) = \frac{\partial
+f_{\textrm{A}}(x_1,x_2)}{\partial x_1} \mathbf{e}_{1} +
+\frac{\partial f_{\textrm{A}}(x_1,x_2)}{\partial x_2} \mathbf{e}_{2},\]</div><p>where <span>$\mathbf{e}_{d}$</span> <span>$(d = 1,2)$</span> is the unit vector in the <span>$x_d$</span>-direction. The gradient points in the direction of maximum rate of change of <span>$f_{\textrm{A}}$</span> at the coordinates <span>$(x_1,x_2)$</span>. The gradient can be used to compute the derivative of a function in an arbitrary direction. In particular, the derivative of <span>$f_{\textrm{A}}$</span> in the direction of a unit vector <span>$\mathbf{u}$</span> is given by <span>$\nabla_{\mathbf{u}}f_\textrm{A}(x_1,x_2) = \nabla \mathbf{f}_{\textrm{A}}(x_1,x_2) \cdot \mathbf{u}$</span>, where <span>$\cdot$</span> denotes the dot product.</p><p><strong>Digital image</strong></p><p>In practice, we acquire a digital image <span>$f_\textrm{D}(x_1&#39;,x_2&#39;)$</span> where the light intensity is known only at a discrete set of locations. This means that the required partial derivatives are undefined and need to be approximated using discrete difference formulae [1].</p><p>A straightforward way to approximate the partial derivatives is to use central-difference formulae</p><div>\[ \frac{\partial f_{\textrm{D}}(x_1&#39;,x_2&#39;)}{\partial x_1&#39;}  \approx
+        \frac{f_{\textrm{D}}(x_1&#39;+1,x_2&#39;) - f_{\textrm{D}}(x_1&#39;-1,x_2&#39;) }{2}\]</div><p>and</p><div>\[ \frac{\partial f_{\textrm{D}}(x_1&#39;,x_2&#39;)}{\partial x_2&#39;}   \approx
+         \frac{f_{\textrm{D}}(x_1&#39;,x_2&#39;+1) - f_{\textrm{D}}(x_1&#39;,x_2&#39;+1)}{2}.\]</div><p>However, the central-difference formulae are very sensitive to noise. When working with noisy image data, one can obtain a better approximation of the partial derivatives by using a suitable weighted combination of the neighboring image intensities. The weighted combination can be represented as a <em>discrete convolution</em> operation between the image and a <em>kernel</em> which characterizes the requisite weights. In particular, if <span>$h_{x_d}$</span> (<span>$d = 1,2)$</span> represents a <span>$2r+1 \times 2r+1$</span> kernel, then</p><div>\[ \frac{\partial f_{\textrm{D}}(x_1&#39;,x_2&#39;)}{\partial x_d&#39;}  \approx
+\sum_{i = -r}^r \sum_{j = -r}^r
+f_\textrm{D}(x_1&#39;-i,x_2&#39;-j)
+  h_{x_d}(i,j).\]</div><p>The kernel is frequently also called a <em>mask</em> or <em>convolution matrix</em>.</p><p><strong>Weighting schemes and approximation error</strong></p><p>The choice of weights determines the magnitude of the approximation error and whether the finite-difference scheme is <em>isotropic</em>. A finite-difference scheme is isotropic if the approximation error does not depend on the orientation of the coordinate system and <em>anisotropic</em> if the approximation error has a directional bias [2]. With a continuous analogue image the magnitude of the gradient would be invariant upon rotation of the coordinate system, but in practice one cannot obtain perfect isotropy with a finite set of discrete points. Hence a finite-difference scheme is typically considered isotropic if the leading error term in the approximation does not have preferred directions.</p><p>Most finite-difference schemes that are used in image processing are based on <span>$3 \times 3$</span> kernels, and as noted by [7], many can also be parametrized by a single parameter <span>$\alpha$</span> as follows:</p><div>\[\mathbf{H}_{x_{1}} =
+\frac{1}{4 + 2\alpha}
+\begin{bmatrix}
+-1 &amp; -\alpha &amp; -1 \\
+0 &amp; 0 &amp; 0 \\
+ 1 &amp; \alpha &amp; 1
+\end{bmatrix}
+\quad
+\text{and}
+\quad
+\mathbf{H}_{x_{2}} =
+\frac{1}{2 + 4\alpha}
+\begin{bmatrix}
+-1 &amp; 0 &amp; 1 \\
+-\alpha &amp; 0 &amp; \alpha \\
+ -1 &amp; 0 &amp; 1
+\end{bmatrix},\]</div><p>where</p><div>\[\alpha =
+\begin{cases}
+0,  &amp; \text{Simple Finite Difference}; \\
+1, &amp;  \text{Prewitt}; \\
+2, &amp;  \text{Sobel}; \\
+2.4351, &amp;  \text{Ando}; \\
+\frac{10}{3}, &amp;  \text{Scharr}; \\
+4, &amp;  \text{Bickley}.
+\end{cases}\]</div><p><strong>Separable kernel</strong></p><p>A kernel is called <em>separable</em> if it can be expressed as the convolution of two one-dimensional filters. With a matrix representation of the kernel, separability means that the kernel matrix can be written as an outer product of two vectors. Separable kernels offer computational advantages since instead of performing a two-dimensional convolution one can perform a sequence of one-dimensional convolutions.</p><p><strong>Options</strong></p><p>You can specify your choice of the finite-difference scheme via the <code>kernelfun</code> parameter. You can also indicate how to deal with the pixels on the border of the image with the <code>border</code> parameter.</p><p><strong>Choices for <code>kernelfun</code></strong></p><p>In general <code>kernelfun</code> can be any function which satisfies the following interface:</p><pre><code class="language-julia">    kernelfun(extended::NTuple{N,Bool}, d) -&gt; kern_d,</code></pre><p>where <code>kern_d</code> is the kernel for producing the derivative with respect to the <span>$d$</span>th dimension of an <span>$N$</span>-dimensional array. The parameter <code>extended[i]</code> is true if the image is of size &gt; 1 along dimension <span>$i$</span>. The parameter <code>kern_d</code> may be provided as a dense or factored kernel, with factored representations recommended when the kernel is separable.</p><p>Some valid <code>kernelfun</code> options are described below.</p><p><strong><code>KernelFactors.prewitt</code></strong></p><p>With the <em>prewit</em> option [3] the computation of the gradient is based on the kernels</p><div>\[\begin{aligned}
+\mathbf{H}_{x_1} &amp; = \frac{1}{6}
+    \begin{bmatrix}
+    -1 &amp; -1 &amp; -1 \\
+    0 &amp; 0 &amp; 0 \\
+    1 &amp; 1 &amp; 1
+    \end{bmatrix}
+&amp;
+\mathbf{H}_{x_2} &amp; =  \frac{1}{6}
+    \begin{bmatrix}
+    -1 &amp; 0 &amp; 1 \\
+    -1 &amp; 0 &amp; 1 \\
+    -1 &amp; 0 &amp; 1
+    \end{bmatrix} \\
+&amp; = \frac{1}{6}
+    \begin{bmatrix}
+    1 \\
+    1  \\
+    1
+    \end{bmatrix}
+    \begin{bmatrix}
+    -1 &amp; 0 &amp; 1
+    \end{bmatrix}
+&amp;
+&amp; = \frac{1}{6}
+    \begin{bmatrix}
+    -1 \\
+    0  \\
+    1
+    \end{bmatrix}
+    \begin{bmatrix}
+    1 &amp; 1 &amp; 1
+    \end{bmatrix}.
+\end{aligned}\]</div><p>See also: <a href="#ImageFiltering.KernelFactors.prewitt"><code>KernelFactors.prewitt</code></a> and <a href="#ImageFiltering.Kernel.prewitt"><code>Kernel.prewitt</code></a></p><p><strong><code>KernelFactors.sobel</code></strong></p><p>The <em>sobel</em> option [4] designates the kernels</p><div>\[\begin{aligned}
+\mathbf{H}_{x_1} &amp; = \frac{1}{8}
+    \begin{bmatrix}
+    -1 &amp; -2 &amp; -1 \\
+     0 &amp; 0 &amp; 0 \\
+     1 &amp; 2 &amp; 1
+    \end{bmatrix}
+&amp;
+\mathbf{H}_{x_2} &amp; = \frac{1}{8}
+    \begin{bmatrix}
+    -1 &amp; 0 &amp; 1 \\
+    -2 &amp; 0 &amp; 2 \\
+    -1 &amp; 0 &amp; 1
+    \end{bmatrix} \\
+&amp; = \frac{1}{8}
+    \begin{bmatrix}
+    -1 \\
+    0  \\
+    1
+    \end{bmatrix}
+    \begin{bmatrix}
+    1 &amp; 2 &amp; 1
+    \end{bmatrix}
+&amp;
+&amp; = \frac{1}{8}
+    \begin{bmatrix}
+    1 \\
+    2  \\
+    1
+    \end{bmatrix}
+    \begin{bmatrix}
+    -1 &amp; 0 &amp; 1
+    \end{bmatrix}.
+\end{aligned}\]</div><p>See also:  <a href="#ImageFiltering.KernelFactors.sobel"><code>KernelFactors.sobel</code></a> and <a href="#ImageFiltering.Kernel.sobel"><code>Kernel.sobel</code></a></p><p><strong><code>KernelFactors.ando3</code></strong></p><p>The <em>ando3</em> option [5] specifies the kernels</p><div>\[\begin{aligned}
+\mathbf{H}_{x_1} &amp;  =
+    \begin{bmatrix}
+    -0.112737 &amp; -0.274526 &amp; -0.112737 \\
+     0 &amp; 0 &amp; 0 \\
+     0.112737 &amp; 0.274526 &amp; 0.112737
+    \end{bmatrix}
+&amp;
+\mathbf{H}_{x_2}  &amp; =
+    \begin{bmatrix}
+    -0.112737 &amp; 0 &amp; 0.112737 \\
+    -0.274526 &amp; 0 &amp; 0.274526 \\
+    -0.112737 &amp; 0 &amp; 0.112737
+    \end{bmatrix} \\
+&amp;  = \begin{bmatrix}
+    -1 \\
+    0  \\
+    1
+    \end{bmatrix}
+    \begin{bmatrix}
+    0.112737 &amp; 0.274526 &amp; 0.112737
+    \end{bmatrix}
+&amp;
+&amp;  = \begin{bmatrix}
+    0.112737 \\
+    0.274526  \\
+    0.112737
+    \end{bmatrix}
+    \begin{bmatrix}
+    -1 &amp; 0 &amp; 1
+    \end{bmatrix}.
+\end{aligned}\]</div><p>See also:  <a href="#ImageFiltering.KernelFactors.ando3"><code>KernelFactors.ando3</code></a>, and <a href="#ImageFiltering.Kernel.ando3"><code>Kernel.ando3</code></a>;  <a href="#ImageFiltering.KernelFactors.ando4"><code>KernelFactors.ando4</code></a>, and <a href="#ImageFiltering.Kernel.ando4"><code>Kernel.ando4</code></a>; <a href="#ImageFiltering.KernelFactors.ando5"><code>KernelFactors.ando5</code></a>, and <a href="#ImageFiltering.Kernel.ando5"><code>Kernel.ando5</code></a></p><p><strong><code>KernelFactors.scharr</code></strong></p><p>The <em>scharr</em> option [6] designates the kernels</p><div>\[\begin{aligned}
+\mathbf{H}_{x_{1}} &amp; =
+\frac{1}{32}
+\begin{bmatrix}
+-3 &amp; -10 &amp; -3 \\
+0 &amp; 0 &amp; 0 \\
+ 3 &amp; 10 &amp; 3
+\end{bmatrix}
+&amp;
+\mathbf{H}_{x_{2}} &amp; =
+\frac{1}{32}
+\begin{bmatrix}
+-3 &amp; 0 &amp; 3 \\
+-10 &amp; 0 &amp; 10\\
+-3 &amp; 0 &amp; 3
+\end{bmatrix} \\
+&amp; = \frac{1}{32}
+\begin{bmatrix}
+    -1 \\
+    0  \\
+    1
+\end{bmatrix}
+\begin{bmatrix}
+    3 &amp; 10 &amp; 3
+\end{bmatrix}
+&amp;
+&amp; = \frac{1}{32}
+\begin{bmatrix}
+    3 \\
+    10  \\
+    3
+\end{bmatrix}
+\begin{bmatrix}
+    -1 &amp; 0 &amp; 1
+\end{bmatrix}.
+\end{aligned}\]</div><p>See also:  <a href="#ImageFiltering.KernelFactors.scharr"><code>KernelFactors.scharr</code></a> and <a href="#ImageFiltering.Kernel.scharr"><code>Kernel.scharr</code></a></p><p><strong><code>KernelFactors.bickley</code></strong></p><p>The <em>bickley</em> option [7,8] designates the kernels</p><div>\[\begin{aligned}
+\mathbf{H}_{x_1} &amp; = \frac{1}{12}
+    \begin{bmatrix}
+        -1 &amp; -4 &amp; -1 \\
+         0 &amp; 0 &amp; 0 \\
+         1 &amp; 4 &amp; 1
+    \end{bmatrix}
+&amp;
+\mathbf{H}_{x_2} &amp; = \frac{1}{12}
+    \begin{bmatrix}
+        -1 &amp; 0 &amp; 1 \\
+        -4 &amp; 0 &amp; 4 \\
+        -1 &amp; 0 &amp; 1
+    \end{bmatrix} \\
+&amp; = \frac{1}{12}
+    \begin{bmatrix}
+        -1 \\
+        0  \\
+        1
+    \end{bmatrix}
+    \begin{bmatrix}
+        1 &amp; 4 &amp; 1
+    \end{bmatrix}
+&amp;
+&amp;  = \frac{1}{12}
+   \begin{bmatrix}
+        1 \\
+        4  \\
+        1
+   \end{bmatrix}
+   \begin{bmatrix}
+        -1 &amp; 0 &amp; 1
+   \end{bmatrix}.
+\end{aligned}\]</div><p>See also:  <a href="#ImageFiltering.KernelFactors.bickley"><code>KernelFactors.bickley</code></a> and <a href="#ImageFiltering.Kernel.bickley"><code>Kernel.bickley</code></a></p><p><strong>Choices for <code>border</code></strong></p><p>At the image edge, <code>border</code> is used to specify the padding which will be used to extrapolate the image beyond its original bounds. As an indicative example of each option the results of the padding are illustrated on an image consisting of a row of six pixels which are specified alphabetically: <span>$\boxed{a \, b \, c \, d \, e \, f}$</span>. We show the effects of padding only on the left and right border, but analogous consequences hold for the top and bottom border.</p><p><strong><code>&quot;replicate&quot;</code></strong></p><p>The border pixels extend beyond the image boundaries.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  a\, a\, a\, a  &amp;  a \, b \, c \, d \, e \, f &amp; f \, f \, f \, f
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a> and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong><code>&quot;circular&quot;</code></strong></p><p>The border pixels wrap around. For instance, indexing beyond the left border returns values starting from the right border.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  c\, d\, e\, f  &amp;  a \, b \, c \, d \, e \, f &amp; a \, b \, c \, d
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a> and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong><code>&quot;symmetric&quot;</code></strong></p><p>The border pixels reflect relative to a position between pixels. That is, the border pixel is omitted when mirroring.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  e\, d\, c\, b  &amp;  a \, b \, c \, d \, e \, f &amp; e \, d \, c \, b
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a> and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong><code>&quot;reflect&quot;</code></strong></p><p>The border pixels reflect relative to the edge itself.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  d\, c\, b\, a  &amp;  a \, b \, c \, d \, e \, f &amp; f \, e \, d \, c
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a> and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong>Example</strong></p><p>This example compares the quality of the gradient estimation methods in terms of the accuracy with which the orientation of the gradient is estimated.</p><pre><code class="language-julia">using Images
+
+values = LinRange(-1,1,128);
+w = 1.6*pi;
+
+# Define a function of a sinusoidal grating, f(x,y) = sin( (w*x)^2 + (w*y)^2 ),
+# together with its exact partial derivatives.
+I = [sin( (w*x)^2 + (w*y)^2 ) for y in values, x in values];
+Ix = [2*w*x*cos( (w*x)^2 + (w*y)^2 ) for y in values, x in values];
+Iy = [2*w*y*cos( (w*x)^2 + (w*y)^2 ) for y in values, x in values];
+
+# Determine the exact orientation of the gradients.
+direction_true = atan.(Iy./Ix);
+
+for kernelfunc in (KernelFactors.prewitt, KernelFactors.sobel,
+                   KernelFactors.ando3, KernelFactors.scharr,
+                   KernelFactors.bickley)
+
+    # Estimate the gradients and their orientations.
+    Gy, Gx = imgradients(I,kernelfunc, &quot;replicate&quot;);
+    direction_estimated = atan.(Gy./Gx);
+
+    # Determine the mean absolute deviation between the estimated and true
+    # orientation. Ignore the values at the border since we expect them to be
+    # erroneous.
+    error = mean(abs.(direction_true[2:end-1,2:end-1] -
+                     direction_estimated[2:end-1,2:end-1]));
+
+    error = round(error, digits=5);
+    println(&quot;Using $kernelfunc results in a mean absolute deviation of $error&quot;)
+end
+
+# output
+
+Using ImageFiltering.KernelFactors.prewitt results in a mean absolute deviation of 0.01069
+Using ImageFiltering.KernelFactors.sobel results in a mean absolute deviation of 0.00522
+Using ImageFiltering.KernelFactors.ando3 results in a mean absolute deviation of 0.00365
+Using ImageFiltering.KernelFactors.scharr results in a mean absolute deviation of 0.00126
+Using ImageFiltering.KernelFactors.bickley results in a mean absolute deviation of 0.00038</code></pre><p><strong>References</strong></p><ol><li>B. Jahne, <em>Digital Image Processing</em> (5th ed.). Springer Publishing Company, Incorporated, 2005. <a href="https://doi.org/10.1007/3-540-27563-0">10.1007/3-540-27563-0</a></li><li>M. Patra  and  M. Karttunen, &quot;Stencils with isotropic discretization error for differential operators,&quot; <em>Numer. Methods Partial Differential Eq.</em>, vol. 22, pp. 936–953, 2006. <a href="https://doi.org/doi:10.1002/num.20129">doi:10.1002/num.20129</a></li><li>J. M. Prewitt, &quot;Object enhancement and extraction,&quot; <em>Picture processing and Psychopictorics</em>, vol. 10, no. 1, pp. 15–19, 1970.</li><li>P.-E. Danielsson and O. Seger, &quot;Generalized and separable sobel operators,&quot; in  <em>Machine Vision for Three-Dimensional Scenes</em>,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. <a href="https://doi.org/doi:10.1016/b978-0-12-266722-0.50016-6">doi:10.1016/b978-0-12-266722-0.50016-6</a></li><li>S. Ando, &quot;Consistent gradient operators,&quot; <em>IEEE Transactions on Pattern Analysis and Machine Intelligence</em>, vol. 22, no.3, pp. 252–265, 2000. <a href="https://doi.org/doi:10.1109/34.841757">doi:10.1109/34.841757</a></li><li>H. Scharr and  J. Weickert, &quot;An anisotropic diffusion algorithm with optimized rotation invariance,&quot; <em>Mustererkennung 2000</em>, pp. 460–467, 2000. <a href="https://doi.org/doi:10.1007/978-3-642-59802-9_58">doi:10.1007/978-3-642-59802-9_58</a></li><li>A. Belyaev, &quot;Implicit image differentiation and filtering with applications to image sharpening,&quot; <em>SIAM Journal on Imaging Sciences</em>, vol. 6, no. 1, pp. 660–679, 2013. <a href="https://doi.org/doi:10.1137/12087092x">doi:10.1137/12087092x</a></li><li>W. G. Bickley, &quot;Finite difference formulae for the square lattice,&quot; <em>The Quarterly Journal of Mechanics and Applied Mathematics</em>, vol. 1, no. 1, pp. 35–42, 1948.  <a href="https://doi.org/doi:10.1093/qjmam/1.1.35">doi:10.1093/qjmam/1.1.35</a></li></ol><hr/></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/specialty.jl#L19-L499">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.MapWindow.mapwindow" href="#ImageFiltering.MapWindow.mapwindow"><code>ImageFiltering.MapWindow.mapwindow</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">mapwindow(f, img, window; [border=&quot;replicate&quot;], [indices=axes(img)]) -&gt; imgf</code></pre><p>Apply <code>f</code> to sliding windows of <code>img</code>, with window size or axes specified by <code>window</code>. For example, <code>mapwindow(median!, img, window)</code> returns an <code>Array</code> of values similar to <code>img</code> (median-filtered, of course), whereas <code>mapwindow(extrema, img, window)</code> returns an <code>Array</code> of <code>(min,max)</code> tuples over a window of size <code>window</code> centered on each point of <code>img</code>.</p><p>The function <code>f</code> receives a buffer <code>buf</code> for the window of data surrounding the current point. If <code>window</code> is specified as a Dims-tuple (tuple-of-integers), then all the integers must be odd and the window is centered around the current image point. For example, if <code>window=(3,3)</code>, then <code>f</code> will receive an Array <code>buf</code> corresponding to offsets <code>(-1:1, -1:1)</code> from the <code>imgf[i,j]</code> for which this is currently being computed. Alternatively, <code>window</code> can be a tuple of AbstractUnitRanges, in which case the specified ranges are used for <code>buf</code>; this allows you to use asymmetric windows if needed.</p><p><code>border</code> specifies how the edges of <code>img</code> should be handled; see <code>imfilter</code> for details.</p><p>Finally <code>indices</code> allows to omit unnecessary computations, if you want to do things like <code>mapwindow</code> on a subimage, or a strided variant of mapwindow. It works as follows:</p><pre><code class="language-julia">mapwindow(f, img, window, indices=(2:5, 1:2:7)) == mapwindow(f,img,window)[2:5, 1:2:7]</code></pre><p>Except more efficiently because it omits computation of the unused values.</p><p>Because the data in the buffer <code>buf</code> that is received by <code>f</code> is copied from <code>img</code>, and the buffer&#39;s memory is reused, <code>f</code> should not return references to <code>buf</code>. This</p><pre><code class="language-julia">f = buf-&gt;copy(buf) # as opposed to f = buf-&gt;buf
+mapwindow(f, img, window, indices=(2:5, 1:2:7))</code></pre><p>would work as expected.</p><p>For functions that can only take <code>AbstractVector</code> inputs, you might have to first specialize <code>default_shape</code>:</p><pre><code class="language-julia">f = v-&gt;quantile(v, 0.75)
+ImageFiltering.MapWindow.default_shape(::typeof(f)) = vec</code></pre><p>and then <code>mapwindow(f, img, (m,n))</code> should filter at the 75th quantile.</p><p>See also: <a href="#ImageFiltering.imfilter"><code>imfilter</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/mapwindow.jl#L12-L63">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.MapWindow.mapwindow!" href="#ImageFiltering.MapWindow.mapwindow!"><code>ImageFiltering.MapWindow.mapwindow!</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">mapwindow!(f, out, img, window; border=&quot;replicate&quot;, indices=axes(img))</code></pre><p>Variant of <a href="@ref">mapwindow</a>, with preallocated output. If <code>out</code> and <code>img</code> have overlapping memory regions, behaviour is undefined.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/mapwindow.jl#L96-L101">source</a></section></article><h1 id="Kernel-1"><a class="docs-heading-anchor" href="#Kernel-1">Kernel</a><a class="docs-heading-anchor-permalink" href="#Kernel-1" title="Permalink"></a></h1><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel" href="#ImageFiltering.Kernel"><code>ImageFiltering.Kernel</code></a> — <span class="docstring-category">Module</span></header><section><div><p><code>Kernel</code> is a module implementing filtering (correlation) kernels of full dimensionality. The following kernels are supported:</p><ul><li><code>sobel</code></li><li><code>prewitt</code></li><li><code>ando3</code>, <code>ando4</code>, and <code>ando5</code></li><li><code>scharr</code></li><li><code>bickley</code></li><li><code>gaussian</code></li><li><code>DoG</code> (Difference-of-Gaussian)</li><li><code>LoG</code> (Laplacian-of-Gaussian)</li><li><code>Laplacian</code></li><li><code>gabor</code></li><li><code>moffat</code></li></ul><p>See also: <a href="#ImageFiltering.KernelFactors"><code>KernelFactors</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L1-L18">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.sobel" href="#ImageFiltering.Kernel.sobel"><code>ImageFiltering.Kernel.sobel</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    diff1, diff2 = sobel()</code></pre><p>Return <span>$3 \times 3$</span> correlation kernels for two-dimensional gradient compution using the Sobel operator. The <code>diff1</code> kernel computes the gradient along the y-axis (first dimension), and the <code>diff2</code> kernel computes the gradient along the x-axis (second dimension). <code>diff1 == rotr90(diff2)</code></p><pre><code class="language-julia">    (diff,) = sobel(extended::NTuple{N,Bool}, d)</code></pre><p>Return (a tuple of) the N-dimensional correlation kernel for gradient compution along the dimension <code>d</code> using the Sobel operator. If <code>extended[dim]</code> is false, <code>diff</code> will have size 1 along that dimension.</p><p><strong>Citation</strong></p><p>P.-E. Danielsson and O. Seger, &quot;Generalized and separable sobel operators,&quot; in  <em>Machine Vision for Three-Dimensional Scenes</em>,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. <a href="https://doi.org/doi:10.1016/b978-0-12-266722-0.50016-6">doi:10.1016/b978-0-12-266722-0.50016-6</a></p><p>See also: <a href="#ImageFiltering.KernelFactors.sobel"><code>KernelFactors.sobel</code></a>, <a href="#ImageFiltering.Kernel.prewitt"><code>Kernel.prewitt</code></a>, <a href="#ImageFiltering.Kernel.ando3"><code>Kernel.ando3</code></a>, <a href="#ImageFiltering.Kernel.scharr"><code>Kernel.scharr</code></a>, <a href="#ImageFiltering.Kernel.bickley"><code>Kernel.bickley</code></a> and <a href="#ImageFiltering.imgradients"><code>imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L39-L62">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.prewitt" href="#ImageFiltering.Kernel.prewitt"><code>ImageFiltering.Kernel.prewitt</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    diff1, diff2 = prewitt()</code></pre><p>Return <span>$3 \times 3$</span> correlation kernels for two-dimensional gradient compution using the Prewitt operator. The <code>diff1</code> kernel computes the gradient along the y-axis (first dimension), and the <code>diff2</code> kernel computes the gradient along the x-axis (second dimension). <code>diff1 == rotr90(diff2)</code></p><pre><code class="language-julia">    (diff,) = prewitt(extended::NTuple{N,Bool}, d)</code></pre><p>Return (a tuple of) the N-dimensional correlation kernel for gradient compution along the dimension <code>d</code> using the Prewitt operator. If <code>extended[dim]</code> is false, <code>diff</code> will have size 1 along that dimension.</p><p><strong>Citation</strong></p><p>J. M. Prewitt, &quot;Object enhancement and extraction,&quot; <em>Picture processing and Psychopictorics</em>, vol. 10, no. 1, pp. 15–19, 1970.</p><p>See also: <a href="#ImageFiltering.KernelFactors.prewitt"><code>KernelFactors.prewitt</code></a>, <a href="#ImageFiltering.Kernel.sobel"><code>Kernel.sobel</code></a>, <a href="#ImageFiltering.Kernel.ando3"><code>Kernel.ando3</code></a>, <a href="#ImageFiltering.Kernel.scharr"><code>Kernel.scharr</code></a>,<a href="#ImageFiltering.Kernel.bickley"><code>Kernel.bickley</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L67-L90">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.ando3" href="#ImageFiltering.Kernel.ando3"><code>ImageFiltering.Kernel.ando3</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    diff1, diff2 = ando3()</code></pre><p>Return <span>$3 \times 3$</span> correlation kernels for two-dimensional gradient compution using Ando&#39;s &quot;optimal&quot; filters. The <code>diff1</code> kernel computes the gradient along the y-axis (first dimension), and the <code>diff2</code> kernel computes the gradient along the x-axis (second dimension). <code>diff1 == rotr90(diff2)</code></p><pre><code class="language-julia">    (diff,) = ando3(extended::NTuple{N,Bool}, d)</code></pre><p>Return (a tuple of) the N-dimensional correlation kernel for gradient compution along the dimension <code>d</code> using Ando&#39;s &quot;optimal&quot; filters of size 3. If <code>extended[dim]</code> is false, <code>diff</code> will have size 1 along that dimension.</p><p><strong>Citation</strong></p><p>S. Ando, &quot;Consistent gradient operators,&quot; <em>IEEE Transactions on Pattern Analysis and Machine Intelligence</em>, vol. 22, no.3, pp. 252–265, 2000. <a href="https://doi.org/doi:10.1109/34.841757">doi:10.1109/34.841757</a></p><p>See also: <a href="#ImageFiltering.KernelFactors.ando3"><code>KernelFactors.ando3</code></a>, <a href="#ImageFiltering.Kernel.ando4"><code>Kernel.ando4</code></a>, <a href="#ImageFiltering.Kernel.ando5"><code>Kernel.ando5</code></a> and  <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L95-L117">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.ando4" href="#ImageFiltering.Kernel.ando4"><code>ImageFiltering.Kernel.ando4</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    diff1, diff2 = ando4()</code></pre><p>Return <span>$4 \times 4$</span> correlation  kernels for two-dimensional gradient compution using Ando&#39;s &quot;optimal&quot; filters.  The <code>diff1</code> kernel computes the gradient along the y-axis (first dimension), and  the <code>diff2</code> kernel computes the gradient along the x-axis (second dimension). <code>diff1 == rotr90(diff2)</code></p><pre><code class="language-julia">    (diff,) = ando4(extended::NTuple{N,Bool}, d)</code></pre><p>Return (a tuple of) the N-dimensional correlation kernel for gradient compution along the dimension <code>d</code> using Ando&#39;s &quot;optimal&quot; filters of size 4. If <code>extended[dim]</code> is false, <code>diff</code> will have size 1 along that dimension.</p><p><strong>Citation</strong></p><p>S. Ando, &quot;Consistent gradient operators,&quot; <em>IEEE Transactions on Pattern Analysis and Machine Intelligence</em>, vol. 22, no.3, pp. 252–265, 2000. <a href="https://doi.org/doi:10.1109/34.841757">doi:10.1109/34.841757</a></p><p>See also: <a href="#ImageFiltering.KernelFactors.ando4"><code>KernelFactors.ando4</code></a>, <a href="#ImageFiltering.Kernel.ando3"><code>Kernel.ando3</code></a>, <a href="#ImageFiltering.Kernel.ando5"><code>Kernel.ando5</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L122-L144">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.ando5" href="#ImageFiltering.Kernel.ando5"><code>ImageFiltering.Kernel.ando5</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    diff1, diff2 = ando5()</code></pre><p>Return <span>$5 \times 5$</span> correlation  kernels for two-dimensional gradient compution using Ando&#39;s &quot;optimal&quot; filters.  The <code>diff1</code> kernel computes the gradient along the y-axis (first dimension), and  the <code>diff2</code> kernel computes the gradient along the x-axis (second dimension). <code>diff1 == rotr90(diff2)</code></p><pre><code class="language-julia">    (diff,) = ando5(extended::NTuple{N,Bool}, d)</code></pre><p>Return (a tuple of) the N-dimensional correlation kernel for gradient compution along the dimension <code>d</code> using Ando&#39;s &quot;optimal&quot; filters of size 5. If <code>extended[dim]</code> is false, <code>diff</code> will have size 1 along that dimension.</p><p><strong>Citation</strong></p><p>S. Ando, &quot;Consistent gradient operators,&quot; <em>IEEE Transactions on Pattern Analysis and Machine Intelligence</em>, vol. 22, no.3, pp. 252–265, 2000. <a href="https://doi.org/doi:10.1109/34.841757">doi:10.1109/34.841757</a></p><p>See also: <a href="#ImageFiltering.KernelFactors.ando5"><code>KernelFactors.ando5</code></a>, <a href="#ImageFiltering.Kernel.ando3"><code>Kernel.ando3</code></a>, <a href="#ImageFiltering.Kernel.ando4"><code>Kernel.ando4</code></a> and  <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L158-L180">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.bickley" href="#ImageFiltering.Kernel.bickley"><code>ImageFiltering.Kernel.bickley</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    diff1, diff2 = bickley()</code></pre><p>Return <span>$3 \times 3$</span> correlation kernels for two-dimensional gradient compution using the Bickley operator. The <code>diff1</code> kernel computes the gradient along the y-axis (first dimension), and the <code>diff2</code> kernel computes the gradient along the x-axis (second dimension). <code>diff1 == rotr90(diff2)</code></p><pre><code class="language-julia">    (diff,) = bickley(extended::NTuple{N,Bool}, d)</code></pre><p>Return (a tuple of) the N-dimensional correlation kernel for gradient compution along the dimension <code>d</code> using the Bickley operator. If <code>extended[dim]</code> is false, <code>diff</code> will have size 1 along that dimension.</p><p><strong>Citation</strong></p><p>W. G. Bickley, &quot;Finite difference formulae for the square lattice,&quot; <em>The Quarterly Journal of Mechanics and Applied Mathematics</em>, vol. 1, no. 1, pp. 35–42, 1948.  <a href="https://doi.org/doi:10.1137/12087092x">doi:10.1093/qjmam/1.1.35</a></p><p>See also: <a href="#ImageFiltering.KernelFactors.bickley"><code>KernelFactors.bickley</code></a>, <a href="#ImageFiltering.Kernel.prewitt"><code>Kernel.prewitt</code></a>, <a href="#ImageFiltering.Kernel.ando3"><code>Kernel.ando3</code></a>,  <a href="#ImageFiltering.Kernel.scharr"><code>Kernel.scharr</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L223-L247">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.scharr" href="#ImageFiltering.Kernel.scharr"><code>ImageFiltering.Kernel.scharr</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    diff1, diff2 = scharr()</code></pre><p>Return <span>$3 \times 3$</span> correlation kernels for two-dimensional gradient compution using the Scharr operator. The <code>diff1</code> kernel computes the gradient along the y-axis (first dimension), and the <code>diff2</code> kernel  computes the gradient along the x-axis (second dimension). <code>diff1 == rotr90(diff2)</code></p><pre><code class="language-julia">    (diff,) = scharr(extended::NTuple{N,Bool}, d)</code></pre><p>Return (a tuple of) the N-dimensional correlation kernel for gradient compution along the dimension <code>d</code> using the Scharr operator. If <code>extended[dim]</code> is false, <code>diff</code> will have size 1 along that dimension.</p><p><strong>Citation</strong></p><p>H. Scharr and  J. Weickert, &quot;An anisotropic diffusion algorithm with optimized rotation invariance,&quot; <em>Mustererkennung 2000</em>, pp. 460–467, 2000. <a href="https://doi.org/doi:10.1007/978-3-642-59802-9_58">doi:10.1007/978-3-642-59802-9_58</a></p><p>See also: <a href="#ImageFiltering.KernelFactors.scharr"><code>KernelFactors.scharr</code></a>, <a href="#ImageFiltering.Kernel.prewitt"><code>Kernel.prewitt</code></a>, <a href="#ImageFiltering.Kernel.ando3"><code>Kernel.ando3</code></a>, <a href="#ImageFiltering.Kernel.bickley"><code>Kernel.bickley</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L195-L218">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.gaussian" href="#ImageFiltering.Kernel.gaussian"><code>ImageFiltering.Kernel.gaussian</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">gaussian((σ1, σ2, ...), [(l1, l2, ...)]) -&gt; g
+gaussian(σ)                  -&gt; g</code></pre><p>Construct a multidimensional gaussian filter, with standard deviation <code>σd</code> along dimension <code>d</code>. Optionally provide the kernel length <code>l</code>, which must be a tuple of the same length.</p><p>If <code>σ</code> is supplied as a single number, a symmetric 2d kernel is constructed.</p><p>See also: <a href="#ImageFiltering.KernelFactors.gaussian"><code>KernelFactors.gaussian</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L252-L264">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.DoG" href="#ImageFiltering.Kernel.DoG"><code>ImageFiltering.Kernel.DoG</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">DoG((σp1, σp2, ...), (σm1, σm2, ...), [l1, l2, ...]) -&gt; k
+DoG((σ1, σ2, ...))                                   -&gt; k
+DoG(σ::Real)                                         -&gt; k</code></pre><p>Construct a multidimensional difference-of-gaussian kernel <code>k</code>, equal to <code>gaussian(σp, l)-gaussian(σm, l)</code>.  When only a single <code>σ</code> is supplied, the default is to choose <code>σp = σ, σm = √2 σ</code>. Optionally provide the kernel length <code>l</code>; the default is to extend by two <code>max(σp,σm)</code> in each direction from the center. <code>l</code> must be odd.</p><p>If <code>σ</code> is provided as a single number, a symmetric 2d DoG kernel is returned.</p><p>See also: <a href="#ImageFiltering.KernelFactors.IIRGaussian"><code>KernelFactors.IIRGaussian</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L279-L294">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.LoG" href="#ImageFiltering.Kernel.LoG"><code>ImageFiltering.Kernel.LoG</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">LoG((σ1, σ2, ...)) -&gt; k
+LoG(σ)             -&gt; k</code></pre><p>Construct a Laplacian-of-Gaussian kernel <code>k</code>. <code>σd</code> is the gaussian width along dimension <code>d</code>.  If <code>σ</code> is supplied as a single number, a symmetric 2d kernel is returned.</p><p>See also: <a href="#ImageFiltering.KernelFactors.IIRGaussian"><code>KernelFactors.IIRGaussian</code></a> and <a href="#ImageFiltering.Kernel.Laplacian"><code>Kernel.Laplacian</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L305-L314">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.Laplacian" href="#ImageFiltering.Kernel.Laplacian"><code>ImageFiltering.Kernel.Laplacian</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia">Laplacian((true,true,false,...))
+Laplacian(dims, N)
+Laplacian()</code></pre><p>Laplacian kernel in <code>N</code> dimensions, taking derivatives along the directions marked as <code>true</code> in the supplied tuple. Alternatively, one can pass <code>dims</code>, a listing of the dimensions for differentiation. (However, this variant is not inferrable.)</p><p><code>Laplacian()</code> is the 2d laplacian, equivalent to <code>Laplacian((true,true))</code>.</p><p>The kernel is represented as an opaque type, but you can use <code>convert(AbstractArray, L)</code> to convert it into array format.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L347-L361">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.gabor" href="#ImageFiltering.Kernel.gabor"><code>ImageFiltering.Kernel.gabor</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">gabor(size_x,size_y,σ,θ,λ,γ,ψ) -&gt; (k_real,k_complex)</code></pre><p>Returns a 2 Dimensional Complex Gabor kernel contained in a tuple where</p><ul><li><code>size_x</code>, <code>size_y</code> denote the size of the kernel</li><li><code>σ</code> denotes the standard deviation of the Gaussian envelope</li><li><code>θ</code> represents the orientation of the normal to the parallel stripes of a Gabor function</li><li><code>λ</code> represents the wavelength of the sinusoidal factor</li><li><code>γ</code> is the spatial aspect ratio, and specifies the ellipticity of the support of the Gabor function</li><li><code>ψ</code> is the phase offset</li></ul><p>#Citation N. Petkov and P. Kruizinga, “Computational models of visual neurons specialised in the detection of periodic and aperiodic oriented visual stimuli: bar and grating cells,” Biological Cybernetics, vol. 76, no. 2, pp. 83–96, Feb. 1997. doi.org/10.1007/s004220050323</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L384-L398">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.moffat" href="#ImageFiltering.Kernel.moffat"><code>ImageFiltering.Kernel.moffat</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">moffat(α, β, ls) -&gt; k</code></pre><p>Constructs a 2D, symmetric Moffat kernel <code>k</code> with core width, <code>α</code>, and power, <code>β</code>. Size of kernel defaults to 4 * full-width-half-max or as specified in <code>ls</code>. See <a href="https://nbviewer.jupyter.org/github/ysbach/AO_2017/blob/master/04_Ground_Based_Concept.ipynb#1.2.-Moffat">this notebook</a> for details.</p><p><strong>Citation</strong></p><p>Moffat, A. F. J. &quot;A theoretical investigation of focal stellar images in the photographic emulsion and application to photographic photometry.&quot; Astronomy and Astrophysics 3 (1969): 455.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L444-L453">source</a></section></article><h1 id="KernelFactors-1"><a class="docs-heading-anchor" href="#KernelFactors-1">KernelFactors</a><a class="docs-heading-anchor-permalink" href="#KernelFactors-1" title="Permalink"></a></h1><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors" href="#ImageFiltering.KernelFactors"><code>ImageFiltering.KernelFactors</code></a> — <span class="docstring-category">Module</span></header><section><div><p><code>KernelFactors</code> is a module implementing separable filtering kernels, each stored in terms of their factors. The following kernels are supported:</p><ul><li><code>sobel</code></li><li><code>prewitt</code></li><li><code>ando3</code>, <code>ando4</code>, and <code>ando5</code> (the latter in 2d only)</li><li><code>scharr</code></li><li><code>bickley</code></li><li><code>gaussian</code></li><li><code>IIRGaussian</code> (approximate gaussian filtering, fast even for large σ)</li></ul><p>See also: <a href="#ImageFiltering.Kernel"><code>Kernel</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L1-L15">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors.sobel" href="#ImageFiltering.KernelFactors.sobel"><code>ImageFiltering.KernelFactors.sobel</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    kern1, kern2 = sobel()</code></pre><p>Return factored  Sobel filters for dimensions 1 and 2 of a two-dimensional image. Each is a 2-tuple of one-dimensional filters.</p><p><strong>Citation</strong></p><p>P.-E. Danielsson and O. Seger, &quot;Generalized and separable sobel operators,&quot; in  <em>Machine Vision for Three-Dimensional Scenes</em>,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. <a href="https://doi.org/doi:10.1016/b978-0-12-266722-0.50016-6">doi:10.1016/b978-0-12-266722-0.50016-6</a></p><p>See also: <a href="#ImageFiltering.Kernel.sobel"><code>Kernel.sobel</code></a>  and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L153-L164">source</a></section><section><div><pre><code class="language-julia">    kern = sobel(extended::NTuple{N,Bool}, d)</code></pre><p>Return a factored Sobel filter for computing the gradient in <code>N</code> dimensions along axis <code>d</code>. If <code>extended[dim]</code> is false, <code>kern</code> will have size 1 along that dimension.</p><p>See also: <a href="#ImageFiltering.Kernel.sobel"><code>Kernel.sobel</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L171-L180">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors.prewitt" href="#ImageFiltering.KernelFactors.prewitt"><code>ImageFiltering.KernelFactors.prewitt</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    kern1, kern2 = prewitt()</code></pre><p>Return factored Prewitt filters for dimensions 1 and 2 of your image. Each is a 2-tuple of one-dimensional filters.</p><p><strong>Citation</strong></p><p>J. M. Prewitt, &quot;Object enhancement and extraction,&quot; <em>Picture processing and Psychopictorics</em>, vol. 10, no. 1, pp. 15–19, 1970.</p><p>See also: <a href="#ImageFiltering.Kernel.prewitt"><code>Kernel.prewitt</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L185-L196">source</a></section><section><div><pre><code class="language-julia">    kern = prewitt(extended::NTuple{N,Bool}, d)</code></pre><p>Return a factored Prewitt filter for computing the gradient in <code>N</code> dimensions along axis <code>d</code>. If <code>extended[dim]</code> is false, <code>kern</code> will have size 1 along that dimension.</p><p>See also: <a href="#ImageFiltering.Kernel.prewitt"><code>Kernel.prewitt</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L203-L212">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors.bickley" href="#ImageFiltering.KernelFactors.bickley"><code>ImageFiltering.KernelFactors.bickley</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    kern1, kern2 = bickley()</code></pre><p>Return factored Bickley filters for dimensions 1 and 2 of your image.  Each is a 2-tuple of one-dimensional filters.</p><p><strong>Citation</strong></p><p>W. G. Bickley, &quot;Finite difference formulae for the square lattice,&quot; <em>The Quarterly Journal of Mechanics and Applied Mathematics</em>, vol. 1, no. 1, pp. 35–42, 1948.  <a href="https://doi.org/doi:10.1137/12087092x">doi:10.1093/qjmam/1.1.35</a></p><p>See also: <a href="#ImageFiltering.Kernel.bickley"><code>Kernel.bickley</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L253-L264">source</a></section><section><div><pre><code class="language-julia">    kern = bickley(extended::NTuple{N,Bool}, d)</code></pre><p>Return a factored Bickley filter for computing the gradient in <code>N</code> dimensions along axis <code>d</code>. If <code>extended[dim]</code> is false, <code>kern</code> will have size 1 along that dimension.</p><p>See also: <a href="#ImageFiltering.Kernel.bickley"><code>Kernel.bickley</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L271-L280">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors.scharr" href="#ImageFiltering.KernelFactors.scharr"><code>ImageFiltering.KernelFactors.scharr</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    kern1, kern2 = scharr()</code></pre><p>Return factored Scharr filters for dimensions 1 and 2 of your image.  Each is a 2-tuple of one-dimensional filters.</p><p><strong>Citation</strong></p><p>H. Scharr and  J. Weickert, &quot;An anisotropic diffusion algorithm with optimized rotation invariance,&quot; <em>Mustererkennung 2000</em>, pp. 460–467, 2000. <a href="https://doi.org/doi:10.1007/978-3-642-59802-9_58">doi:10.1007/978-3-642-59802-9_58</a></p><p>See also: <a href="#ImageFiltering.Kernel.scharr"><code>Kernel.scharr</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L218-L230">source</a></section><section><div><pre><code class="language-julia">    kern = scharr(extended::NTuple{N,Bool}, d)</code></pre><p>Return a factored Scharr filter for computing the gradient in <code>N</code> dimensions along axis <code>d</code>. If <code>extended[dim]</code> is false, <code>kern</code> will have size 1 along that dimension.</p><p>See also: <a href="#ImageFiltering.Kernel.scharr"><code>Kernel.scharr</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L237-L246">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors.ando3" href="#ImageFiltering.KernelFactors.ando3"><code>ImageFiltering.KernelFactors.ando3</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    kern1, kern2 = ando3()</code></pre><p>Return a factored form of Ando&#39;s &quot;optimal&quot; <span>$3 \times 3$</span> gradient filters for dimensions 1 and 2 of your image.</p><p><strong>Citation</strong></p><p>S. Ando, &quot;Consistent gradient operators,&quot; <em>IEEE Transactions on Pattern Analysis and Machine Intelligence</em>, vol. 22, no.3, pp. 252–265, 2000. <a href="https://doi.org/doi:10.1109/34.841757">doi:10.1109/34.841757</a></p><p>See also: <a href="#ImageFiltering.Kernel.ando3"><code>Kernel.ando3</code></a>,<a href="#ImageFiltering.KernelFactors.ando4"><code>KernelFactors.ando4</code></a>, <a href="#ImageFiltering.KernelFactors.ando5"><code>KernelFactors.ando5</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L296-L307">source</a></section><section><div><pre><code class="language-julia">    kern = ando3(extended::NTuple{N,Bool}, d)</code></pre><p>Return a factored Ando filter (size 3) for computing the gradient in <code>N</code> dimensions along axis <code>d</code>.  If <code>extended[dim]</code> is false, <code>kern</code> will have size 1 along that dimension.</p><p>See also: <a href="#ImageFiltering.KernelFactors.ando4"><code>KernelFactors.ando4</code></a>, <a href="#ImageFiltering.KernelFactors.ando5"><code>KernelFactors.ando5</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L314-L324">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors.ando4" href="#ImageFiltering.KernelFactors.ando4"><code>ImageFiltering.KernelFactors.ando4</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    kern1, kern2 = ando4()</code></pre><p>Return separable approximations of Ando&#39;s &quot;optimal&quot; 4x4 filters for dimensions 1 and 2 of your image.</p><p><strong>Citation</strong></p><p>S. Ando, &quot;Consistent gradient operators,&quot; <em>IEEE Transactions on Pattern Analysis and Machine Intelligence</em>, vol. 22, no.3, pp. 252–265, 2000. <a href="https://doi.org/doi:10.1109/34.841757">doi:10.1109/34.841757</a></p><p>See also: <a href="#ImageFiltering.Kernel.ando4"><code>Kernel.ando4</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L329-L340">source</a></section><section><div><pre><code class="language-julia">    kern = ando4(extended::NTuple{N,Bool}, d)</code></pre><p>Return a factored Ando filter (size 4) for computing the gradient in <code>N</code> dimensions along axis <code>d</code>.  If <code>extended[dim]</code> is false, <code>kern</code> will have size 1 along that dimension.</p><p><strong>Citation</strong></p><p>S. Ando, &quot;Consistent gradient operators,&quot; <em>IEEE Transactions on Pattern Analysis and Machine Intelligence</em>, vol. 22, no.3, pp. 252–265, 2000. <a href="https://doi.org/doi:10.1109/34.841757">doi:10.1109/34.841757</a></p><p>See also: <a href="#ImageFiltering.Kernel.ando4"><code>Kernel.ando4</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L347-L359">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors.ando5" href="#ImageFiltering.KernelFactors.ando5"><code>ImageFiltering.KernelFactors.ando5</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    kern1, kern2 = ando5()</code></pre><p>Return a separable approximations of Ando&#39;s &quot;optimal&quot; 5x5 gradient filters for dimensions 1 and 2 of your image.</p><p><strong>Citation</strong></p><p>S. Ando, &quot;Consistent gradient operators,&quot; <em>IEEE Transactions on Pattern Analysis and Machine Intelligence</em>, vol. 22, no.3, pp. 252–265, 2000. <a href="https://doi.org/doi:10.1109/34.841757">doi:10.1109/34.841757</a></p><p>See also: <a href="#ImageFiltering.Kernel.ando5"><code>Kernel.ando5</code></a> and <a href="#ImageFiltering.imgradients"><code>ImageFiltering.imgradients</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L368-L379">source</a></section><section><div><pre><code class="language-julia">    kern = ando5(extended::NTuple{N,Bool}, d)</code></pre><p>Return a factored Ando filter (size 5) for computing the gradient in <code>N</code> dimensions along axis <code>d</code>.  If <code>extended[dim]</code> is false, <code>kern</code> will have size 1 along that dimension.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L386-L393">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors.gaussian" href="#ImageFiltering.KernelFactors.gaussian"><code>ImageFiltering.KernelFactors.gaussian</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">gaussian(σ::Real, [l]) -&gt; g</code></pre><p>Construct a 1d gaussian kernel <code>g</code> with standard deviation <code>σ</code>, optionally providing the kernel length <code>l</code>. The default is to extend by two <code>σ</code> in each direction from the center. <code>l</code> must be odd.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L404-L410">source</a></section><section><div><pre><code class="language-none">gaussian((σ1, σ2, ...), [l]) -&gt; (g1, g2, ...)</code></pre><p>Construct a multidimensional gaussian filter as a product of single-dimension factors, with standard deviation <code>σd</code> along dimension <code>d</code>. Optionally provide the kernel length <code>l</code>, which must be a tuple of the same length.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L418-L425">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors.IIRGaussian" href="#ImageFiltering.KernelFactors.IIRGaussian"><code>ImageFiltering.KernelFactors.IIRGaussian</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">IIRGaussian([T], σ; emit_warning::Bool=true)</code></pre><p>Construct an infinite impulse response (IIR) approximation to a Gaussian of standard deviation <code>σ</code>. <code>σ</code> may either be a single real number or a tuple of numbers; in the latter case, a tuple of such filters will be created, each for filtering a different dimension of an array.</p><p>Optionally specify the type <code>T</code> for the filter coefficients; if not supplied, it will match <code>σ</code> (unless <code>σ</code> is not floating-point, in which case <code>Float64</code> will be chosen).</p><p><strong>Citation</strong></p><p>I. T. Young, L. J. van Vliet, and M. van Ginkel, &quot;Recursive Gabor Filtering&quot;. IEEE Trans. Sig. Proc., 50: 2798-2805 (2002).</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L488-L504">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors.TriggsSdika" href="#ImageFiltering.KernelFactors.TriggsSdika"><code>ImageFiltering.KernelFactors.TriggsSdika</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia">TriggsSdika(a, b, scale, M)</code></pre><p>Defines a kernel for one-dimensional infinite impulse response (IIR) filtering. <code>a</code> is a &quot;forward&quot; filter, <code>b</code> a &quot;backward&quot; filter, <code>M</code> is a matrix for matching boundary conditions at the right edge, and <code>scale</code> is a constant scaling applied to each element at the conclusion of filtering.</p><p><strong>Citation</strong></p><p>B. Triggs and M. Sdika, &quot;Boundary conditions for Young-van Vliet recursive filtering&quot;. IEEE Trans. on Sig. Proc. 54: 2365-2367 (2006).</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L446-L460">source</a></section><section><div><pre><code class="language-none">TriggsSdika(ab, scale)</code></pre><p>Create a symmetric Triggs-Sdika filter (with <code>a = b = ab</code>). <code>M</code> is calculated for you. Only length 3 filters are currently supported.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L463-L468">source</a></section></article><h1 id="Kernel-utilities-1"><a class="docs-heading-anchor" href="#Kernel-utilities-1">Kernel utilities</a><a class="docs-heading-anchor-permalink" href="#Kernel-utilities-1" title="Permalink"></a></h1><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.centered" href="#ImageFiltering.centered"><code>ImageFiltering.centered</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">shiftedkernel = centered(kernel)</code></pre><p>Shift the origin-of-coordinates to the center of <code>kernel</code>. The center-element of <code>kernel</code> will be accessed by <code>shiftedkernel[0, 0, ...]</code>.</p><p>This function makes it easy to supply kernels using regular Arrays, and provides compatibility with other languages that do not support arbitrary axes.</p><p>See also: <a href="#ImageFiltering.imfilter"><code>imfilter</code></a>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/utils.jl#L1-L13">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors.kernelfactors" href="#ImageFiltering.KernelFactors.kernelfactors"><code>ImageFiltering.KernelFactors.kernelfactors</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">kernelfactors(factors::Tuple)</code></pre><p>Prepare a factored kernel for filtering. If passed a 2-tuple of vectors of lengths <code>m</code> and <code>n</code>, this will return a 2-tuple of <code>ReshapedVector</code>s that are effectively of sizes <code>m×1</code> and <code>1×n</code>. In general, each successive <code>factor</code> will be reshaped to extend along the corresponding dimension.</p><p>If passed a tuple of general arrays, it is assumed that each is shaped appropriately along its &quot;leading&quot; dimensions; the dimensionality of each is &quot;extended&quot; to <code>N = length(factors)</code>, appending 1s to the size as needed.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L545-L557">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Kernel.reflect" href="#ImageFiltering.Kernel.reflect"><code>ImageFiltering.Kernel.reflect</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">reflect(kernel) --&gt; reflectedkernel</code></pre><p>Compute the pointwise reflection around 0, 0, ... of the kernel <code>kernel</code>.  Using <code>imfilter</code> with a <code>reflectedkernel</code> performs convolution, rather than correlation, with respect to the original <code>kernel</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernel.jl#L469-L475">source</a></section></article><h1 id="Boundaries-and-padding-1"><a class="docs-heading-anchor" href="#Boundaries-and-padding-1">Boundaries and padding</a><a class="docs-heading-anchor-permalink" href="#Boundaries-and-padding-1" title="Permalink"></a></h1><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.padarray" href="#ImageFiltering.padarray"><code>ImageFiltering.padarray</code></a> — <span class="docstring-category">Function</span></header><section><div><pre><code class="language-julia">    padarray([T], img, border) --&gt; imgpadded</code></pre><p>Generate a padded image from an array <code>img</code> and a specification <code>border</code> of the boundary conditions and amount of padding to add.</p><p><strong>Output</strong></p><p>An expansion of the input image in which additional pixels are derived from the border of the input image using the extrapolation scheme specified by <code>border</code>.</p><p><strong>Details</strong></p><p>The function supports one, two or multi-dimensional images. You can specify the element type <code>T</code> of the output image.</p><p><strong>Options</strong></p><p>Valid <code>border</code> options are described below.</p><p><strong><code>Pad</code></strong></p><p>The type <code>Pad</code> designates the form of padding which should be used to extrapolate pixels beyond the boundary of an image. Instances must set <code>style</code>, a Symbol specifying the boundary conditions of the image.</p><p>Symbol must be on one of:</p><ul><li><code>:replicate</code> (repeat edge values to infinity),</li><li><code>:circular</code> (image edges &quot;wrap around&quot;),</li><li><code>:symmetric</code> (the image reflects relative to a position between pixels),</li><li><code>:reflect</code> (the image reflects relative to the edge itself).</li></ul><p>Refer to the documentation of <a href="#ImageFiltering.Pad"><code>Pad</code></a> for more details and examples for each option.</p><p><strong><code>Fill</code></strong></p><p>The type <code>Fill</code> designates a particular value which will be used to extrapolate pixels beyond the boundary of an image. Refer to the documentation of <a href="#ImageFiltering.Fill"><code>Fill</code></a> for more details and illustrations.</p><p><strong>2D Examples</strong></p><p>Each example is based on the input array</p><div>\[\mathbf{A} =
+\boxed{
+\begin{matrix}
+ 1  &amp; 2  &amp;  3  &amp;  4 &amp; 5  &amp; 6 \\
+ 2  &amp; 4  &amp;  6  &amp;  8 &amp; 10 &amp; 12 \\
+ 3  &amp; 6  &amp;  9  &amp; 12 &amp; 15 &amp; 18 \\
+ 4  &amp; 8  &amp; 12  &amp; 16 &amp; 20 &amp; 24 \\
+ 5  &amp; 10 &amp; 15  &amp; 20 &amp; 25 &amp; 30 \\
+ 6  &amp; 12 &amp; 18  &amp; 24 &amp; 30 &amp; 36
+ \end{matrix}}.\]</div><p><strong>Examples with <code>Pad</code></strong></p><p>The command <code>padarray(A, Pad(:replicate,4,4))</code> yields</p><div>\[\boxed{
+\begin{array}{ccccccccccccc}
+1 &amp; 1 &amp; 1 &amp; 1 &amp;         1   &amp;          2   &amp;          3   &amp;          4   &amp;          5   &amp;          6   &amp;  6  &amp;  6  &amp;  6  &amp;  6 \\
+1 &amp; 1 &amp; 1 &amp; 1 &amp;         1   &amp;          2   &amp;          3   &amp;          4   &amp;          5   &amp;          6   &amp;  6  &amp;  6  &amp;  6  &amp;  6 \\
+1 &amp; 1 &amp; 1 &amp; 1 &amp;         1   &amp;          2   &amp;          3   &amp;          4   &amp;          5   &amp;          6   &amp;  6  &amp;  6  &amp;  6  &amp;  6 \\
+1 &amp; 1 &amp; 1 &amp; 1 &amp;         1   &amp;          2   &amp;          3   &amp;          4   &amp;          5   &amp;          6   &amp;  6  &amp;  6  &amp;  6  &amp;  6 \\
+1 &amp; 1 &amp; 1 &amp; 1 &amp;  \boxed{1}  &amp;   \boxed{2}  &amp;   \boxed{3}  &amp;   \boxed{4}  &amp;   \boxed{5}  &amp;   \boxed{6}  &amp;  6  &amp;  6  &amp;  6  &amp;  6 \\
+2 &amp; 2 &amp; 2 &amp; 2 &amp;  \boxed{2}  &amp;   \boxed{4}  &amp;   \boxed{6}  &amp;   \boxed{8}  &amp;  \boxed{10}  &amp;  \boxed{12}  &amp; 12  &amp; 12  &amp; 12  &amp; 12 \\
+3 &amp; 3 &amp; 3 &amp; 3 &amp;  \boxed{3}  &amp;   \boxed{6}  &amp;   \boxed{9}  &amp;  \boxed{12}  &amp;  \boxed{15}  &amp;  \boxed{18}  &amp; 18  &amp; 18  &amp; 18  &amp; 18 \\
+4 &amp; 4 &amp; 4 &amp; 4 &amp;  \boxed{4}  &amp;   \boxed{8}  &amp;  \boxed{12}  &amp;  \boxed{16}  &amp;  \boxed{20}  &amp;  \boxed{24}  &amp; 24  &amp; 24  &amp; 24  &amp; 24 \\
+5 &amp; 5 &amp; 5 &amp; 5 &amp;  \boxed{5}  &amp;  \boxed{10}  &amp;  \boxed{15}  &amp;  \boxed{20}  &amp;  \boxed{25}  &amp;  \boxed{30}  &amp; 30  &amp; 30  &amp; 30  &amp; 30 \\
+6 &amp; 6 &amp; 6 &amp; 6 &amp;  \boxed{6}  &amp;  \boxed{12}  &amp;  \boxed{18}  &amp;  \boxed{24}  &amp;  \boxed{30}  &amp;  \boxed{36}  &amp; 36  &amp; 36  &amp; 36  &amp; 36 \\
+6 &amp; 6 &amp; 6 &amp; 6 &amp;         6   &amp;         12   &amp;         18   &amp;         24   &amp;         30   &amp;         36   &amp; 36  &amp; 36  &amp; 36  &amp; 36 \\
+6 &amp; 6 &amp; 6 &amp; 6 &amp;         6   &amp;         12   &amp;         18   &amp;         24   &amp;         30   &amp;         36   &amp; 36  &amp; 36  &amp; 36  &amp; 36 \\
+6 &amp; 6 &amp; 6 &amp; 6 &amp;         6   &amp;         12   &amp;         18   &amp;         24   &amp;         30   &amp;         36   &amp; 36  &amp; 36  &amp; 36  &amp; 36 \\
+6 &amp; 6 &amp; 6 &amp; 6 &amp;         6   &amp;         12   &amp;         18   &amp;         24   &amp;         30   &amp;         36   &amp; 36  &amp; 36  &amp; 36  &amp; 36
+ \end{array}
+}.\]</div><p>The command <code>padarray(A, Pad(:circular,4,4))</code> yields</p><div>\[\boxed{
+\begin{array}{ccccccccccccc}
+9  &amp; 12 &amp; 15 &amp; 18 &amp;         3  &amp;         6   &amp;         9   &amp;         12  &amp;          15  &amp;         18  &amp; 3 &amp;  6 &amp;  9 &amp; 12 \\
+12 &amp; 16 &amp; 20 &amp; 24 &amp;         4  &amp;         8   &amp;        12   &amp;         16  &amp;          20  &amp;         24  &amp; 4 &amp;  8 &amp; 12 &amp; 16 \\
+15 &amp; 20 &amp; 25 &amp; 30 &amp;         5  &amp;        10   &amp;        15   &amp;         20  &amp;          25  &amp;         30  &amp; 5 &amp; 10 &amp; 15 &amp; 20 \\
+18 &amp; 24 &amp; 30 &amp; 36 &amp;         6  &amp;        12   &amp;        18   &amp;         24  &amp;          30  &amp;         36  &amp; 6 &amp; 12 &amp; 18 &amp; 24 \\
+3  &amp;  4 &amp;  5 &amp;  6 &amp;  \boxed{1} &amp;  \boxed{2}  &amp;  \boxed{3}  &amp;  \boxed{4}  &amp;  \boxed{5}   &amp;  \boxed{6}  &amp; 1 &amp;  2 &amp;  3 &amp;  4 \\
+6  &amp;  8 &amp; 10 &amp; 12 &amp;  \boxed{2} &amp;  \boxed{4}  &amp;  \boxed{6}  &amp;  \boxed{8}  &amp;  \boxed{10}  &amp;  \boxed{12} &amp; 2 &amp;  4 &amp;  6 &amp;  8 \\
+9  &amp; 12 &amp; 15 &amp; 18 &amp;  \boxed{3} &amp;  \boxed{6}  &amp;  \boxed{9}  &amp;  \boxed{12} &amp;  \boxed{15}  &amp;  \boxed{18} &amp; 3 &amp;  6 &amp;  9 &amp; 12 \\
+12 &amp; 16 &amp; 20 &amp; 24 &amp;  \boxed{4} &amp;  \boxed{8}  &amp;  \boxed{12} &amp;  \boxed{16} &amp;  \boxed{20}  &amp;  \boxed{24} &amp; 4 &amp;  8 &amp; 12 &amp; 16 \\
+15 &amp; 20 &amp; 25 &amp; 30 &amp;  \boxed{5} &amp;  \boxed{10} &amp;  \boxed{15} &amp;  \boxed{20} &amp;  \boxed{25}  &amp;  \boxed{30} &amp; 5 &amp; 10 &amp; 15 &amp; 20 \\
+18 &amp; 24 &amp; 30 &amp; 36 &amp;  \boxed{6} &amp;  \boxed{12} &amp;  \boxed{18} &amp;  \boxed{24} &amp;  \boxed{30}  &amp;  \boxed{36} &amp; 6 &amp; 12 &amp; 18 &amp; 24 \\
+3  &amp;  4 &amp;  5 &amp;  6 &amp;         1  &amp;          2  &amp;          3  &amp;          4  &amp;           5  &amp;          6  &amp; 1 &amp;  2 &amp;  3 &amp;  4 \\
+6  &amp;  8 &amp; 10 &amp; 12 &amp;         2  &amp;          4  &amp;          6  &amp;          8  &amp;          10  &amp;         12  &amp; 2 &amp;  4 &amp;  6 &amp;  8 \\
+9  &amp; 12 &amp; 15 &amp; 18 &amp;         3  &amp;          6  &amp;          9  &amp;         12  &amp;          15  &amp;         18  &amp; 3 &amp;  6 &amp;  9 &amp; 12 \\
+12 &amp; 16 &amp; 20 &amp; 24 &amp;         4  &amp;          8  &amp;         12  &amp;         16  &amp;          20  &amp;         24  &amp; 4 &amp;  8 &amp; 12 &amp; 16
+\end{array}
+}.\]</div><p>The command <code>padarray(A, Pad(:symmetric,4,4))</code> yields</p><div>\[\boxed{
+\begin{array}{ccccccccccccc}
+16 &amp; 12 &amp;  8 &amp; 4 &amp;         4  &amp;          8  &amp;         12  &amp;          16 &amp;          20 &amp;         24  &amp; 24 &amp; 20 &amp; 16 &amp; 12 \\
+12 &amp;  9 &amp;  6 &amp; 3 &amp;         3  &amp;          6  &amp;         9   &amp;          12 &amp;          15 &amp;         18  &amp; 18 &amp; 15 &amp; 12 &amp;  9 \\
+ 8 &amp;  6 &amp;  4 &amp; 2 &amp;         2  &amp;          4  &amp;         6   &amp;          8  &amp;          10 &amp;         12  &amp; 12 &amp; 10 &amp;  8 &amp;  6 \\
+ 4 &amp;  3 &amp;  2 &amp; 1 &amp;         1  &amp;          2  &amp;         3   &amp;          4  &amp;          5  &amp;         6   &amp;  6 &amp;  5 &amp;  4 &amp;  3 \\
+ 4 &amp;  3 &amp;  2 &amp; 1 &amp;  \boxed{1} &amp;   \boxed{2} &amp;  \boxed{3}  &amp;   \boxed{4} &amp;  \boxed{5}  &amp;  \boxed{6}  &amp;  6 &amp;  5 &amp;  4 &amp;  3 \\
+ 8 &amp;  6 &amp;  4 &amp; 2 &amp;  \boxed{2} &amp;   \boxed{4} &amp;  \boxed{6}  &amp;   \boxed{8} &amp;  \boxed{10} &amp;  \boxed{12} &amp; 12 &amp; 10 &amp;  8 &amp;  6 \\
+12 &amp;  9 &amp;  6 &amp; 3 &amp;  \boxed{3} &amp;   \boxed{6} &amp;  \boxed{9}  &amp;  \boxed{12} &amp;  \boxed{15} &amp;  \boxed{18} &amp; 18 &amp; 15 &amp; 12 &amp;  9 \\
+16 &amp; 12 &amp;  8 &amp; 4 &amp;  \boxed{4} &amp;   \boxed{8} &amp;  \boxed{12} &amp;  \boxed{16} &amp;  \boxed{20} &amp;  \boxed{24} &amp; 24 &amp; 20 &amp; 16 &amp; 12 \\
+20 &amp; 15 &amp; 10 &amp; 5 &amp;  \boxed{5} &amp;  \boxed{10} &amp;  \boxed{15} &amp;  \boxed{20} &amp;  \boxed{25} &amp;  \boxed{30} &amp; 30 &amp; 25 &amp; 20 &amp; 15 \\
+24 &amp; 18 &amp; 12 &amp; 6 &amp;  \boxed{6} &amp;  \boxed{12} &amp;  \boxed{18} &amp;  \boxed{24} &amp;  \boxed{30} &amp;  \boxed{36} &amp; 36 &amp; 30 &amp; 24 &amp; 18 \\
+24 &amp; 18 &amp; 12 &amp; 6 &amp;         6  &amp;         12  &amp;         18  &amp;         24  &amp;         30  &amp;         36  &amp; 36 &amp; 30 &amp; 24 &amp; 18 \\
+20 &amp; 15 &amp; 10 &amp; 5 &amp;         5  &amp;         10  &amp;         15  &amp;         20  &amp;         25  &amp;         30  &amp; 30 &amp; 25 &amp; 20 &amp; 15 \\
+16 &amp; 12 &amp;  8 &amp; 4 &amp;         4  &amp;          8  &amp;         12  &amp;         16  &amp;         20  &amp;         24  &amp; 24 &amp; 20 &amp; 16 &amp; 12 \\
+12 &amp;  9 &amp;  6 &amp; 3 &amp;         3  &amp;          6  &amp;          9  &amp;         12  &amp;         15  &amp;         18  &amp; 18 &amp; 15 &amp; 12 &amp;  9
+\end{array}
+}.\]</div><p>The command <code>padarray(A, Pad(:reflect,4,4))</code> yields</p><div>\[\boxed{
+\begin{array}{ccccccccccccc}
+25 &amp; 20 &amp; 15 &amp; 10 &amp;         5  &amp;         10  &amp;         15   &amp;         20  &amp;          25  &amp;         30  &amp; 25 &amp; 20 &amp; 15 &amp; 10 \\
+20 &amp; 16 &amp; 12 &amp;  8 &amp;         4  &amp;         8   &amp;         12   &amp;         16  &amp;          20  &amp;         24  &amp; 20 &amp; 16 &amp; 12 &amp;  8 \\
+15 &amp; 12 &amp;  9 &amp;  6 &amp;         3  &amp;         6   &amp;          9   &amp;         12  &amp;          15  &amp;         18  &amp; 15 &amp; 12 &amp;  9 &amp;  6 \\
+10 &amp;  8 &amp;  6 &amp;  4 &amp;         2  &amp;         4   &amp;          6   &amp;         8   &amp;          10  &amp;         12  &amp; 10 &amp;  8 &amp;  6 &amp;  4 \\
+5  &amp;  4 &amp;  3 &amp;  2 &amp;  \boxed{1} &amp;  \boxed{2}  &amp;   \boxed{3}  &amp;  \boxed{4}  &amp;   \boxed{5}  &amp;  \boxed{6}  &amp;  5 &amp;  4 &amp;  3 &amp;  2 \\
+10 &amp;  8 &amp;  6 &amp;  4 &amp;  \boxed{2} &amp;  \boxed{4}  &amp;   \boxed{6}  &amp;  \boxed{8}  &amp;   \boxed{10} &amp;  \boxed{12} &amp; 10 &amp;  8 &amp;  6 &amp;  4 \\
+15 &amp; 12 &amp;  9 &amp;  6 &amp;  \boxed{3} &amp;  \boxed{6}  &amp;   \boxed{9}  &amp;  \boxed{12} &amp;   \boxed{15} &amp;  \boxed{18} &amp; 15 &amp; 12 &amp;  9 &amp;  6 \\
+20 &amp; 16 &amp; 12 &amp;  8 &amp;  \boxed{4} &amp;  \boxed{8}  &amp;   \boxed{12} &amp;  \boxed{16} &amp;   \boxed{20} &amp;  \boxed{24} &amp; 20 &amp; 16 &amp; 12 &amp;  8 \\
+25 &amp; 20 &amp; 15 &amp; 10 &amp;  \boxed{5} &amp;  \boxed{10} &amp;   \boxed{15} &amp;  \boxed{20} &amp;   \boxed{25} &amp;  \boxed{30} &amp; 25 &amp; 20 &amp; 15 &amp; 10 \\
+30 &amp; 24 &amp; 18 &amp; 12 &amp;  \boxed{6} &amp;  \boxed{12} &amp;   \boxed{18} &amp;  \boxed{24} &amp;   \boxed{30} &amp;  \boxed{36} &amp; 30 &amp; 24 &amp; 18 &amp; 12 \\
+25 &amp; 20 &amp; 15 &amp; 10 &amp;         5  &amp;         10  &amp;          15  &amp;         20  &amp;          25  &amp;         30  &amp; 25 &amp; 20 &amp; 15 &amp; 10 \\
+20 &amp; 16 &amp; 12 &amp;  8 &amp;         4  &amp;         8   &amp;          12  &amp;         16  &amp;          20  &amp;         24  &amp; 20 &amp; 16 &amp; 12 &amp;  8 \\
+15 &amp; 12 &amp;  9 &amp;  6 &amp;         3  &amp;         6   &amp;           9  &amp;         12  &amp;          15  &amp;         18  &amp; 15 &amp; 12 &amp;  9 &amp;  6 \\
+10 &amp;  8 &amp;  6 &amp;  4 &amp;         2  &amp;         4   &amp;           6  &amp;          8  &amp;          10  &amp;         12  &amp; 10 &amp;  8 &amp;  6 &amp;  4
+\end{array}
+}.\]</div><p><strong>Examples with <code>Fill</code></strong></p><p>The command <code>padarray(A, Fill(0,(4,4),(4,4)))</code> yields</p><div>\[\boxed{
+\begin{array}{ccccccccccccc}
+0 &amp; 0 &amp; 0 &amp; 0 &amp;         0  &amp;         0   &amp;         0   &amp;         0   &amp;         0   &amp;          0   &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;         0  &amp;         0   &amp;         0   &amp;         0   &amp;         0   &amp;          0   &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;         0  &amp;         0   &amp;         0   &amp;         0   &amp;         0   &amp;          0   &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;         0  &amp;         0   &amp;         0   &amp;         0   &amp;         0   &amp;          0   &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;  \boxed{1} &amp;  \boxed{2}  &amp;  \boxed{3}  &amp;  \boxed{4}  &amp;  \boxed{5}  &amp;   \boxed{6}  &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;  \boxed{2} &amp;  \boxed{4}  &amp;  \boxed{6}  &amp;  \boxed{8}  &amp;  \boxed{10} &amp;   \boxed{12} &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;  \boxed{3} &amp;  \boxed{6}  &amp;  \boxed{9}  &amp;  \boxed{12} &amp;  \boxed{15} &amp;   \boxed{18} &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;  \boxed{4} &amp;  \boxed{8}  &amp;  \boxed{12} &amp;  \boxed{16} &amp;  \boxed{20} &amp;   \boxed{24} &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;  \boxed{5} &amp;  \boxed{10} &amp;  \boxed{15} &amp;  \boxed{20} &amp;  \boxed{25} &amp;   \boxed{30} &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;  \boxed{6} &amp;  \boxed{12} &amp;  \boxed{18} &amp;  \boxed{24} &amp;  \boxed{30} &amp;   \boxed{36} &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;         0  &amp;         0   &amp;         0   &amp;         0   &amp;         0   &amp;          0   &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;         0  &amp;         0   &amp;         0   &amp;         0   &amp;         0   &amp;          0   &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;         0  &amp;         0   &amp;         0   &amp;         0   &amp;         0   &amp;          0   &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 &amp;         0  &amp;         0   &amp;         0   &amp;         0   &amp;         0   &amp;          0   &amp; 0 &amp; 0 &amp; 0 &amp; 0
+\end{array}
+}.\]</div><p><strong>3D Examples</strong></p><p>Each example is based on a multi-dimensional array <span>$\mathsf{A} \in\mathbb{R}^{2 \times 2 \times 2}$</span> given by</p><div>\[\mathsf{A}(:,:,1) =
+\boxed{
+\begin{array}{cc}
+1 &amp; 2 \\
+3 &amp; 4
+\end{array}}
+\quad
+\text{and}
+\quad
+\mathsf{A}(:,:,2) =
+\boxed{
+\begin{array}{cc}
+5 &amp; 6 \\
+7 &amp; 8
+\end{array}}.\]</div><p>Note that each example will yield a new multi-dimensional array <span>$\mathsf{A}&#39; \in \mathbb{R}^{4 \times 4 \times 4}$</span> of type <code>OffsetArray</code>, where prepended dimensions may be negative or start from zero.</p><p><strong>Examples with <code>Pad</code></strong></p><p>The command <code>padarray(A,Pad(:replicate,1,1,1))</code> yields</p><div>\[\begin{aligned}
+\mathsf{A}&#39;(:,:,0) &amp; =
+\boxed{
+\begin{array}{cccc}
+1 &amp; 1 &amp; 2 &amp; 2 \\
+1 &amp; 1 &amp; 2 &amp; 2 \\
+3 &amp; 3 &amp; 4 &amp; 4 \\
+3 &amp; 3 &amp; 4 &amp; 4
+\end{array}}
+&amp;
+\mathsf{A}&#39;(:,:,1) &amp; =
+\boxed{
+\begin{array}{cccc}
+1 &amp;         1  &amp;         2  &amp; 2 \\
+1 &amp;  \boxed{1} &amp;  \boxed{2} &amp; 2 \\
+3 &amp;  \boxed{3} &amp;  \boxed{4} &amp; 4 \\
+3 &amp;         3  &amp;         4  &amp; 4
+\end{array}} \\
+\mathsf{A}&#39;(:,:,2) &amp; =
+\boxed{
+\begin{array}{cccc}
+5 &amp;         5  &amp;         6  &amp; 6 \\
+5 &amp;  \boxed{5} &amp;  \boxed{6} &amp; 6 \\
+7 &amp;  \boxed{7} &amp;  \boxed{8} &amp; 8 \\
+7 &amp;         7  &amp;         8  &amp; 8
+\end{array}}
+&amp;
+\mathsf{A}&#39;(:,:,3) &amp; =
+\boxed{
+\begin{array}{cccc}
+5 &amp; 5 &amp; 6 &amp; 6 \\
+5 &amp; 5 &amp; 6 &amp; 6 \\
+7 &amp; 7 &amp; 8 &amp; 8 \\
+7 &amp; 7 &amp; 8 &amp; 8
+\end{array}}
+\end{aligned}
+.\]</div><p>The command <code>padarray(A,Pad(:circular,1,1,1))</code> yields</p><div>\[\begin{aligned}
+\mathsf{A}&#39;(:,:,0) &amp; =
+\boxed{
+\begin{array}{cccc}
+8 &amp; 7 &amp; 8 &amp; 7 \\
+6 &amp; 5 &amp; 6 &amp; 5 \\
+8 &amp; 7 &amp; 8 &amp; 7 \\
+6 &amp; 5 &amp; 6 &amp; 5
+\end{array}}
+&amp;
+\mathsf{A}&#39;(:,:,1) &amp; =
+\boxed{
+\begin{array}{cccc}
+4 &amp;         3  &amp;         4  &amp; 3 \\
+2 &amp;  \boxed{1} &amp;  \boxed{2} &amp; 1 \\
+4 &amp;  \boxed{3} &amp;  \boxed{4} &amp; 3 \\
+2 &amp;         1  &amp;         2  &amp; 1
+\end{array}} \\
+\mathsf{A}&#39;(:,:,2) &amp; =
+\boxed{
+\begin{array}{cccc}
+8 &amp;         7  &amp;         8  &amp; 7 \\
+6 &amp;  \boxed{5} &amp;  \boxed{6} &amp; 5 \\
+8 &amp;  \boxed{7} &amp;  \boxed{8} &amp; 7 \\
+6 &amp;         5  &amp;         6  &amp; 5
+\end{array}}
+&amp;
+\mathsf{A}&#39;(:,:,3) &amp; =
+\boxed{
+\begin{array}{cccc}
+4 &amp; 3 &amp; 4 &amp; 3 \\
+2 &amp; 1 &amp; 2 &amp; 1 \\
+4 &amp; 3 &amp; 4 &amp; 3 \\
+2 &amp; 1 &amp; 2 &amp; 1
+\end{array}}
+\end{aligned}
+.\]</div><p>The command <code>padarray(A,Pad(:symmetric,1,1,1))</code> yields</p><div>\[\begin{aligned}
+\mathsf{A}&#39;(:,:,0) &amp; =
+\boxed{
+\begin{array}{cccc}
+1 &amp; 1 &amp; 2 &amp; 2 \\
+1 &amp; 1 &amp; 2 &amp; 2 \\
+3 &amp; 3 &amp; 4 &amp; 4 \\
+3 &amp; 3 &amp; 4 &amp; 4
+\end{array}}
+&amp;
+\mathsf{A}&#39;(:,:,1) &amp; =
+\boxed{
+\begin{array}{cccc}
+1 &amp;         1  &amp;         2  &amp; 2 \\
+1 &amp;  \boxed{1} &amp;  \boxed{2} &amp; 2 \\
+2 &amp;  \boxed{3} &amp;  \boxed{4} &amp; 4 \\
+2 &amp;         3  &amp;         4  &amp; 4
+\end{array}} \\
+\mathsf{A}&#39;(:,:,2) &amp; =
+\boxed{
+\begin{array}{cccc}
+5 &amp;         5  &amp;         6  &amp; 6 \\
+5 &amp;  \boxed{5} &amp;  \boxed{6} &amp; 6 \\
+7 &amp;  \boxed{7} &amp;  \boxed{8} &amp; 8 \\
+7 &amp;         7  &amp;         8  &amp; 8
+\end{array}}
+&amp;
+\mathsf{A}&#39;(:,:,3) &amp; =
+\boxed{
+\begin{array}{cccc}
+5 &amp; 5 &amp; 6 &amp; 6 \\
+5 &amp; 5 &amp; 6 &amp; 6 \\
+7 &amp; 7 &amp; 8 &amp; 8 \\
+7 &amp; 7 &amp; 8 &amp; 8
+\end{array}}
+\end{aligned}
+.\]</div><p>The command <code>padarray(A,Pad(:reflect,1,1,1))</code> yields</p><div>\[\begin{aligned}
+\mathsf{A}&#39;(:,:,0) &amp; =
+\boxed{
+\begin{array}{cccc}
+8 &amp; 7 &amp; 8 &amp; 7 \\
+6 &amp; 5 &amp; 6 &amp; 5 \\
+8 &amp; 7 &amp; 8 &amp; 7 \\
+6 &amp; 5 &amp; 6 &amp; 5
+\end{array}}
+&amp;
+\mathsf{A}&#39;(:,:,1) &amp; =
+\boxed{
+\begin{array}{cccc}
+4 &amp;         3  &amp;         4  &amp; 3 \\
+2 &amp;  \boxed{1} &amp;  \boxed{2} &amp; 1 \\
+4 &amp;  \boxed{3} &amp;  \boxed{4} &amp; 3 \\
+2 &amp;         1  &amp;         2  &amp; 1
+\end{array}} \\
+\mathsf{A}&#39;(:,:,2) &amp; =
+\boxed{
+\begin{array}{cccc}
+8 &amp;         7  &amp;         8  &amp; 7 \\
+6 &amp;  \boxed{5} &amp;  \boxed{6} &amp; 5 \\
+8 &amp;  \boxed{7} &amp;  \boxed{8} &amp; 7 \\
+6 &amp;         5  &amp;         6  &amp; 5
+\end{array}}
+&amp;
+\mathsf{A}&#39;(:,:,3) &amp; =
+\boxed{
+\begin{array}{cccc}
+4 &amp; 3 &amp; 4 &amp; 3 \\
+2 &amp; 1 &amp; 2 &amp; 1 \\
+4 &amp; 3 &amp; 4 &amp; 3 \\
+2 &amp; 1 &amp; 2 &amp; 1
+\end{array}}
+\end{aligned}
+.\]</div><p><strong>Examples with <code>Fill</code></strong></p><p>The command <code>padarray(A,Fill(0,(1,1,1)))</code> yields</p><div>\[\begin{aligned}
+\mathsf{A}&#39;(:,:,0) &amp; =
+\boxed{
+\begin{array}{cccc}
+0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0
+\end{array}}
+&amp;
+\mathsf{A}&#39;(:,:,1) &amp; =
+\boxed{
+\begin{array}{cccc}
+0 &amp;         0  &amp;         0  &amp; 0 \\
+0 &amp;  \boxed{1} &amp;  \boxed{2} &amp; 0 \\
+0 &amp;  \boxed{3} &amp;  \boxed{4} &amp; 0 \\
+0 &amp;         0  &amp;         0  &amp; 0
+\end{array}} \\
+\mathsf{A}&#39;(:,:,2) &amp; =
+\boxed{
+\begin{array}{cccc}
+0 &amp;         0  &amp;         0  &amp; 0 \\
+0 &amp;  \boxed{5} &amp;  \boxed{6} &amp; 0 \\
+0 &amp;  \boxed{7} &amp;  \boxed{8} &amp; 0 \\
+0 &amp;         0  &amp;         0  &amp; 0
+\end{array}}
+&amp;
+\mathsf{A}&#39;(:,:,3) &amp; =
+\boxed{
+\begin{array}{cccc}
+0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0 \\
+0 &amp; 0 &amp; 0 &amp; 0
+\end{array}}
+\end{aligned}
+.\]</div><hr/></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/border.jl#L260-L659">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.BorderArray" href="#ImageFiltering.BorderArray"><code>ImageFiltering.BorderArray</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia">BorderArray(inner::AbstractArray, border::AbstractBorder) &lt;: AbstractArray</code></pre><p>Construct a thin wrapper around the array <code>inner</code>, with given <code>border</code>. No data is copied in the constructor, instead border values are computed on the fly in <code>getindex</code> calls. Usful for stencil computations. See also <a href="@ref">padarray</a>.</p><p><strong>Examples</strong></p><pre><code class="language-julia">julia&gt; using ImageFiltering
+
+julia&gt; arr = reshape(1:6, (2,3))
+2×3 reshape(::UnitRange{Int64}, 2, 3) with eltype Int64:
+ 1  3  5
+ 2  4  6
+
+julia&gt; BorderArray(arr, Pad((1,1)))
+BorderArray{Int64,2,Base.ReshapedArray{Int64,2,UnitRange{Int64},Tuple{}},Pad{2}} with indices 0:3×0:4:
+ 1  1  3  5  5
+ 1  1  3  5  5
+ 2  2  4  6  6
+ 2  2  4  6  6
+
+julia&gt; BorderArray(arr, Fill(10, (2,1)))
+BorderArray{Int64,2,Base.ReshapedArray{Int64,2,UnitRange{Int64},Tuple{}},Fill{Int64,2}} with indices -1:4×0:4:
+ 10  10  10  10  10
+ 10  10  10  10  10
+ 10   1   3   5  10
+ 10   2   4   6  10
+ 10  10  10  10  10
+ 10  10  10  10  10</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/borderarray.jl#L26-L56">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Pad" href="#ImageFiltering.Pad"><code>ImageFiltering.Pad</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia">    struct Pad{N} &lt;: AbstractBorder
+        style::Symbol
+        lo::Dims{N}    # number to extend by on the lower edge for each dimension
+        hi::Dims{N}    # number to extend by on the upper edge for each dimension
+    end</code></pre><p><code>Pad</code> is a type that designates the form of padding which should be used to extrapolate pixels beyond the boundary of an image. Instances must set <code>style</code>, a Symbol specifying the boundary conditions of the image.</p><p><strong>Output</strong></p><p>The type <code>Pad</code> specifying how the boundary of an image should be padded.</p><p><strong>Details</strong></p><p>When representing a spatial two-dimensional image filtering operation as a discrete convolution between the image and a <span>$D \times D$</span> filter, the results are undefined for pixels closer than <span>$D$</span> pixels from the border of the image. To define the operation near and at the border, one needs a scheme for extrapolating pixels beyond the edge. The <code>Pad</code> type allows one to specify the necessary extrapolation scheme.</p><p>The type facilitates the padding of one, two or multi-dimensional images.</p><p>You can specify a different amount of padding at the lower and upper borders of each dimension of the image (top, left, bottom and right in two dimensions).</p><p><strong>Options</strong></p><p>Some valid <code>style</code> options are described below. As an indicative example of each option the results of the padding are illustrated on an image consisting of a row of six pixels which are specified alphabetically: <span>$\boxed{a \, b \, c \,d \, e \, f}$</span>. We show the effects of padding only on the left and right border, but analogous consequences hold for the top and bottom border.</p><p><strong><code>:replicate</code> (Default)</strong></p><p>The border pixels extend beyond the image boundaries.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  a\, a\, a\, a  &amp;  a \, b \, c \, d \, e \, f &amp; f \, f \, f \, f
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Fill"><code>Fill</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a> and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong><code>:circular</code></strong></p><p>The border pixels wrap around. For instance, indexing beyond the left border returns values starting from the right border.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  c\, d\, e\, f  &amp;  a \, b \, c \, d \, e \, f &amp; a \, b \, c \, d
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Fill"><code>Fill</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a> and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong><code>:symmetric</code></strong></p><p>The border pixels reflect relative to a position between pixels. That is, the border pixel is omitted when mirroring.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  e\, d\, c\, b  &amp;  a \, b \, c \, d \, e \, f &amp; e \, d \, c \, b
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Fill"><code>Fill</code></a>,<a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a> and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><p><strong><code>:reflect</code></strong></p><p>The border pixels reflect relative to the edge itself.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  d\, c\, b\, a  &amp;  a \, b \, c \, d \, e \, f &amp; f \, e \, d \, c
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Fill"><code>Fill</code></a>,<a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a> and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><hr/></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/border.jl#L32-L124">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Fill" href="#ImageFiltering.Fill"><code>ImageFiltering.Fill</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia">    struct Fill{T,N} &lt;: AbstractBorder
+        value::T
+        lo::Dims{N}
+        hi::Dims{N}
+    end</code></pre><p><code>Fill</code> is a type that designates a particular value which will be used to extrapolate pixels beyond the boundary of an image.</p><p><strong>Output</strong></p><p>The type <code>Fill</code> specifying the value with which the boundary of the image should be padded.</p><p><strong>Details</strong></p><p>When representing a two-dimensional spatial image filtering operation as a discrete convolution between an image and a <span>$D \times D$</span> filter, the results are undefined for pixels closer than <span>$D$</span> pixels from the border of the image. To define the operation near and at the border, one needs a scheme for extrapolating pixels beyond the edge. The <code>Fill</code> type allows one to specify a particular value which will be used in the extrapolation. For more elaborate extrapolation schemes refer to the documentation of  <a href="#ImageFiltering.Pad"><code>Pad</code></a>.</p><p>The type facilitates the padding of one, two or multi-dimensional images.</p><p>You can specify a different amount of padding at the lower and upper borders of each dimension of the image (top, left, bottom and right in two dimensions).</p><p><strong>Example</strong></p><p>As an indicative illustration consider an image consisting of a row of six pixels which are specified alphabetically: <span>$\boxed{a \, b \, c \, d \, e \, f}$</span>. We show the effects of padding with a constant value <span>$m$</span> only on the left and right border, but analogous consequences hold for the top and bottom border.</p><div>\[\boxed{
+\begin{array}{l|c|r}
+  m\, m\, m\, m  &amp;  a \, b \, c \, d \, e \, f &amp; m \, m \, m \, m
+\end{array}
+}\]</div><p>See also: <a href="#ImageFiltering.Pad"><code>Pad</code></a>, <a href="#ImageFiltering.padarray"><code>padarray</code></a>, <a href="#ImageFiltering.Inner"><code>Inner</code></a> and <a href="#ImageFiltering.NoPad"><code>NoPad</code></a></p><hr/></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/border.jl#L743-L793">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Inner" href="#ImageFiltering.Inner"><code>ImageFiltering.Inner</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia">Inner()
+Inner(lo, hi)</code></pre><p>Indicate that edges are to be discarded in filtering, only the interior of the result is to be returned.</p><p><strong>Example:</strong></p><pre><code class="language-none">imfilter(img, kernel, Inner())</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/border.jl#L694-L703">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.NA" href="#ImageFiltering.NA"><code>ImageFiltering.NA</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia">NA(na=isnan)</code></pre><p>Choose filtering using &quot;NA&quot; (Not Available) boundary conditions. This is most appropriate for filters that have only positive weights, such as blurring filters. Effectively, the output value is normalized in the following way:</p><pre><code class="language-none">          filtered array with Fill(0) boundary conditions
+output =  -----------------------------------------------
+          filtered 1     with Fill(0) boundary conditions</code></pre><p>Array elements for which <code>na</code> returns <code>true</code> are also considered outside array boundaries.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/border.jl#L724-L738">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.NoPad" href="#ImageFiltering.NoPad"><code>ImageFiltering.NoPad</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia">NoPad()
+NoPad(border)</code></pre><p>Indicates that no padding should be applied to the input array, or that you have already pre-padded the input image. Passing a <code>border</code> object allows you to preserve &quot;memory&quot; of a border choice; it can be retrieved by indexing with <code>[]</code>.</p><p><strong>Example</strong></p><p>The commands</p><pre><code class="language-none">np = NoPad(Pad(:replicate))
+imfilter!(out, img, kernel, np)</code></pre><p>run filtering directly, skipping any padding steps.  Every entry of <code>out</code> must be computable using in-bounds operations on <code>img</code> and <code>kernel</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/border.jl#L12-L27">source</a></section></article><h1 id="Algorithms-1"><a class="docs-heading-anchor" href="#Algorithms-1">Algorithms</a><a class="docs-heading-anchor-permalink" href="#Algorithms-1" title="Permalink"></a></h1><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Algorithm.FIR" href="#ImageFiltering.Algorithm.FIR"><code>ImageFiltering.Algorithm.FIR</code></a> — <span class="docstring-category">Type</span></header><section><div><p>Filter using a direct algorithm</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/ImageFiltering.jl#L45">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Algorithm.FFT" href="#ImageFiltering.Algorithm.FFT"><code>ImageFiltering.Algorithm.FFT</code></a> — <span class="docstring-category">Type</span></header><section><div><p>Filter using the Fast Fourier Transform</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/ImageFiltering.jl#L44">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Algorithm.IIR" href="#ImageFiltering.Algorithm.IIR"><code>ImageFiltering.Algorithm.IIR</code></a> — <span class="docstring-category">Type</span></header><section><div><p>Filter with an Infinite Impulse Response filter</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/ImageFiltering.jl#L49">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.Algorithm.Mixed" href="#ImageFiltering.Algorithm.Mixed"><code>ImageFiltering.Algorithm.Mixed</code></a> — <span class="docstring-category">Type</span></header><section><div><p>Filter with a cascade of mixed types (IIR, FIR)</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/ImageFiltering.jl#L50">source</a></section></article><h1 id="Internal-machinery-1"><a class="docs-heading-anchor" href="#Internal-machinery-1">Internal machinery</a><a class="docs-heading-anchor-permalink" href="#Internal-machinery-1" title="Permalink"></a></h1><article class="docstring"><header><a class="docstring-binding" id="ImageFiltering.KernelFactors.ReshapedOneD" href="#ImageFiltering.KernelFactors.ReshapedOneD"><code>ImageFiltering.KernelFactors.ReshapedOneD</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia">ReshapedOneD{N,Npre}(data)</code></pre><p>Return an object of dimensionality <code>N</code>, where <code>data</code> must have dimensionality 1. The axes are <code>0:0</code> for the first <code>Npre</code> dimensions, have the axes of <code>data</code> for dimension <code>Npre+1</code>, and are <code>0:0</code> for the remaining dimensions.</p><p><code>data</code> must support <code>eltype</code> and <code>ndims</code>, but does not have to be an AbstractArray.</p><p>ReshapedOneDs allow one to specify a &quot;filtering dimension&quot; for a 1-dimensional filter.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/JuliaImages/ImageFiltering.jl/blob/f873a9701bcb581a603b93048884e173e22094af/src/kernelfactors.jl#L37-L50">source</a></section></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../democards/demos/">« Examples</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 11 October 2020 14:46">Sunday 11 October 2020</span>. Using Julia version 1.5.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
