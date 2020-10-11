@@ -29,7 +29,7 @@ img_min_max = mapwindow(minimum, img_max, window_size)
 mosaicview(img_min, img_max, img_max_min, img_min_max; nrow=1)
 
 # When `f` is one of `maximum`, `minimum` and `maximum`, `mapwindow(f, img, window_size)` will use
-# the a streaming version Lemire max-min filter[2] to do the filtering work. This is more efficient
+# a streaming version Lemire max-min filter[2] to do the filtering work. This is more efficient
 # than a plain maximum implementation.
 
 # ```julia
@@ -39,11 +39,12 @@ mosaicview(img_min, img_max, img_max_min, img_min_max; nrow=1)
 # @btime mapwindow(minimum, $img, window_size) # 13.216 ms (58 allocations: 1.75 MiB)
 # ```
 
-# Also, in this example, since we need both the local minimum and maximum image. We could use
-# `extrema` to reduce the computation, and use `MappedArrays.mappedarray` to reduce allocation.
-# This is more efficient than repeatedly doing `minimum` and `maximum`.
+# `mapwindow` with `maximum`/`minimum` actually only uses the partial results from `mapwindow` with
+# `extrema`, so if we need both results, we could half the computation by directly calling `extrema`
+# and doing a manual splitting. Also, we could use a `MappedArrays.mappedarray` view to reduce the
+# allocation.
 
-img_extrema = mapwindow(extrema, img, window_size) # only compute once
+img_extrema = mapwindow(extrema, img, window_size) # half the computation
 img_min = mappedarray(first, img_extrema) # 0 allocation
 img_max = mappedarray(last, img_extrema) # 0 allocation
 #md nothing #hide
