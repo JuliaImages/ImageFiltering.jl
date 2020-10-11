@@ -11,7 +11,7 @@ img_max_min = mapwindow(maximum, img_min, window_size)
 img_min_max = mapwindow(minimum, img_max, window_size)
 mosaicview(img_min, img_max, img_max_min, img_min_max; nrow=1)
 
-img_extrema = mapwindow(extrema, img, window_size) # only compute once
+img_extrema = mapwindow(extrema, img, window_size) # half the computation
 img_min = mappedarray(first, img_extrema) # 0 allocation
 img_max = mappedarray(last, img_extrema) # 0 allocation
 
