@@ -322,6 +322,9 @@ end
 
 mapwindow(::typeof(extrema), A::AbstractArray, window::Dims) = extrema_filter(A, window)
 mapwindow(::typeof(extrema), A::AbstractVector, window::Integer) = extrema_filter(A, (window,))
+# it is still faster than plain loop with maximum/minimum
+mapwindow(::typeof(minimum), A::AbstractArray, window::Dims) = map(first, extrema_filter(A, window))
+mapwindow(::typeof(maximum), A::AbstractArray, window::Dims) = map(last, extrema_filter(A, window))
 
 # Max-min filter
 

@@ -1,5 +1,6 @@
 # ---
 # title: Custom median filters
+# id: median_filter_example
 # cover: assets/median.gif
 # author: Johnny Chen
 # date: 2020-09-23
