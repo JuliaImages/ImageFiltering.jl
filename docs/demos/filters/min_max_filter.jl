@@ -14,21 +14,22 @@
 using ImageCore, ImageShow, ImageFiltering
 using TestImages
 
-img = Gray.(testimage("mandrill"))      # Original Image
+img = Gray.(testimage("house");)      # Original Image
 
 # We can use the `minimum` function to compute the minimum of the grayscale values in the given
 # matrix or array. For example: 
 minimum([Gray(0.7),Gray(0.5),Gray(0.0)]) # Should return Gray(0.0) i.e black.
 # 
+filter_size = (15, 15)
 ## Using the `mapwindow` function, we create an image of the local minimum.
 ## `mapwindow` maps the given function over a moving window of given size.
-img_min = mapwindow(minimum, img, (3, 3))
+img_min = mapwindow(minimum, img, filter_size)
 ## Similarly for maximum
-img_max = mapwindow(maximum, img, (3, 3))
+img_max = mapwindow(maximum, img, filter_size)
 ## The max(min) filter
-img_max_min = mapwindow(maximum, img_min, (3, 3))
+img_max_min = mapwindow(maximum, img_min, filter_size)
 ## The min(max) filter
-img_min_max = mapwindow(minimum, img_max, (3, 3))
+img_min_max = mapwindow(minimum, img_max, filter_size)
 mosaicview(img_min, img_max, img_max_min, img_min_max; nrow=1)
 
 # Now that we are done with the basic filtered images, we proceed to the next part
