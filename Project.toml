@@ -32,7 +32,7 @@ ImageMetadata = "0.9"
 OffsetArrays = "1.1"
 Requires = "0.5, 1.0"
 StaticArrays = "0.10, 0.11, 0.12"
-TiledIteration = "0.2"
+TiledIteration = "0.2, 0.3"
 julia = "1"
 
 [extras]
