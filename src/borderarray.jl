@@ -72,13 +72,6 @@ BorderVector{T,A,B} = BorderArray{T,1,A,B}
 function Base.similar(A::BorderArray, ::Type{T}, dims::Dims) where T
     B = similar(A.inner, T, dims)
 end
-const BaseAxisTypes = Union{Integer, Base.OneTo}
-const OffsetAxisTypes = Union{StaticArrays.HeterogeneousShape, OffsetArrays.IdOffsetRange}
-for Ax in (BaseAxisTypes, StaticArrays.HeterogeneousShape, OffsetAxisTypes)
-    @eval function Base.similar(A::BorderArray, ::Type{T}, inds::Tuple{$Ax,Vararg{$Ax}}) where T
-        similar(A.inner, T, inds)
-    end
-end
 
 @inline function Base.axes(o::BorderArray)
     _outeraxes(o.inner, o.border)
