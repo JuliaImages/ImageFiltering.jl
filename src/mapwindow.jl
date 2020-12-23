@@ -61,8 +61,8 @@ and then `mapwindow(f, img, (m,n))` should filter at the 75th quantile.
 
 See also: [`imfilter`](@ref).
 """
-function mapwindow(f, img, window; border="replicate",
-                   indices=default_imginds(img, window, border), callmode=:copy!)
+function mapwindow(f::F, img, window; border="replicate",
+                   indices=default_imginds(img, window, border), callmode=:copy!) where F
     if callmode != :copy!
         error("Only callmode=:copy! is currently supported")
     end
@@ -88,7 +88,7 @@ function default_imginds(img, window, border::Inner)
     map(self_offset, indind)
 end
 
-function _mapwindow(f, img, window, border, imginds)
+function _mapwindow(f::F, img, window, border, imginds) where F
     out = allocate_output(f, img, window, border, imginds)
     mapwindow_kernel!(f, out, img, window, border, imginds)
 end
@@ -223,20 +223,20 @@ function _indices_of_interiour_indices(fullimginds, imginds, kerinds)
     map(_indices_of_interiour_range, fullimginds, imginds, kerinds)
 end
 
-function allocate_output(f, img, window, border, imginds)
+function allocate_output(f::F, img, window, border, imginds) where F
     T = compute_output_eltype(f, img, window, border, imginds)
     outinds = compute_output_indices(imginds)
     similar(img, T, outinds)
 end
 
-function allocate_buffer(f, img, window)
+function allocate_buffer(f::F, img, window) where F
     T = eltype(img)
     buf = Array{T}(undef,map(length, window))
     bufrs = default_shape(f)(buf)
     buf, bufrs
 end
 
-function compute_output_eltype(f, img, window, border, imginds)
+function compute_output_eltype(f::F, img, window, border, imginds) where F
     buf, bufrs = allocate_buffer(f, img, window)
     make_buffer_values_realistic!(buf, img, window, border, imginds)
     typeof(f(bufrs))
@@ -383,8 +383,8 @@ function _extrema_filter!(A::AbstractArray, w1, w...)
     if w1 > 1
         a = first(A)
         if w1 <= 20
-            cache = ntuple(i->a, w1>>1)
-            _extrema_filter1!(A, w1, cache)
+            cache = ntuple(i->a, w1>>1)      # this line is not inferrable, and contributes to latency via...
+            _extrema_filter1!(A, w1, cache)  # ...extensive specialization of _extrema_filter1! (on typeof(A) and value of w1)
         else
             n = w1>>1
             cache = CircularDeque{typeof(a)}(n)
@@ -395,7 +395,7 @@ function _extrema_filter!(A::AbstractArray, w1, w...)
         end
     end
     if ndims(A) > 1
-        _extrema_filter!(permutedims(A, [2:ndims(A);1]), w...)
+        _extrema_filter!(permutedims(A, [2:ndims(A);1:1]), w...)
     else
         return A
     end
