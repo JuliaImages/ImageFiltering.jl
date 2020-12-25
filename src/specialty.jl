@@ -73,7 +73,7 @@ central-difference formulae
 and
 ```math
  \\frac{\\partial f_{\\textrm{D}}(x_1',x_2')}{\\partial x_2'}   \\approx
-         \\frac{f_{\\textrm{D}}(x_1',x_2'+1) - f_{\\textrm{D}}(x_1',x_2'+1)}{2}.
+         \\frac{f_{\\textrm{D}}(x_1',x_2'+1) - f_{\\textrm{D}}(x_1',x_2'-1)}{2}.
 ```
 However, the central-difference formulae are very sensitive to noise.
 When working with noisy image data,
