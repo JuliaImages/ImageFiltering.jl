@@ -660,7 +660,7 @@ The command `padarray(A,Fill(0,(1,1,1)))` yields
 padarray(img::AbstractArray, border::AbstractBorder)  = padarray(eltype(img), img, border)
 function padarray(::Type{T}, img::AbstractArray, border) where {T}
     ba = BorderArray(img, border)
-    out = similar(ba, T)
+    out = similar(ba, T, axes(ba))
     copy!(out, ba)
 end
 
@@ -897,23 +897,24 @@ end
 
 Generate an index-vector to be used for padding. `inds` specifies the image axes along a particular axis; `lo` and `hi` are the amount to pad on the lower and upper, respectively, sides of this axis. `border` specifying the style of padding.
 """
-function padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer)
+function padindex(border::Pad, lo::Int, inds::UnitRange{Int}, hi::Int)
     if border.style == :replicate
-        indsnew = vcat(fill(first(inds), lo), UnitRange(inds), fill(last(inds), hi))
+        indsnew = Int[fill(first(inds), lo); inds; fill(last(inds), hi)]
         OffsetArray(indsnew, first(inds)-lo:last(inds)+hi)
     elseif border.style == :circular
         return modrange(extend(lo, inds, hi), inds)
     elseif border.style == :symmetric
-        I = OffsetArray([inds; reverse(inds)], (0:2*length(inds)-1) .+ first(inds))
+        I = OffsetArray(Int[inds; reverse(inds)], (0:2*length(inds)-1) .+ first(inds))
         r = modrange(extend(lo, inds, hi), axes(I, 1))
         return I[r]
     elseif border.style == :reflect
-        I = OffsetArray([inds; last(inds)-1:-1:first(inds)+1], (0:2*length(inds)-3) .+ first(inds))
+        I = OffsetArray(Int[inds; last(inds)-1:-1:first(inds)+1], (0:2*length(inds)-3) .+ first(inds))
         return I[modrange(extend(lo, inds, hi), axes(I, 1))]
     else
         error("border style $(border.style) unrecognized")
     end
 end
+padindex(border::Pad, lo::Integer, inds::AbstractUnitRange, hi::Integer) = padindex(border, Int(lo)::Int, UnitRange{Int}(inds)::UnitRange{Int}, Int(hi)::Int)
 function padindex(border::Pad, inner::AbstractUnitRange, outer::AbstractUnitRange)
     lo = max(0, first(inner)-first(outer))
     hi = max(0, last(outer)-last(inner))

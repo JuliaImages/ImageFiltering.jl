@@ -408,12 +408,13 @@ Construct a 1d gaussian kernel `g` with standard deviation `σ`, optionally
 providing the kernel length `l`. The default is to extend by two `σ`
 in each direction from the center. `l` must be odd.
 """
-function gaussian(σ::Real, l = 4*ceil(Int,σ)+1)
+function gaussian(σ::Real, l::Int = 4*ceil(Int,σ)+1)
     isodd(l) || throw(ArgumentError("length must be odd"))
     w = l>>1
     g = σ == 0 ? [exp(0/(2*oftype(σ, 1)^2))] : [exp(-x^2/(2*σ^2)) for x=-w:w]
     centered(g/sum(g))
 end
+gaussian(σ::Real, l::Integer) = gaussian(σ, Int(l)::Int)
 
 """
     gaussian((σ1, σ2, ...), [l]) -> (g1, g2, ...)
@@ -424,8 +425,8 @@ provide the kernel length `l`, which must be a tuple of the same
 length.
 """
 gaussian(σs::NTuple{N,Real}, ls::NTuple{N,Integer}) where {N} =
-    kernelfactors( map((σ,l)->gaussian(σ,l), σs, ls) )
-gaussian(σs::NTuple{N,Real}) where {N} = kernelfactors(map(σ->gaussian(σ), σs))
+    kernelfactors( map(gaussian, σs, ls) )
+gaussian(σs::NTuple{N,Real}) where {N} = kernelfactors(map(gaussian, σs))
 
 gaussian(σs::AbstractVector, ls::AbstractVector) = gaussian((σs...,), (ls...,))
 gaussian(σs::AbstractVector) = gaussian((σs...,))
@@ -572,5 +573,15 @@ function gradfactors(extended::NTuple{N,Bool}, d::Int, k1, k2) where N
 end
 
 kdim(keep::Bool, k) = keep ? centered(k) : OffsetArray([oneunit(eltype(k))], 0:0)
+
+if Base.VERSION >= v"1.4.2" && ccall(:jl_generating_output, Cint, ()) == 1
+    precompile(sobel, ())
+    for T in (Int, Float64, Float32)
+        precompile(gaussian, (Tuple{T,T},))
+        precompile(gaussian, (T,))
+        precompile(gaussian, (T, Int))
+        precompile(IIRGaussian, (Tuple{T,T},))
+    end
+end
 
 end

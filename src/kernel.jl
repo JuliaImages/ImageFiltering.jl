@@ -484,4 +484,14 @@ end
 
 reflectind(r::AbstractUnitRange) = -last(r):-first(r)
 
+if Base.VERSION >= v"1.4.2" && ccall(:jl_generating_output, Cint, ()) == 1
+    precompile(Laplacian, ())
+    precompile(sobel, ())
+    for T in (Int, Float64, Float32)
+        precompile(gaussian, (Tuple{T,T},))
+        precompile(DoG, (T,))
+        precompile(LoG, (T,))
+    end
+end
+
 end
