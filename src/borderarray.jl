@@ -26,7 +26,7 @@ end
 """
     BorderArray(inner::AbstractArray, border::AbstractBorder) <: AbstractArray
 
-Construct a thin wrapper around the array `inner`, with given `border`. No data is copied in the constructor, instead border values are computed on the fly in `getindex` calls. Usful for stencil computations. See also [padarray](@ref).
+Construct a thin wrapper around the array `inner`, with given `border`. No data is copied in the constructor, instead border values are computed on the fly in `getindex` calls. Useful for stencil computations. See also [padarray](@ref).
 
 # Examples
 ```julia
