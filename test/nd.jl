@@ -92,9 +92,18 @@ Base.zero(::Type{WrappedFloat}) = WrappedFloat(0.0)
         @test all(x->x==0, imgf[first(inds):-2]) && all(x->x==0, imgf[2:last(inds)])
     end
 
-    # Input with NaN
-    @test isnan.(imfilter([NaN;1:100],centered(ones(31)))) == ((0:100) .<= 15)
-
+    # Non-finite input
+    for x in (NaN, Inf, -Inf)
+        v = rand(100)
+        i = rand(eachindex(v))
+        w = [j == i ? x : v[j] for j in eachindex(v)]
+        kern = centered(ones(31))
+        vf = imfilter(v, kern)
+        wf = imfilter(w, kern)
+        @test all(isequal(x), wf[j] for j in (i-15:i+15) ∩ eachindex(v))
+        @test all(wf[j] ≈ vf[j] for j in eachindex(v) if abs(j-i) > 15)
+    end   
+   
     # Issue #110
     img = reinterpret(WrappedFloat, rand(128))
     kern = centered(rand(31))
