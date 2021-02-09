@@ -92,9 +92,22 @@ Base.zero(::Type{WrappedFloat}) = WrappedFloat(0.0)
         @test all(x->x==0, imgf[first(inds):-2]) && all(x->x==0, imgf[2:last(inds)])
     end
 
-    # Input with NaN
-    @test isnan.(imfilter([NaN;1:100],centered(ones(31)))) == ((0:100) .<= 15)
-
+    # Non-finite input
+    for x in (NaN, Inf, -Inf)
+        v = rand(100)
+        i = rand(eachindex(v))
+        w = [j == i ? x : v[j] for j in eachindex(v)]
+        kern = centered(ones(31))
+        # verify that non-finite values prevent use of FFT
+        @test ImageFiltering.filter_algorithm(v, v, kern) == ImageFiltering.FFT()
+        @test ImageFiltering.filter_algorithm(w, w, kern) == ImageFiltering.FIR()
+        vf = imfilter(v, kern)
+        wf = imfilter(w, kern)
+        around_i = [abs(i-j) <= 15 for j in eachindex(v)]
+        @test all(isequal(x), wf[around_i])
+        @test wf[.!around_i] ≈ vf[.!around_i]
+    end   
+   
     # Issue #110
     img = reinterpret(WrappedFloat, rand(128))
     kern = centered(rand(31))
