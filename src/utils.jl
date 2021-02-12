@@ -40,13 +40,14 @@ The inverse of `freqkernel` is [`spacekernel`](@ref).
 """
 function freqkernel(::Type{T}, kern::AbstractArray, sz::Dims=size(kern); rfft=false) where T<:Union{Float32,Float64}
     wrapindex(i, s) = 1 + (i<0 ? i+s : i)
-    all(size(kern) .<= sz) || throw(DimensionMismatch("kernel size $(size(kern)) exceeds supplied size $sz"))
+    all(size(kern) .<= sz) ||
+        throw(DimensionMismatch("kernel size $(size(kern)) exceeds supplied size $sz"))
     rhs = Tuple(last(CartesianIndices(kern)))
     lhs = Tuple(first(CartesianIndices(kern)))
-    all(rhs .< Int.(floor.((sz+1)/2))) ||
-        throw("kernel last index $rhs above limit floor(($(sz)+1)/2)")
-    all(-Int.(floor.((sz+1)/2)) .<= lhs) ||
-        throw("kernel first index $lhs below limit -floor(($(sz)+1)/2)")
+    all(rhs .< Int.(floor.((sz .+ 1)/2))) ||
+        throw(DimensionMismatch("kernel last index $rhs above limit floor(($(sz)+1)/2)"))
+    all(-Int.(floor.((sz .+ 1)/2)) .<= lhs) ||
+        throw(DimensionMismatch("kernel first index $lhs below limit -floor(($(sz)+1)/2)"))
     kernw = zeros(T, sz...)
     for I in CartesianIndices(kern)
         J = CartesianIndex(map(wrapindex, Tuple(I), sz))
