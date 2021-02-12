@@ -109,6 +109,9 @@ end
     k2 = spacekernel(kfft, axes(k); rfftsz=31)
     @test k2 ≈ k
 
+    k = centered([0, 1, 0] * [0, 1, 0]') # Kronecker impulse
+    @test freqkernel(k, (8, 8)) ≈ ones(8,8) # flat frequency response
+
     for T in (Float64, Float32, Float16, N0f16)
         k = T.(Kernel.gaussian(3))
         kfft = freqkernel(k)
