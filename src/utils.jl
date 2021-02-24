@@ -44,7 +44,7 @@ function freqkernel(::Type{T}, kern::AbstractArray, sz::Dims=size(kern); rfft=fa
         throw(DimensionMismatch("kernel size $(size(kern)) exceeds supplied size $sz"))
     rhs = Tuple(last(CartesianIndices(kern)))
     lhs = Tuple(first(CartesianIndices(kern)))
-    limit = (sz .+ 1) .÷ 2 # handle odd and even sizes
+    limit = collect((sz .+ 1) .÷ 2) # handle odd and even sizes
     all(rhs .< limit) ||
         throw(DimensionMismatch("kernel last index $rhs >= limit $limit"))
     all(-limit .<= lhs) ||
