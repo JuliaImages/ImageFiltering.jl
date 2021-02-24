@@ -112,6 +112,12 @@ end
     k = centered([0, 1, 0] * [0, 1, 0]') # Kronecker impulse
     @test freqkernel(k, (8, 8)) ≈ ones(8,8) # flat frequency response
 
+	@test_throws DimensionMismatch freqkernel(ones(5), (3,)) # kernel too big
+	k = OffsetArray(ones(3), (-5,)) # index -4:-2 too far left
+	@test_throws DimensionMismatch freqkernel(k, (5,))
+	k = OffsetArray(ones(3), (+1,)) # index 2:4 too far right
+	@test_throws DimensionMismatch freqkernel(k, (5,))
+
     for T in (Float64, Float32, Float16, N0f16)
         k = T.(Kernel.gaussian(3))
         kfft = freqkernel(k)
