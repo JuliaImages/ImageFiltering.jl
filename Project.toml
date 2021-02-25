@@ -1,7 +1,7 @@
 name = "ImageFiltering"
 uuid = "6a3955dd-da59-5b1f-98d4-e7296123deb5"
 author = ["Tim Holy <tim.holy@gmail.com>", "Jan Weidner <jw3126@gmail.com>"]
-version = "0.6.19"
+version = "0.6.20"
 
 [deps]
 CatIndices = "aafaddc9-749c-510e-ac4f-586e18779b91"
@@ -11,7 +11,6 @@ DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 FFTViews = "4f61f5a4-77b1-5117-aa51-3ab5ef4ef0cd"
 FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 ImageCore = "a09fc81d-aa75-5fe9-8630-4744c3626534"
-ImageMetadata = "bc367c6b-8a6b-528e-b4bd-a4b897500b49"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"

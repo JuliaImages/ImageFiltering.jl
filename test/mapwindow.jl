@@ -71,6 +71,9 @@ using ImageFiltering: IdentityUnitRange
         Amin = groundtruth(min, A, w)
         @test minval == Amin
     end
+
+    @test_throws ArgumentError mapwindow(sum, ones(5,5), ()) # resolve_window
+
     # offsets
     @testset "offsets" begin
         n = 5
