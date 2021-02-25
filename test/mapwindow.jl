@@ -1,6 +1,5 @@
 using ImageFiltering, Statistics, Test
 using ImageFiltering: IdentityUnitRange
-import ImageFiltering # resolve_window
 
 @testset "mapwindow" begin
     function groundtruth(f, A, window::Tuple)
@@ -73,7 +72,7 @@ import ImageFiltering # resolve_window
         @test minval == Amin
     end
 
-    @test_throws ArgumentError ImageFiltering.resolve_window(())
+    @test_throws ArgumentError mapwindow(sum, ones(5,5), ()) # resolve_window
 
     # offsets
     @testset "offsets" begin
