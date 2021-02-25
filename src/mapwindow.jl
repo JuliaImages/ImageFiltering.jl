@@ -133,6 +133,9 @@ resolve_window(window::AbstractArray) = resolve_window((window...,))
 resolve_window(window::AbstractUnitRange) = (window,)
 resolve_window(window::Indices) = window
 
+# avoid method ambiguity between ::Dims and ::Indices
+resolve_window(window::Tuple{}) = throw("empty window")
+
 resolve_border(border::AbstractString) = borderinstance(border)
 resolve_border(border::BorderSpecAny) = border
 
