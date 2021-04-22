@@ -6,7 +6,6 @@ using ImageCore, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, T
 # using FixedPointNumbers: Normed, N0f8 # reexported by ImageCore
 using ImageCore.MappedArrays
 using Statistics, LinearAlgebra
-using ColorVectorSpace  # for filtering RGB arrays
 using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
 using OffsetArrays: IdentityUnitRange   # using the one in OffsetArrays makes this work with multiple Julia versions
 using Requires

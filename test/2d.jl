@@ -1,4 +1,4 @@
-using ImageFiltering, ImageCore, OffsetArrays, FFTViews, ColorVectorSpace, ComputationalResources
+using ImageFiltering, ImageCore, OffsetArrays, FFTViews, ComputationalResources
 using LinearAlgebra
 using Test
 using ImageFiltering: IdentityUnitRange

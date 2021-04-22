@@ -49,12 +49,13 @@ using Test
         x = -2:2
         y = (-3:3)'
         kernel = KernelFactors.IIRGaussian((σ, σ))
+
         for img in (imgf, imgg, imgc)
             imgcmp = img[3,4] .* exp.(-(x.^2 .+ y.^2)/(2*σ^2))/(σ^2*2*pi)
             border = Fill(zero(eltype(img)))
             img0 = copy(img)
             imgfilt = @inferred(imfilter(img, kernel, border))
-            @test sum(abs2, imgcmp - imgfilt) < 0.2^2*sum(abs2, imgcmp)
+            @test sum(_abs2, imgcmp - imgfilt) < 0.2^2*sum(_abs2, imgcmp)
             @test img == img0
             @test imgfilt != img
         end

@@ -5,7 +5,6 @@ version = "0.6.21"
 
 [deps]
 CatIndices = "aafaddc9-749c-510e-ac4f-586e18779b91"
-ColorVectorSpace = "c3611d14-8923-5661-9e6a-0046d554d3a4"
 ComputationalResources = "ed09eef8-17a6-5b46-8889-db040fac31e3"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 FFTViews = "4f61f5a4-77b1-5117-aa51-3ab5ef4ef0cd"
@@ -21,12 +20,11 @@ TiledIteration = "06e1c1a7-607b-532d-9fad-de7d9aa2abac"
 
 [compat]
 CatIndices = "0.2"
-ColorVectorSpace = "0.6, 0.7, 0.8, 0.9"
 ComputationalResources = "0.3"
 DataStructures = "0.17.7, 0.18"
 FFTViews = "0.3"
 FFTW = "0.3, 1"
-ImageCore = "0.8.1"
+ImageCore = "0.9"
 ImageMetadata = "0.9"
 OffsetArrays = "1.1"
 Requires = "0.5, 1.0"
