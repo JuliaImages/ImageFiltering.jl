@@ -1,4 +1,5 @@
-using ImageFiltering, Test
+using ImageFiltering, ImageCore
+using Test
 import StaticArrays
 using Random
 
@@ -18,6 +19,7 @@ function typestring(::Type{T}) where T   # from https://github.com/JuliaImages/I
     String(take!(buf))
 end
 
+include("compat.jl")
 include("border.jl")
 include("nd.jl")
 include("2d.jl")

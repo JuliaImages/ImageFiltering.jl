@@ -1,4 +1,4 @@
-using ImageFiltering, ImageCore, ColorVectorSpace
+using ImageFiltering, ImageCore
 using Test
 
 @testset "gradient" begin
@@ -15,10 +15,10 @@ using Test
                            Kernel.ando4, Kernel.ando5, Kernel.scharr, Kernel.bickley)
             gy, gx = @inferred(imgradients(img, kernelfunc, Inner()))
             for val in gy
-                @test abs(val - ey) < 1e-4
+                @test _abs(val - ey) < 1e-4
             end
             for val in gx
-                @test abs(val - ex) < 1e-4
+                @test _abs(val - ex) < 1e-4
             end
             gy, gx = imgradients(img, kernelfunc, Pad(:replicate))
             @test axes(gy) == axes(gx) == axes(img)
@@ -39,10 +39,10 @@ using Test
             ky, kx = fk()
             gy, gx = imfilter(img, ky, Inner()), imfilter(img, kx, Inner())
             for val in gy
-                @test abs(val - ey) < 1e-4
+                @test _abs(val - ey) < 1e-4
             end
             for val in gx
-                @test abs(val - ex) < 1e-4
+                @test _abs(val - ex) < 1e-4
             end
         end
     end
@@ -57,13 +57,13 @@ using Test
                            Kernel.scharr, Kernel.bickley)
             gy, gx, gz = @inferred(imgradients(img, kernelfunc, Inner()))
             for val in gy
-                @test abs(val - ey) < 1e-4
+                @test _abs(val - ey) < 1e-4
             end
             for val in gx
-                @test abs(val - ex) < 1e-4
+                @test _abs(val - ex) < 1e-4
             end
             for val in gz
-                @test abs(val - ez) < 1e-4
+                @test _abs(val - ez) < 1e-4
             end
         end
     end
