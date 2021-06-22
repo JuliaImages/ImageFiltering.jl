@@ -12,8 +12,12 @@
 # This can be done using the [`mapwindow`](@ref) function
 
 # At first we import the following packages. 
-using Images
-using Plots 
+using ImageCore: Gray
+using ImageDistances: sqeuclidean
+using ImageFiltering: mapwindow, Fill
+using ImageContrastAdjustment: adjust_histogram, LinearStretching
+using ImageMorphology: label_components, component_centroids
+using Plots: scatter!, plot
 
 # Images enables the generation of Images, ImageFiltering provides the mapwindow function and ImageFeatures 
 # provides functions to label segments of an image.
@@ -21,13 +25,17 @@ using Plots
 # To test the algorithm we first generate an image. For our case we will repeat a square image section which 
 # will also work as our template.
 
-template = zeros(5,5)
-template[1] = 1
-template[2,1] = template[1,2]= 2
-template
-
-img = repeat(template,outer=(4,4))
-img
+template = zeros(11,11)
+template[2:10,2:10] .= 1
+template[5:7,5:7] .= 0.5
+Gray.(template)
+#
+img = ones(100,100)
+img[(1:11).+20,(1:11).+50] .= template
+img[(1:11).+50,(1:11).+10] .= template
+img[(1:11).+70,(1:11).+80] .= template
+img[:,:] .*= rand(100,100) 
+Gray.(img)
 
 # Now that we have an image and a template we have to think have we measure the similarity between a
 # section of the image and the template. This can be done in multiple way, but a sum of square distances should work quite well.
@@ -35,34 +43,33 @@ img
 # Lets call it SDIFF.
 
 function SDIFF(template)
-  (patch)->sqeuclidean(patch .- template)
+  (subsection)->sqeuclidean(subsection, template)
 end
 
 # To actually generate our similarity map we use mapwindow in the following way
 
-res = mapwindow(SDIFF(template), img, size(template), border=Fill(1))
-res
+res = mapwindow(SDIFF(template), img, size(template), border=Fill(1)) .|> Gray
 	
 # If the subsection is located at the border of the image the image has to be extended and in our case we will
 # fill all values outside the image with 1. As all of the square differences will be summed up per subsection 
 # the resulting sum can be bigger than 1. This will be a problem if we just convert it to an image to check  the values.
 # To rescale the values to be between 0 and 1 we can use imadjustintensity.
 
-imadjustintensity(res)
+rescaled_map = adjust_histogram(res, LinearStretching()) 
 
 #  To find the best locations we have to look for small values on the similarity map. This can be done by comparing
 # if the pixel are below a certain value. LÖets chose a value of 0.1.
 
-threshold = res .< 0.1
+threshold = rescaled_map .< 0.1
+Gray.(threshold)
 
 # Now we see small blobs at the locations which match our template and we can label the connected regions by label_components.
 # This will enumerate are connected regions and component_centroids can be used to get the centroid of each region. 
-# component_centroids also return the centroid for the backgroud region, which is at the first position and we will ommit it.
+# `component_centroids` also return the centroid for the backgroud region, which is at the first position and we will ommit it.
 
-#cluster into compenents and calculate centroid
-centroids = component_centroids(label_components(th))[2:end]
+centroids = component_centroids(label_components(threshold))[2:end]
 
 # To now see it it worked ciorrectly we can overlay the centroids with the original image using the Plots package.
 # As the images are stored 
 plot(Gray.(img))
-scatter!(reverse.(centroids))
+scatter!(reverse.(centroids),label="centroids",legend=:outertopleft)
