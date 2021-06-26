@@ -1,6 +1,6 @@
 # ---
 # title: Template Matching
-# cover: assets/median.gif
+# cover: assets/template_matching.png
 # author: Michael Pusterhofer
 # date: 2021-06-22
 # ---
