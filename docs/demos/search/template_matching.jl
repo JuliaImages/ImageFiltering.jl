@@ -63,7 +63,7 @@ rescaled_map = adjust_histogram(res, LinearStretching())
 threshold = rescaled_map .< 0.1
 Gray.(threshold)
 
-# Now we see small blobs at the locations which match our template and we can label the connected regions by label_components.
+# Now we see small blobs at the locations which match our template and we can label the connected regions by `label_components`.
 # This will enumerate are connected regions and component_centroids can be used to get the centroid of each region. 
 # `component_centroids` also return the centroid for the backgroud region, which is at the first position and we will ommit it.
 
