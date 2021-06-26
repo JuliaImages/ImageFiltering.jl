@@ -73,3 +73,5 @@ centroids = component_centroids(label_components(threshold))[2:end]
 # As the images are stored 
 plot(Gray.(img))
 scatter!(reverse.(centroids),label="centroids",legend=:outertopleft)
+
+savefig("assets/template_matching.png") #src
