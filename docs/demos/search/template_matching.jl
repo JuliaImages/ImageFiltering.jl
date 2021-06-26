@@ -21,16 +21,16 @@ using Plots: scatter!, plot
 # `ImageCore` enables the generation of images, `ImageFiltering` provides the [`mapwindow`](@ref) function and `ImageFeatures` provides functions to label segments of an image. To calculate the similarity `squeclidean` is used. This defines a distance between two images as:
 #
 # ```math
-# distance = \sum_i^{number of pixels} (template_i - subsection_i)^2
+# \textrm{distance} = \sum_i^{\textrm{number of pixels}} (\textrm{template}_i - \textrm{subsection}_i)^2
 # ```
 #
 # `ImageContrastAdjustment` provides functions to adjust the histogram, which is useful when an image contains values bigger than 1 or smaller than 0.  The `Testimages` package will provide our image and plot is used to overlay a scatter plot onto the image.
 
 # To start we first load our image.
-img = testimage("lena_gray_512")
+img = testimage("moonsurface")
 
-# Let's say we want to find the eyes in the image based on th eye of the right hand side. For this we generate a template from a subsection of the image and apply a small gaussian blur using [`imfilter`](@ref). The gaussian blur often helps when the search targets are not exactly the same.
-template = img[261:279,258:276]
+# Let's say we want to find the medium sized craters in the image based one of the impact areas. For this we generate a template from a subsection of the image and apply a small gaussian blur using [`imfilter`](@ref). The gaussian blur often helps when the search targets are not exactly the same.
+template = img[12:22,20:30]
 template = imfilter(template,KernelFactors.gaussian((0.5,0.5)))
 
 # Now that we have an image and a template, the next step is to define how we measure the similarity between a section of the image and the template. This can be done in multiple way, but a sum of square distances should work quite well. The `ImageDistance` package provides an already optimized version called `sqeuclidean`, which can be used to define a function for [`mapwindow`](@ref).  Let's call it `SDIFF`.
