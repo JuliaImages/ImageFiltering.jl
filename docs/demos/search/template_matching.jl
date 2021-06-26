@@ -21,7 +21,7 @@ using Plots: scatter!, plot
 # `ImageCore` enables the generation of images, `ImageFiltering` provides the [`mapwindow`](@ref) function and `ImageFeatures` provides functions to label segments of an image. To calculate the similarity `squeclidean` is used. This defines a distance between two images as:
 #
 # ```math
-# distance = \sum_i^[number of pixels} (template_i - subsection_i)^2
+# distance = \sum_i^{number of pixels} (template_i - subsection_i)^2
 # ```
 #
 # `ImageContrastAdjustment` provides functions to adjust the histogram, which is useful when an image contains values bigger than 1 or smaller than 0.  The `Testimages` package will provide our image and plot is used to overlay a scatter plot onto the image.
