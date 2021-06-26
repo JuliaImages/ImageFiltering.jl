@@ -58,7 +58,7 @@ res = mapwindow(SDIFF(template), img, size(template), border=Fill(1)) .|> Gray
 rescaled_map = adjust_histogram(res, LinearStretching()) 
 
 #  To find the best locations we have to look for small values on the similarity map. This can be done by comparing
-# if the pixel are below a certain value. LÖets chose a value of 0.1.
+# if the pixel is below a certain value. Let's chose a value of `0.1`.
 
 threshold = rescaled_map .< 0.1
 Gray.(threshold)
