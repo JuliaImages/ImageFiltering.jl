@@ -7,71 +7,57 @@
 
 # This demo shows how to find objects in an image using template matching. 
 
-# The main idea is to check the similarity between a search target(template) and a subsection of the image.
-# The subsection is usually the same size as the template and every subsection must be assigned a value.
-# This can be done using the [`mapwindow`](@ref) function
+# The main idea is to check the similarity between a search target(template) and a subsection of the image. The subsection is usually the same size as the template. Therefore by using [`mapwindow`](@ref) we can assign a value for every subsection of the image.
 
 # At first we import the following packages. 
 using ImageCore: Gray
-using ImageDistances: sqeuclidean
-using ImageFiltering: mapwindow, Fill
-using ImageContrastAdjustment: adjust_histogram, LinearStretching
 using ImageMorphology: label_components, component_centroids
+using ImageFiltering: mapwindow, Fill, imfilter, KernelFactors
+using ImageDistances: sqeuclidean
+using ImageContrastAdjustment: adjust_histogram, LinearStretching
+using TestImages
 using Plots: scatter!, plot
 
-# Images enables the generation of Images, ImageFiltering provides the mapwindow function and ImageFeatures 
-# provides functions to label segments of an image.
-
-# To test the algorithm we first generate an image. For our case we will repeat a square image section which 
-# will also work as our template.
-
-template = zeros(11,11)
-template[2:10,2:10] .= 1
-template[5:7,5:7] .= 0.5
-Gray.(template)
+# `ImageCore` enables the generation of images, `ImageFiltering` provides the [`mapwindow`](@ref) function and `ImageFeatures` provides functions to label segments of an image. To calculate the similarity `squeclidean` is used. This defines a distance between two images as:
 #
-img = ones(100,100)
-img[(1:11).+20,(1:11).+50] .= template
-img[(1:11).+50,(1:11).+10] .= template
-img[(1:11).+70,(1:11).+80] .= template
-img[:,:] .*= rand(100,100) 
-Gray.(img)
+# ```math
+# distance = \sum_i^[number of pixels} (template_i - subsection_i)^2
+# ```
+#
+# `ImageContrastAdjustment` provides functions to adjust the histogram, which is useful when an image contains values bigger than 1 or smaller than 0.  The `Testimages` package will provide our image and plot is used to overlay a scatter plot onto the image.
 
-# Now that we have an image and a template, the next step is to define how we measure the similarity between a
-# section of the image and the template. This can be done in multiple way, but a sum of square distances should work quite well.
-# The ImageDistance package provides an already optimized version called sqeuclidean, which can be used to define a function for mapwindow.
-# Lets call it SDIFF.
+# To start we first load our image.
+img = testimage("lena_gray_512")
+
+# Let's say we want to find the eyes in the image based on th eye of the right hand side. For this we generate a template from a subsection of the image and apply a small gaussian blur using [`imfilter`](@ref). The gaussian blur often helps when the search targets are not exactly the same.
+template = img[261:279,258:276]
+template = imfilter(template,KernelFactors.gaussian((0.5,0.5)))
+
+# Now that we have an image and a template, the next step is to define how we measure the similarity between a section of the image and the template. This can be done in multiple way, but a sum of square distances should work quite well. The `ImageDistance` package provides an already optimized version called `sqeuclidean`, which can be used to define a function for [`mapwindow`](@ref).  Let's call it `SDIFF`.
 
 function SDIFF(template)
   (subsection)->sqeuclidean(subsection, template)
 end
 
-# To actually generate our similarity map we use mapwindow in the following way
+# To actually generate our similarity map we use [`mapwindow`](@ref) in the following way.
 
 res = mapwindow(SDIFF(template), img, size(template), border=Fill(1)) .|> Gray
-	
-# If the subsection is located at the border of the image the image has to be extended and in our case we will
-# fill all values outside the image with 1. As all of the square differences will be summed up per subsection 
-# the resulting sum can be bigger than 1. This will be a problem if we just convert it to an image to check  the values.
-# To rescale the values to be between 0 and 1 we can use imadjustintensity.
-
 rescaled_map = adjust_histogram(res, LinearStretching()) 
+	
+# If the subsection is located at the border of the image the image has to be extended and in our case we will fill all values outside the image with 1. One thing to keep in mind is that because all of the square differences will be summed up per subsection the resulting sum can be bigger than 1. This will be a problem if we just convert it to an image to check the values. To rescale the values to be between 0 and 1 we can use `adjust_histogram`.
 
-#  To find the best locations we have to look for small values on the similarity map. This can be done by comparing
-# if the pixel is below a certain value. Let's chose a value of `0.1`.
+# To find the best locations we have to look for small values on the similarity map. This can be done by comparing if the pixel is below a certain value. Let's chose a value of `0.05`.
 
-threshold = rescaled_map .< 0.1
+threshold = rescaled_map .< 0.05
 Gray.(threshold)
 
-# Now we see small blobs at the locations which match our template and we can label the connected regions by `label_components`.
-# This will enumerate are connected regions and `component_centroids` can be used to get the centroid of each region.
-# `component_centroids` also return the centroid for the background region, which is at the first position and we will omit it.
+# Now we see small blobs at the locations which match our template and we can label the connected regions by `label_components`.  This will enumerate are connected regions and `component_centroids` can be used to get the centroid of each region.  `component_centroids` also return the centroid for the background region, which is at the first position and we will omit it.
 
 centroids = component_centroids(label_components(threshold))[2:end]
 
-# To now see it it worked ciorrectly we can overlay the centroids with the original image using the Plots package.
-# As the images are stored 
-plot(Gray.(img))
-scatter!(reverse.(centroids),label="centroids",legend=:outertopleft)
+# To check if it worked correctly we can overlay the centroids with the original image using the `Plots` package. As the images are stored using the first index for rows we have to reverse the order of the coordinates to match the order of the plotting library.
+plot(Gray.(img), size=(512,512))
+scatter!(reverse.(centroids), label="centroids", ms=10, alpha=0.5, c=:red, msw=3)
 
+using Plots: savefig #src
 savefig("assets/template_matching.png") #src
