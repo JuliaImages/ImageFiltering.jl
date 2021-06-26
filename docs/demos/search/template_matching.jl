@@ -37,7 +37,7 @@ img[(1:11).+70,(1:11).+80] .= template
 img[:,:] .*= rand(100,100) 
 Gray.(img)
 
-# Now that we have an image and a template we have to think have we measure the similarity between a
+# Now that we have an image and a template, the next step is to define how we measure the similarity between a
 # section of the image and the template. This can be done in multiple way, but a sum of square distances should work quite well.
 # The ImageDistance package provides an already optimized version called sqeuclidean, which can be used to define a function for mapwindow.
 # Lets call it SDIFF.
