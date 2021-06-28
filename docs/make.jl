@@ -23,5 +23,6 @@ demos_cb()
 
 deploydocs(
     repo   = "github.com/JuliaImages/ImageFiltering.jl.git",
-    push_preview = true
+    # NOTE: remove the comment if the PR requires a push preview
+    # push_preview = true
 )
