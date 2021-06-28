@@ -336,7 +336,7 @@ end
     kern = Kernel.gaussian((1,1),(3,3))
     @test_throws err imfilter(CPU1(), A, kern, Fill(0, (3,)))
     kernf = ImageFiltering.factorkernel(kern)
-    err = DimensionMismatch("output indices (OffsetArrays.IdOffsetRange(0:9), OffsetArrays.IdOffsetRange(1:8)) disagree with requested indices (1:8, 0:9)")
+    err = DimensionMismatch("output indices (OffsetArrays.IdOffsetRange(values=0:9, indices=0:9), OffsetArrays.IdOffsetRange(values=1:8, indices=1:8)) disagree with requested indices (1:8, 0:9)")
     @test_throws err imfilter(CPU1(), A, kern, Fill(0, (1,0)))
     @test_throws DimensionMismatch imfilter(CPU1(), A, kern, Fill(0, (0,1)))
     @test_throws DimensionMismatch imfilter(CPU1(), A, kern, Fill(0, (0,0)))
