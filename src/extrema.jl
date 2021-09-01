@@ -18,7 +18,7 @@ end
 BlobLoG(; location, σ, amplitude) = BlobLoG(location, σ, amplitude)
 
 function Base.show(io::IO, bl::BlobLoG)
-    print(io, "location=", bl.location, ", σ=", bl.σ, ", amplitude=", bl.amplitude)
+    print(io, "BlobLoG(location=", bl.location, ", σ=", bl.σ, ", amplitude=", bl.amplitude, ")")
 end
 
 

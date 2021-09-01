@@ -20,6 +20,9 @@
         @test blob.amplitude ≈ 0.3183098861837907
         @test blob.σ === (1.0, 1.0)
         @test blob.location == CartesianIndex((5,5))
+        str = sprint(print, blob)
+        @test occursin("σ=$((1.0, 1.0))", str)
+        @test eval(Meta.parse(str)) == blob
         @test blob_LoG(A, [1.0]) == blobs
         @test blob_LoG(A, [1.0]; edges=(true, false, false)) == blobs
         @test isempty(blob_LoG(A, [1.0]; edges=false))
@@ -51,5 +54,6 @@
         @test blobs[1].location == CartesianIndex((1,1,5))
         @test filter(b->b.amplitude > 0.1, blob_LoG(A, 2.0.^[0.5,0,1], edges=(true, true, true, false), σshape=(1.,1.,3.))) == blobs
         @test isempty(blob_LoG(A, 2.0.^[0,1], edges=(false, true, false, false), σshape=(1.,1.,3.)))
+        @test length(blob_LoG([zeros(10); 1.0; 0.0], [4]; edges=true, rthresh=0)) > length(blob_LoG([zeros(10); 1.0; 0.0], [4]; edges=true))
     end
 end
