@@ -28,6 +28,7 @@ include("cascade.jl")
 include("specialty.jl")
 include("gradient.jl")
 include("mapwindow.jl")
+include("extrema.jl")
 include("basic.jl")
 include("gabor.jl")
 

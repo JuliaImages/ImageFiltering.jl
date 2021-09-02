@@ -18,7 +18,9 @@ export Kernel, KernelFactors,
     imfilter, imfilter!,
     mapwindow, mapwindow!,
     imgradients, padarray, centered, kernelfactors, reflect,
-    freqkernel, spacekernel
+    freqkernel, spacekernel,
+    findlocalminima, findlocalmaxima,
+    blob_LoG, BlobLoG
 
 FixedColorant{T<:Normed} = Colorant{T}
 StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
@@ -56,6 +58,7 @@ using .Algorithm: Alg, FFT, FIR, FIRTiled, IIR, Mixed
 Alg(r::AbstractResource{A}) where {A<:Alg} = r.settings
 
 include("utils.jl")
+include("compat.jl")
 include("kernelfactors.jl")
 using .KernelFactors: TriggsSdika, IIRFilter, ReshapedOneD, iterdims, kernelfactors
 
@@ -85,6 +88,7 @@ include("specialty.jl")
 
 include("mapwindow.jl")
 using .MapWindow
+include("extrema.jl")
 
 function __init__()
     # See ComputationalResources README for explanation
