@@ -3,6 +3,7 @@
 each stored in terms of their factors. The following kernels are
 supported:
 
+  - `box`
   - `sobel`
   - `prewitt`
   - `ando3`, `ando4`, and `ando5` (the latter in 2d only)
@@ -147,6 +148,18 @@ function indexsplit(I::CartesianIndex{N}, v::ReshapedOneD{<:Any,N}) where N
 end
 
 #### FIR filters
+
+"""
+    kern1, kern2 = box(m, n)
+    kerns = box((m, n, ...))
+
+Return a tuple of "flat" kernels, where, for example, `kern1[i] == 1/m` and has length `m`.
+"""
+function box(sz::Dims)
+    all(isodd, sz) || throw(ArgumentError("kernel dimensions must be odd, got $sz"))
+    return kernelfactors(ntuple(d -> centered([1/sz[d] for i=1:sz[d]]), length(sz)))
+end
+box(sz::Int...) = box(sz)
 
 ## gradients
 
