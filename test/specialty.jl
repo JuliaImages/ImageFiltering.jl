@@ -150,7 +150,9 @@ using ImageFiltering: IdentityUnitRange
                              z z z z edgecoef*c]
             end
         end
-        # The doctests seem adequate for laplacian2d
+        @test Kernel.laplacian2d(0.5) ≈ centered([ 1/3  1/3  1/3;
+                                                   1/3 -8/3  1/3;
+                                                   1/3  1/3  1/3])
     end
 
     @testset "box" begin
