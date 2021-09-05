@@ -37,12 +37,13 @@ function product2d(kf)
 end
 
 """
-    kern = box(m, n)
     kern = box((m, n, ...))
 
 Return a box kernel computing a moving average. `m, n, ...` specify the size of the kernel, which is centered around zero.
 """
 box(sz::Dims) = broadcast(*, KernelFactors.box(sz)...)
+# We don't support box(m::Int...) mostly because of `gaussian(σ::Real) = gaussian((σ, σ))` defaulting to
+# isotropic 2d rather than a 1d Gaussian.
 
 """
 ```julia
