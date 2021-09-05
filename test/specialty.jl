@@ -150,6 +150,19 @@ using ImageFiltering: IdentityUnitRange
                              z z z z edgecoef*c]
             end
         end
+        @test Kernel.laplacian2d(0.5) ≈ centered([ 1/3  1/3  1/3;
+                                                   1/3 -8/3  1/3;
+                                                   1/3  1/3  1/3])
+    end
+
+    @testset "box" begin
+        @test KernelFactors.box(3) == (centered([1/3, 1/3, 1/3]),)
+        @test KernelFactors.box(3, 5) == (centered(reshape([1/3, 1/3, 1/3], 3, 1)), centered([1/5, 1/5, 1/5, 1/5, 1/5]'))
+        @test KernelFactors.box((3,5,7)) == KernelFactors.box(3, 5, 7)
+        @test Kernel.box((3,)) == centered([1/3, 1/3, 1/3])
+        @test Kernel.box((3, 5)) == centered([1/3, 1/3, 1/3] .* [1/5, 1/5, 1/5, 1/5, 1/5]')
+        @test_throws ArgumentError KernelFactors.box((3, 4, 5))
+        @test_throws ArgumentError Kernel.box((3, 4, 5))
     end
 
     @testset "gaussian" begin

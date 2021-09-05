@@ -37,6 +37,15 @@ function product2d(kf)
 end
 
 """
+    kern = box((m, n, ...))
+
+Return a box kernel computing a moving average. `m, n, ...` specify the size of the kernel, which is centered around zero.
+"""
+box(sz::Dims) = broadcast(*, KernelFactors.box(sz)...)
+# We don't support box(m::Int...) mostly because of `gaussian(σ::Real) = gaussian((σ, σ))` defaulting to
+# isotropic 2d rather than a 1d Gaussian.
+
+"""
 ```julia
     diff1, diff2 = sobel()
 ```
@@ -380,6 +389,40 @@ function Base.convert(::Type{AbstractArray}, L::Laplacian{N}) where N
 end
 _reshape(L::Laplacian{N}, ::Val{N}) where {N} = L
 
+"""
+    laplacian2d(alpha::Number)
+
+Construct a weighted discrete Laplacian approximation in 2d. `alpha` controls the weighting of the faces
+relative to the corners.
+
+# Examples
+
+```jldoctest
+julia> Kernel.laplacian2d(0)      # the standard Laplacian
+3×3 OffsetArray(::Matrix{Float64}, -1:1, -1:1) with eltype Float64 with indices -1:1×-1:1:
+ 0.0   1.0  0.0
+ 1.0  -4.0  1.0
+ 0.0   1.0  0.0
+
+julia> Kernel.laplacian2d(1)      # a corner-focused Laplacian
+3×3 OffsetArray(::Matrix{Float64}, -1:1, -1:1) with eltype Float64 with indices -1:1×-1:1:
+ 0.5   0.0  0.5
+ 0.0  -2.0  0.0
+ 0.5   0.0  0.5
+
+julia> Kernel.laplacian2d(0.5)    # equal weight for face-pixels and corner-pixels.
+3×3 OffsetArray(::Matrix{Float64}, -1:1, -1:1) with eltype Float64 with indices -1:1×-1:1:
+ 0.333333   0.333333  0.333333
+ 0.333333  -2.66667   0.333333
+ 0.333333   0.333333  0.333333
+```
+"""
+function laplacian2d(alpha::Number=0)
+    lc = alpha/(1 + alpha)
+    lb = (1 - alpha)/(1 + alpha)
+    lm = -4/(1 + alpha)
+    return centered([lc lb lc; lb lm lb; lc lb lc])
+end
 
 """
     gabor(size_x,size_y,σ,θ,λ,γ,ψ) -> (k_real,k_complex)
