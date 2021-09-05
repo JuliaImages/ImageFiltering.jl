@@ -1,4 +1,7 @@
 {
     "title": "Examples",
-    "theme": "grid"
+    "theme": "grid",
+    "properties":{
+        "notebook": "false"
+    }
 }

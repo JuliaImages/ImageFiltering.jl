@@ -1,5 +1,9 @@
 using Documenter, DemoCards
 using ImageFiltering
+# loading Plots before generating demos (might be helpful to avoid segfaults)
+using Plots
+ENV["GKSwstype"] = "nul" # needed for the GR backend on headless servers
+gr()
 
 demos, demos_cb, demos_assets = makedemos("demos")
 
