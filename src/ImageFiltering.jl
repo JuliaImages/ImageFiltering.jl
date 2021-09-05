@@ -8,8 +8,10 @@ using ImageCore.MappedArrays
 using Statistics, LinearAlgebra
 using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
 using OffsetArrays: IdentityUnitRange   # using the one in OffsetArrays makes this work with multiple Julia versions
-using Requires
 using SparseArrays   # only needed to fix an ambiguity in borderarray
+using Reexport
+
+@reexport using OffsetArrays: centered # this method once lived here
 
 export Kernel, KernelFactors,
     Pad, Fill, Inner, NA, NoPad,
@@ -97,13 +99,6 @@ function __init__()
     #     @eval using DummyAF
     # end
     pop!(LOAD_PATH)
-    @require AxisArrays="39de3d68-74b9-583c-8d2d-e117c070f3a9" begin
-        centered(ax::AxisArrays.Axis{name}) where name = AxisArrays.Axis{name}(centered(ax.val))
-        centered(a::AxisArrays.AxisArray) = AxisArrays.AxisArray(centered(a.data), centered.(AxisArrays.axes(a)))
-    end
-    @require ImageMetadata="bc367c6b-8a6b-528e-b4bd-a4b897500b49" begin
-        centered(a::ImageMetadata.ImageMeta) = ImageMetadata.ImageMeta(centered(ImageMetadata.arraydata(a)), ImageMetadata.properties(a))
-    end
 end
 
 if Base.VERSION >= v"1.4.2"
