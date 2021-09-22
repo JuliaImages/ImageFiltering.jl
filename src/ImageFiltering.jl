@@ -10,6 +10,8 @@ using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
 using OffsetArrays: IdentityUnitRange   # using the one in OffsetArrays makes this work with multiple Julia versions
 using SparseArrays   # only needed to fix an ambiguity in borderarray
 using Reexport
+using LoopVectorization
+using LoopVectorization.VectorizationBase
 
 @reexport using OffsetArrays: centered # this method once lived here
 
