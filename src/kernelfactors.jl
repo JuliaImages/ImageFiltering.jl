@@ -76,6 +76,20 @@ Base.isempty(A::ReshapedOneD) = isempty(A.data)
 
 @inline Base.axes(A::ReshapedOneD{_,N,Npre}) where {_,N,Npre} = Base.fill_to_length((Base.ntuple(d->0:0, Val(Npre))..., UnitRange(Base.axes1(A.data))), 0:0, Val(N))
 
+function Base.show(io::IO, ::MIME"text/plain", A::ReshapedOneD{T,N,Npre,<:AbstractVector}) where {T,N,Npre}
+    println(io, "Reshaped 1d stencil with axes ", axes(A), ":")
+    if ndims(A) <= 2
+        # print in matrix style
+        a = OffsetArray{T}(undef, axes(A)...)
+        for i in CartesianIndices(axes(A))
+            a[i] = A[i]
+        end
+        Base.print_array(io, a)
+    else
+        println(io, "  with data: ", A.data)
+    end
+end
+
 Base.iterate(A::ReshapedOneD) = iterate(A.data)
 Base.iterate(A::ReshapedOneD, state) = iterate(A.data, state)
 
