@@ -1207,11 +1207,17 @@ function _imfilter_fft!(r::AbstractCPU{FFT},
     out
 end
 
-filtfft(A, krn) = irfft(rfft(A).*conj(rfft(krn)), length(axes(A,1)))
+function filtfft(A, krn)
+    B = rfft(A)
+    B .*= conj!(rfft(krn))
+    irfft(B, length(axes(A,1)))
+end
 function filtfft(A::AbstractArray{C}, krn) where C<:Colorant
     Av, dims = channelview_dims(A)
     kernrs = kreshape(C, krn)
-    Avf = irfft(rfft(Av, dims).*conj(rfft(kernrs, dims)), length(axes(Av, dims[1])), dims)
+    B = rfft(Av, dims)
+    B .*= conj!(rfft(kernrs, dims))
+    Avf = irfft(B, length(axes(Av, dims[1])), dims)
     colorview(base_colorant_type(C){eltype(Avf)}, Avf)
 end
 channelview_dims(A::AbstractArray{C,N}) where {C<:Colorant,N} = channelview(A), ntuple(d->d+1, Val(N))
