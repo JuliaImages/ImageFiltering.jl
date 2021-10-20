@@ -74,9 +74,18 @@ Mathematically, this function solves the following ROF model using the primal-du
 function solve_ROF_PD(img::AbstractArray, λ::Real, num_iters::Integer)
     # Total Variation regularized image denoising using the primal dual algorithm
     # Implement according to reference [1]
-    τ = 1/4   # see 2nd remark after proof of Theorem 3.1.
 
-    g = of_eltype(floattype(eltype(img)), img) # use the same symbol in the paper
+    # use Float32 for better GPU performance
+    τ = Float32(1/4) # see 2nd remark after proof of Theorem 3.1.
+    λ = Float32(λ)
+    FT = float32(eltype(img))
+
+    # use the same symbol in the paper
+    if FT == eltype(img)
+        g = img
+    else
+        g = FT.(img)
+    end
     u = similar(g)
     p = fgradient(g)
     div_p = similar(g)
