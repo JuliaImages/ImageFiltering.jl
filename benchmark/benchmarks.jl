@@ -61,7 +61,7 @@ end
 
 SUITE["ROF"] = BenchmarkGroup()
 let grp = SUITE["ROF"]
-    for sz in ((100, 100), (2048, 2048), (2048,), (100, 100, 100))
+    for sz in ((100, 100), (256, 256), (2048, 2048), (256, 256, 30))
         for (aname, img) in makeimages(sz)
             szstr = sz2str(sz)
             grp["PrimalDual"*"_"*aname*"_"*szstr] = @benchmarkable solve_ROF_PD($img, 0.1, 10)

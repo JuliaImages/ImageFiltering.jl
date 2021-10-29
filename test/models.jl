@@ -1,7 +1,23 @@
 using ImageFiltering.Models
+using ImageFiltering.Models: preallocate_solve_ROF_PD
 
 @testset "solve_ROF_PD" begin
     # Note: random seed really matters a lot
+
+    @testset "API" begin
+        img = rand(MersenneTwister(0), Float64, 64)
+        out = solve_ROF_PD(img, 0.2, 30)
+        @test eltype(out) == Float32
+
+        out2 = solve_ROF_PD(Float64, img, 0.2, 30)
+        @test eltype(out2) == Float64
+        @test out ≈ out2
+
+        out3 = similar(img, Float32)
+        buffer = preallocate_solve_ROF_PD(img)
+        solve_ROF_PD!(out3, buffer, img, 0.2, 30)
+        @test out == out3
+    end
 
     @testset "Numerical" begin
         # 2D Gray
