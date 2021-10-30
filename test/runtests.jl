@@ -18,7 +18,11 @@ using Random
     end
 
     if VERSION >= v"1.3"
-        doctest(ImageFiltering, manual = false)
+        # TODO(johnnychen94): remove this when upstream ecosystem is ready
+        # https://github.com/JuliaLang/julia/issues/42087
+        if VERSION < v"1.8.0-DEV.840"
+            doctest(ImageFiltering, manual = false)
+        end
     end
 end
 
