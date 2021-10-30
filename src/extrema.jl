@@ -45,15 +45,15 @@ as a fraction of `maximum(abs, img)` and the volume of the Gaussian.
 While most images are 2- or 3-dimensional, it will be easier to illustrate this with
 a one-dimensional "image" containing two Gaussian blobs of different sizes:
 
-```jldoctest; setup=:(using ImageFiltering), filter=r"amplitude=.*"]
+```jldoctest; setup=:(using ImageFiltering), filter=r"amplitude=.*"
 julia> σs = 2.0.^(1:6);
 
 julia> img = zeros(100); img[20:30] = [exp(-x^2/(2*4^2)) for x=-5:5]; img[50:80] = [exp(-x^2/(2*8^2)) for x=-15:15];
 
 julia> blob_LoG(img, σs; edges=false)
 2-element Vector{BlobLoG{Float64, Tuple{Float64}, 1}}:
- location=CartesianIndex(25,), σ=(4.0,), amplitude=0.10453155018303673
- location=CartesianIndex(65,), σ=(8.0,), amplitude=0.046175719034527364
+ BlobLoG(location=CartesianIndex(25,), σ=(4.0,), amplitude=0.10453155018303673)
+ BlobLoG(location=CartesianIndex(65,), σ=(8.0,), amplitude=0.046175719034527364)
 ```
 
 The other two are centered in their corresponding "features," and the width `σ`

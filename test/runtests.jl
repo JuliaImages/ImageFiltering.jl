@@ -1,19 +1,25 @@
 using ImageFiltering, ImageCore, ImageBase
 using OffsetArrays
-using Test
+using Test, Documenter
 using TestImages
 using ImageQualityIndexes
 import StaticArrays
 using Random
 
-# Ambiguity test
-if Base.VERSION >= v"1.6.0-DEV.1005"   # julia #37616
-    @test isempty(detect_ambiguities(ImageFiltering, Kernel, KernelFactors))
-else
-    # Because StaticArrays may have ambiguities with Base, we have to "subtract" these
-    aif = detect_ambiguities(ImageFiltering, Kernel, KernelFactors, Base)
-    asa = detect_ambiguities(StaticArrays, Base)
-    @test isempty(setdiff(aif, asa))
+@testset "Project meta quality checks" begin
+    # Ambiguity test
+    if Base.VERSION >= v"1.6.0-DEV.1005"   # julia #37616
+        @test isempty(detect_ambiguities(ImageFiltering, Kernel, KernelFactors))
+    else
+        # Because StaticArrays may have ambiguities with Base, we have to "subtract" these
+        aif = detect_ambiguities(ImageFiltering, Kernel, KernelFactors, Base)
+        asa = detect_ambiguities(StaticArrays, Base)
+        @test isempty(setdiff(aif, asa))
+    end
+
+    if VERSION >= v"1.3"
+        doctest(ImageFiltering, manual = false)
+    end
 end
 
 function typestring(::Type{T}) where T   # from https://github.com/JuliaImages/ImageCore.jl/pull/133

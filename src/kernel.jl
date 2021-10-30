@@ -397,7 +397,7 @@ relative to the corners.
 
 # Examples
 
-```jldoctest
+```jldoctest; setup=:(using ImageFiltering)
 julia> Kernel.laplacian2d(0)      # the standard Laplacian
 3×3 OffsetArray(::Matrix{Float64}, -1:1, -1:1) with eltype Float64 with indices -1:1×-1:1:
  0.0   1.0  0.0
