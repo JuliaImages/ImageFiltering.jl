@@ -2,6 +2,7 @@ using ImageFiltering, ImageCore
 using PkgBenchmark
 using BenchmarkTools
 using Statistics: quantile, mean, median!
+using ImageFiltering.Models
 
 function makeimages(sz)
     imgF32      = rand(Float32, sz)
@@ -53,6 +54,17 @@ let grp = SUITE["imfilter"]
             end
             grp["IIRGaussian_"*aname*"_"*szstr] = @benchmarkable imfilter($img, $kerniir, "replicate", ImageFiltering.IIR())
             grp["FFT_"*aname*"_"*szstr]         = @benchmarkable imfilter($img, $(Kernel.DoG(twos),), "replicate", ImageFiltering.FFT())
+        end
+    end
+end
+
+
+SUITE["ROF"] = BenchmarkGroup()
+let grp = SUITE["ROF"]
+    for sz in ((100, 100), (256, 256), (2048, 2048), (256, 256, 30))
+        for (aname, img) in makeimages(sz)
+            szstr = sz2str(sz)
+            grp["PrimalDual"*"_"*aname*"_"*szstr] = @benchmarkable solve_ROF_PD($img, 0.1, 10)
         end
     end
 end

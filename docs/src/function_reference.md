@@ -72,6 +72,12 @@ Algorithm.IIR
 Algorithm.Mixed
 ```
 
+# Solvers for predefined models
+
+```@autodocs
+Modules = [ImageFiltering.Models]
+```
+
 # Internal machinery
 
 ```@docs

@@ -9,6 +9,7 @@ ComputationalResources = "ed09eef8-17a6-5b46-8889-db040fac31e3"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 FFTViews = "4f61f5a4-77b1-5117-aa51-3ab5ef4ef0cd"
 FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+ImageBase = "c817782e-172a-44cc-b673-b171935fbb9e"
 ImageCore = "a09fc81d-aa75-5fe9-8630-4744c3626534"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 OffsetArrays = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
@@ -24,6 +25,7 @@ ComputationalResources = "0.3"
 DataStructures = "0.17.7, 0.18"
 FFTViews = "0.3"
 FFTW = "0.3, 1"
+ImageBase = "0.1.5"
 ImageCore = "0.9"
 OffsetArrays = "1.9"
 Reexport = "1.1"
@@ -33,10 +35,14 @@ julia = "1"
 
 [extras]
 AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
+ImageIO = "82e4d734-157c-48bb-816b-45c225c6df19"
+ImageMagick = "6218d12a-5da1-5696-b52f-db25d2ecc6d1"
 ImageMetadata = "bc367c6b-8a6b-528e-b4bd-a4b897500b49"
+ImageQualityIndexes = "2996bd0c-7a13-11e9-2da2-2f5ce47296a9"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+TestImages = "5e47fb64-e119-507b-a336-dd2b206d9990"
 
 [targets]
-test = ["AxisArrays", "ImageMetadata", "Logging", "Random", "Test"]
+test = ["AxisArrays", "ImageIO", "ImageMagick", "ImageMetadata", "ImageQualityIndexes", "Logging", "Random", "Test", "TestImages"]

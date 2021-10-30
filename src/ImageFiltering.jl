@@ -92,6 +92,8 @@ include("mapwindow.jl")
 using .MapWindow
 include("extrema.jl")
 
+include("models.jl")
+
 function __init__()
     # See ComputationalResources README for explanation
     push!(LOAD_PATH, dirname(@__FILE__))

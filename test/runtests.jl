@@ -1,5 +1,8 @@
-using ImageFiltering, ImageCore
+using ImageFiltering, ImageCore, ImageBase
+using OffsetArrays
 using Test
+using TestImages
+using ImageQualityIndexes
 import StaticArrays
 using Random
 
@@ -31,5 +34,30 @@ include("mapwindow.jl")
 include("extrema.jl")
 include("basic.jl")
 include("gabor.jl")
+include("models.jl")
 
+
+CUDA_INSTALLED = false
+try
+    global CUDA_INSTALLED
+    # This errors with `IOError` when nvidia driver is not available,
+    # in which case we don't even need to try `using CUDA`
+    run(pipeline(`nvidia-smi`, stdout=devnull, stderr=devnull))
+    push!(LOAD_PATH, "@v#.#") # force using global CUDA installation
+
+    @eval using CUDA
+    CUDA.allowscalar(false)
+    CUDA_INSTALLED = true
+catch e
+    e isa Base.IOError || @warn e LOAD_PATH
+end
+CUDA_FUNCTIONAL = CUDA_INSTALLED && CUDA.functional()
+if CUDA_FUNCTIONAL
+    @info "CUDA test: enabled"
+    @testset "CUDA" begin
+        include("cuda/runtests.jl")
+    end
+else
+    @warn "CUDA test: disabled"
+end
 nothing
