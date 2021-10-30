@@ -35,6 +35,7 @@ julia = "1"
 
 [extras]
 AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 ImageIO = "82e4d734-157c-48bb-816b-45c225c6df19"
 ImageMagick = "6218d12a-5da1-5696-b52f-db25d2ecc6d1"
 ImageMetadata = "bc367c6b-8a6b-528e-b4bd-a4b897500b49"
@@ -45,4 +46,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TestImages = "5e47fb64-e119-507b-a336-dd2b206d9990"
 
 [targets]
-test = ["AxisArrays", "ImageIO", "ImageMagick", "ImageMetadata", "ImageQualityIndexes", "Logging", "Random", "Test", "TestImages"]
+test = ["AxisArrays", "Documenter", "ImageIO", "ImageMagick", "ImageMetadata", "ImageQualityIndexes", "Logging", "Random", "Test", "TestImages"]

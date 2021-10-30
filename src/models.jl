@@ -72,7 +72,7 @@ Mathematically, this function solves the following ROF model using the primal-du
 # References
 
 - [1] Chambolle, A. (2004). "An algorithm for total variation minimization and applications". _Journal of Mathematical Imaging and Vision_. 20: 89–97
-- [2] https://en.wikipedia.org/wiki/Total_variation_denoising
+- [2] [Wikipedia: Total Variation Denoising](https://en.wikipedia.org/wiki/Total_variation_denoising)
 """
 solve_ROF_PD(img::AbstractArray{T}, args...) where T = solve_ROF_PD(float32(T), img, args...)
 function solve_ROF_PD(::Type{T}, img::AbstractArray, args...) where T

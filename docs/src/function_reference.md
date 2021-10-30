@@ -46,7 +46,8 @@ KernelFactors.TriggsSdika
 # Kernel utilities
 
 ```@docs
-centered
+OffsetArrays.center
+OffsetArrays.centered
 kernelfactors
 reflect
 ```

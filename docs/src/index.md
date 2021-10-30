@@ -54,7 +54,7 @@ ability to define arrays whose indices span an arbitrary range:
 
 ```julia
 julia> Kernel.gaussian(1)
-OffsetArrays.OffsetArray{Float64,2,Array{Float64,2}} with indices -2:2×-2:2:
+OffsetArray{Float64,2,Array{Float64,2}} with indices -2:2×-2:2:
  0.00296902  0.0133062  0.0219382  0.0133062  0.00296902
  0.0133062   0.0596343  0.0983203  0.0596343  0.0133062
  0.0219382   0.0983203  0.162103   0.0983203  0.0219382
@@ -73,7 +73,7 @@ array to one that has coordinates `[0,0,...]` at its center position:
 
 ```julia
 julia> centered([1 0 1; 0 1 0; 1 0 1])
-OffsetArrays.OffsetArray{Int64,2,Array{Int64,2}} with indices -1:1×-1:1:
+OffsetArray{Int64,2,Array{Int64,2}} with indices -1:1×-1:1:
  1  0  1
  0  1  0
  1  0  1
@@ -112,16 +112,16 @@ tuple-of-vectors:
 
 ```julia
 julia> kern1 = centered([1/3, 1/3, 1/3])
-OffsetArrays.OffsetArray{Float64,1,Array{Float64,1}} with indices -1:1:
+OffsetArray{Float64,1,Array{Float64,1}} with indices -1:1:
  0.333333
  0.333333
  0.333333
 
 julia> kernf = kernelfactors((kern1, kern1))
-(ImageFiltering.KernelFactors.ReshapedOneD{Float64,2,0,OffsetArrays.OffsetArray{Float64,1,Array{Float64,1}}}([0.333333,0.333333,0.333333]),ImageFiltering.KernelFactors.ReshapedOneD{Float64,2,1,OffsetArrays.OffsetArray{Float64,1,Array{Float64,1}}}([0.333333,0.333333,0.333333]))
+(ImageFiltering.KernelFactors.ReshapedOneD{Float64,2,0,OffsetArray{Float64,1,Array{Float64,1}}}([0.333333,0.333333,0.333333]),ImageFiltering.KernelFactors.ReshapedOneD{Float64,2,1,OffsetArray{Float64,1,Array{Float64,1}}}([0.333333,0.333333,0.333333]))
 
 julia> kernp = broadcast(*, kernf...)
-OffsetArrays.OffsetArray{Float64,2,Array{Float64,2}} with indices -1:1×-1:1:
+OffsetArray{Float64,2,Array{Float64,2}} with indices -1:1×-1:1:
  0.111111  0.111111  0.111111
  0.111111  0.111111  0.111111
  0.111111  0.111111  0.111111

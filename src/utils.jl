@@ -13,7 +13,7 @@ and the first dimension size will be approximately half of `sz[1]`.
 `kern` should be zero-centered, i.e.,
 `kern[0, 0]` should reference the center of your kernel,
 and `sz` must be large enough to support `kern`.
-See [`centered`](@ref).
+See [`centered`](@ref OffsetArrays.centered).
 Optionally specify the numeric type `T`
 (which must be one of the types supported by FFTW,
 either `Float32` or `Float64`).
