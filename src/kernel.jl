@@ -11,7 +11,7 @@ dimensionality. The following kernels are supported:
   - `DoG` (Difference-of-Gaussian)
   - `LoG` (Laplacian-of-Gaussian)
   - `Laplacian`
-  - `gabor`
+  - `Gabor`
   - `moffat`
 
 See also: [`KernelFactors`](@ref).
@@ -22,6 +22,9 @@ using StaticArrays, OffsetArrays
 using ..ImageFiltering
 using ..ImageFiltering.KernelFactors
 import ..ImageFiltering: _reshape, IdentityUnitRange
+
+include("gaborkernels.jl")
+using .GaborKernels
 
 # We would like to do `using ..ImageFiltering.imgradients` so that that
 # Documenter.jl (the documentation system) can parse a reference such as `See
