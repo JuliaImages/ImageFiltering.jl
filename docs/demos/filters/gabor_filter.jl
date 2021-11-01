@@ -7,7 +7,8 @@
 # ---
 
 # This example shows how one can apply spatial space kernesl [`Gabor`](@ref Kernel.Gabor)
-# using fourier transformation and convolution theorem to extract image features.
+# using fourier transformation and convolution theorem to extract image features. A similar
+# example is [Log Gabor filter](@ref demo_log_gabor_filter).
 
 using ImageCore, ImageShow, ImageFiltering # or you could just `using Images`
 using FFTW

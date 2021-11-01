@@ -1,6 +1,6 @@
 module GaborKernels
 
-export Gabor
+export Gabor, LogGabor, LogGaborComplex
 
 """
     Gabor(size_or_axes, wavelength, orientation; kwargs...)
@@ -168,6 +168,147 @@ end
     yr = γ * yr
     return exp(-(xr^2 + yr^2)/(2σ^2)) * cis(xr*λ_scaled + ψ)
 end
+
+
+"""
+    LogGaborComplex(size_or_axes, ω, θ; σω=1, σθ=1, normalize=true)
+
+Generate the 2-D Log Gabor kernel in spatial space by `Complex(r, a)`, where `r` and `a`
+are the frequency and angular components, respectively.
+
+More detailed documentation and example can be found in the `r * a` version
+[`LogGabor`](@ref).
+"""
+struct LogGaborComplex{T, TP,R<:AbstractUnitRange} <: AbstractMatrix{T}
+    ax::Tuple{R,R}
+    ω::TP
+    θ::TP
+    σω::TP
+    σθ::TP
+    normalize::Bool
+
+    # cache values
+    freq_scale::Tuple{TP, TP} # only used when normalize is true
+    ω_denom::TP # 1/(2(log(σω/ω))^2)
+    θ_denom::TP # 1/(2σθ^2)
+    function LogGaborComplex{T,TP,R}(ax::Tuple{R,R}, ω::TP, θ::TP, σω::TP, σθ::TP, normalize::Bool) where {T,TP,R}
+        σω > 0 || throw(ArgumentError("`σω` should be positive: $σω"))
+        σθ > 0 || throw(ArgumentError("`σθ` should be positive: $σθ"))
+        ω_denom = 1/(2(log(σω/ω))^2)
+        θ_denom = 1/(2σθ^2)
+        freq_scale = map(r->1/length(r), ax)
+        new{T,TP,R}(ax, ω, θ, σω, σθ, normalize, freq_scale, ω_denom, θ_denom)
+    end
+end
+function LogGaborComplex(
+        size_or_axes::Tuple, ω::Real, θ::Real;
+        σω::Real=1, σθ::Real=1, normalize::Bool=true,
+    )
+    params = float.(promote(ω, θ, σω, σθ))
+    T = typeof(params[1])
+    ax = _to_axes(size_or_axes)
+    LogGaborComplex{Complex{T}, T, typeof(first(ax))}(ax, params..., normalize)
+end
+
+@inline Base.size(kern::LogGaborComplex) = map(length, kern.ax)
+@inline Base.axes(kern::LogGaborComplex) = kern.ax
+
+@inline function Base.getindex(kern::LogGaborComplex, x::Int, y::Int)
+    ω_denom, θ_denom = kern.ω_denom, kern.θ_denom
+    # Although in `getindex`, the computation is heavy enough that this runtime if-branch is
+    # harmless to the overall performance at all
+    if kern.normalize
+        # normalize: from reference [1] of LogGabor
+        # By changing division to multiplication gives about 5-10% performance boost
+        x, y = (x, y) .* kern.freq_scale
+    end
+    ω = sqrt(x^2 + y^2) # this is faster than hypot(x, y)
+    θ = atan(y, x)
+    r = exp((-(log(ω/kern.ω))^2)*ω_denom) # radial component
+    a = exp((-(θ-kern.θ)^2)*θ_denom) # angular component
+    return Complex(r, a)
+end
+
+
+"""
+    LogGabor(size_or_axes, ω, θ; σω=1, σθ=1, normalize=true)
+
+Generate the 2-D Log Gabor kernel in spatial space by `r * a`, where `r` and `a` are the
+frequency and angular components, respectively.
+
+See also [`LogGaborComplex`](@ref) for the `Complex(r, a)` version.
+
+# Arguments
+
+- `kernel_size::Dims{2}`: the Log Gabor kernel size. The axes at each dimension will be
+  `-r:r` if the size is odd.
+- `kernel_axes::NTuple{2, <:AbstractUnitRange}`: the axes of the Log Gabor kernel.
+- `ω`: the center frequency.
+- `θ`: the center orientation.
+
+# Keywords
+
+- `σω=1`: scale component for `ω`. Larger `σω` makes the filter more sensitive to center
+  region.
+- `σθ=1`: scale component for `θ`. Larger `σθ` makes the filter less sensitive to
+  orientation.
+- `normalize=true`: whether to normalize the frequency domain into [-0.5, 0.5]x[-0.5, 0.5]
+  domain via `inds = inds./size(kern)`. For image-related tasks where the [Weber–Fechner
+  law](https://en.wikipedia.org/wiki/Weber%E2%80%93Fechner_law) applies, this usually
+  provides more stable pipeline.
+
+# Examples
+
+To apply log gabor filter `g` on image `X`, one need to use convolution theorem, i.e.,
+`conv(A, K) == ifft(fft(A) .* fft(K))`. Because this `LogGabor` function generates Log Gabor
+kernel directly in spatial space, we don't need to apply `fft(K)` here:
+
+```jldoctest
+julia> using ImageFiltering, FFTW, TestImages, ImageCore
+
+julia> img = TestImages.shepp_logan(256);
+
+julia> kern = Kernel.LogGabor(size(img), 1/6, 0);
+
+julia> g_img = ifft(centered(fft(channelview(img))) .* ifftshift(kern)); # apply convolution theorem
+
+julia> @. Gray(abs(g_img));
+
+```
+
+# Extended help
+
+Mathematically, log gabor filter is defined in spatial space as the product of its frequency
+component `r` and angular component `a`:
+
+```math
+r(\\omega, \\theta) = \\exp(-\\frac{(\\log(\\omega/\\omega_0))^2}{2\\sigma_\\omega^2}) \\
+a(\\omega, \\theta) = \\exp(-\\frac{(\\theta - \\theta_0)^2}{2\\sigma_\\theta^2})
+```
+
+# References
+
+- [1] [What Are Log-Gabor Filters and Why Are They
+  Good?](https://www.peterkovesi.com/matlabfns/PhaseCongruency/Docs/convexpl.html)
+- [2] Kovesi, Peter. "Image features from phase congruency." _Videre: Journal of computer
+  vision research_ 1.3 (1999): 1-26.
+- [3] Field, David J. "Relations between the statistics of natural images and the response
+  properties of cortical cells." _Josa a_ 4.12 (1987): 2379-2394.
+"""
+struct LogGabor{T, AT<:LogGaborComplex} <: AbstractMatrix{T}
+    complex_data::AT
+end
+LogGabor(complex_data::AT) where AT<:LogGaborComplex = LogGabor{real(eltype(AT)), AT}(complex_data)
+LogGabor(size_or_axes::Tuple, ω, θ; kwargs...) = LogGabor(LogGaborComplex(size_or_axes, ω, θ; kwargs...))
+
+@inline Base.size(kern::LogGabor) = size(kern.complex_data)
+@inline Base.axes(kern::LogGabor) = axes(kern.complex_data)
+Base.@propagate_inbounds function Base.getindex(kern::LogGabor, inds::Int...)
+    # cache the result to avoid repeated computation
+    v = kern.complex_data[inds...]
+    return real(v) * imag(v)
+end
+
 
 # Utils
 

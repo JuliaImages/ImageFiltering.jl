@@ -122,4 +122,86 @@ end
     end
 end
 
+
+@testset "LogGabor" begin
+    @testset "API" begin
+        # LogGabor: r * a
+        # LogGaborComplex: Complex(r, a)
+        kern = @inferred Kernel.LogGabor((11, 11), 1/6, 0)
+        kern_c = Kernel.LogGaborComplex((11, 11), 1/6, 0)
+        @test kern == @. real(kern_c) * imag(kern_c)
+
+        # Normally it just return a ComplexF64 matrix if users are careless
+        kern = @inferred Kernel.LogGabor((11, 11), 2, 0)
+        @test size(kern) == (11, 11)
+        @test axes(kern) == (-5:5, -5:5)
+        @test eltype(kern) == Float64
+        # ensure that this is an efficient lazy array
+        @test isbitstype(typeof(kern))
+
+        # but still allow construction of ComplexF32 matrix
+        kern = @inferred Kernel.LogGabor((11, 11), 1.0f0/6, 0.0f0)
+        @test eltype(kern) == Float32
+
+        # passing axes explicitly allows building a subregion of it
+        kern1 = @inferred Kernel.LogGabor((1:10, 1:10), 1/6, 0)
+        @test axes(kern1) == (1:10, 1:10)
+        kern2 = @inferred Kernel.LogGabor((21, 21), 1/6, 0)
+        # but they are not the same in normalize=true mode
+        @test kern2[1:end, 1:end] != kern1
+
+        # when normalize=false, they're the same
+        kern1 = @inferred Kernel.LogGabor((1:10, 1:10), 1/6, 0; normalize=false)
+        kern2 = @inferred Kernel.LogGabor((21, 21), 1/6, 0; normalize=false)
+        @test kern2[1:end, 1:end] == kern1
+
+        # test default keyword values
+        kern1 = @inferred Kernel.LogGabor((11, 11), 2, 0)
+        kern2 = @inferred Kernel.LogGabor((11, 11), 2, 0; σω=1, σθ=1, normalize=true)
+        @test kern1 === kern2
+
+        @test_throws ArgumentError Kernel.LogGabor((11, 11), 2, 0; σω=-1)
+        @test_throws ArgumentError Kernel.LogGabor((11, 11), 2, 0; σθ=-1)
+        @test_throws ArgumentError Kernel.LogGaborComplex((11, 11), 2, 0; σω=-1)
+        @test_throws ArgumentError Kernel.LogGaborComplex((11, 11), 2, 0; σθ=-1)
+    end
+
+    @testset "symmetricity" begin
+        kern = Kernel.LogGaborComplex((11, 11), 1/12, 0)
+        # the real part is an even-symmetric function
+        @test is_symmetric(real.(kern))
+        # the imaginary part is a mirror along y-axis
+        rows =  [imag.(kern[i, :]) for i in axes(kern, 1)]
+        @test all(map(is_symmetric,  rows))
+
+        # NOTE(johnnychen94): I'm not sure the current implementation is the standard or
+        # correct. This numerical references are generated only to make sure future changes
+        # don't accidentally break it.
+        # Use N0f8 to ignore "insignificant" numerical changes to keep unit test happy
+        ref_real = N0f8[
+            0.741  0.796  0.82   0.796  0.741
+            0.796  0.886  0.941  0.886  0.796
+            0.82   0.941  0.0    0.941  0.82
+            0.796  0.886  0.941  0.886  0.796
+            0.741  0.796  0.82   0.796  0.741
+        ]
+        ref_imag = N0f8[
+            0.063  0.027  0.008  0.027  0.063
+            0.125  0.063  0.008  0.063  0.125
+            0.29   0.29   1.0    0.29   0.29
+            0.541  0.733  1.0    0.733  0.541
+            0.733  0.898  1.0    0.898  0.733
+        ]
+        kern = Kernel.LogGaborComplex((5, 5), 1/12, 0)
+        @test collect(N0f8.(real(kern))) == ref_real
+        @test collect(N0f8.(imag(kern))) == ref_imag
+    end
+
+    @testset "applications" begin
+        img = TestImages.shepp_logan(127)
+        kern = Kernel.LogGabor(size(img), 1/100, π/4)
+        out = @test_nowarn ifft(centered(fft(channelview(img))) .* ifftshift(kern))
+    end
+end
+
 end
