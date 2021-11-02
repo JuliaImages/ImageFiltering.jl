@@ -7,11 +7,15 @@ using ImageBase
 using ImageQualityIndexes
 using Test
 using Random
+using FFTW
+using OffsetArrays
+using CUDA.Adapt
 
 CUDA.allowscalar(false)
 
 @testset "ImageFiltering" begin
     if CUDA.functional()
         include("models.jl")
+        include("gaborkernels.jl")
     end
 end
