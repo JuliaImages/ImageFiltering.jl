@@ -2,8 +2,7 @@ using ImageCore, ImageShow, ImageFiltering # or you could just `using Images`
 using FFTW
 using TestImages
 
-bandwidth, orientation, wavelength, phase_offset = 0.1, 0, 2, 0
-kern = Kernel.Gabor((10, 10); bandwidth, orientation, wavelength, phase_offset)
+kern = Kernel.Gabor((10, 10), 2, 0.1)
 
 # You can also try display the real part: `@. Gray(log(abs(real(kern)) + 1))`
 show_phase(kern) = @. Gray(log(abs(imag(kern)) + 1))
@@ -32,22 +31,18 @@ f(bandwidth) = show_abs(Kernel.Gabor((100, 100); wavelength, bandwidth, orientat
 mosaic(f.((0.5, 1, 2)), nrow=1)
 
 img = TestImages.shepp_logan(127)
-kern = Kernel.Gabor(size(img); orientation=π/4, wavelength=20, bandwidth=2, phase_offset=0)
-out = ifft(centered(fft(channelview(img))) .* fftshift(kern))
-mosaic(img, show_abs(kern), show_abs(out); nrow=1)
+kern = Kernel.Gabor(size(img); orientation=0, wavelength=3, bandwidth=2, phase_offset=0)
+out = ifft(fft(channelview(img)) .* ifftshift(fft(kern)))
+mosaic(img, show_abs(kern), show_mag(out); nrow=1)
 
-filters = [Kernel.Gabor(size(img);
-                        orientation,
-                        wavelength=20,
-                        bandwidth=50,
-                        phase_offset=0,
-                        )
-    for orientation in -1.3:π/4:1.3
-];
-f(X, kern) = ifft(centered(fft(channelview(X))) .* fftshift(kern))
+filters = [Kernel.Gabor(size(img), 3, θ) for θ in -π/2:π/4:π/2];
+X_freq = fft(channelview(img))
+out = map(filters) do kern
+    ifft(X_freq .* ifftshift(fft(kern)))
+end
 mosaic(
     map(show_abs, filters)...,
-    map(kern->show_abs(f(img, kern)), filters)...;
+    map(show_abs, out)...;
     nrow=2, rowmajor=true
 )
 
