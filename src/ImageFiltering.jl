@@ -1,6 +1,6 @@
 module ImageFiltering
 
-using FFTW
+@reexport using FFTW
 using ImageCore, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
 # Where possible we avoid a direct dependency to reduce the number of [compat] bounds
 # using FixedPointNumbers: Normed, N0f8 # reexported by ImageCore
