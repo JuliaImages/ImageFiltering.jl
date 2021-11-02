@@ -23,6 +23,7 @@ mosaic(
 
 img = TestImages.shepp_logan(127)
 kern = Kernel.LogGaborComplex(size(img), 50, π/4)
+# we don't need to call `fft(kern)` here because it's already on frequency space
 out = ifft(centered(fft(channelview(img))) .* ifftshift(kern))
 mosaic(img, show_abs(kern), show_mag(out); nrow=1)
 

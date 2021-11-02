@@ -4,7 +4,6 @@ using TestImages
 
 kern = Kernel.Gabor((10, 10), 2, 0.1)
 
-# You can also try display the real part: `@. Gray(log(abs(real(kern)) + 1))`
 show_phase(kern) = @. Gray(log(abs(imag(kern)) + 1))
 show_mag(kern) = @. Gray(log(abs(real(kern)) + 1))
 show_abs(kern) = @. Gray(log(abs(kern) + 1))
@@ -31,9 +30,21 @@ f(bandwidth) = show_abs(Kernel.Gabor((100, 100); wavelength, bandwidth, orientat
 mosaic(f.((0.5, 1, 2)), nrow=1)
 
 img = TestImages.shepp_logan(127)
-kern = Kernel.Gabor(size(img); orientation=0, wavelength=3, bandwidth=2, phase_offset=0)
+kern = Kernel.Gabor((19, 19), 3, 0)
+out = imfilter(img, real.(kern))
+mosaic(img, show_abs(kern), show_mag(out); nrow=1)
+
+kern = Kernel.Gabor(size(img), 3, 0)
 out = ifft(fft(channelview(img)) .* ifftshift(fft(kern)))
 mosaic(img, show_abs(kern), show_mag(out); nrow=1)
+
+# freqkernel = zero padding + fftshift + fft
+kern = Kernel.Gabor((19, 19), 3, 0)
+kern_freq = freqkernel(real.(kern), size(img))
+out = ifft(fft(channelview(img)) .* kern_freq)
+mosaic(img, show_abs(kern), show_mag(out); nrow=1)
+
+# Filter bank
 
 filters = [Kernel.Gabor(size(img), 3, θ) for θ in -π/2:π/4:π/2];
 X_freq = fft(channelview(img))
