@@ -68,3 +68,29 @@ let grp = SUITE["ROF"]
         end
     end
 end
+
+SUITE["Gabor"] = BenchmarkGroup()
+let grp = SUITE["Gabor"]
+    for sz in ((19, 19), (256, 256), (512, 512))
+        out = Matrix{ComplexF64}(undef, sz)
+        kern = Kernel.Gabor(sz, 2, 0)
+        grp["Gabor_ComplexF64"*"_"*sz2str(sz)] = @benchmarkable copyto!($out, $kern)
+
+        out = Matrix{ComplexF32}(undef, sz)
+        kern = Kernel.Gabor(sz, 2.0f0, 0.0f0)
+        grp["Gabor_ComplexF32"*"_"*sz2str(sz)] = @benchmarkable copyto!($out, $kern)
+    end
+end
+
+SUITE["LogGabor"] = BenchmarkGroup()
+let grp = SUITE["LogGabor"]
+    for sz in ((19, 19), (256, 256), (512, 512))
+        out = Matrix{ComplexF64}(undef, sz)
+        kern = Kernel.LogGabor(sz, 1/6, 0)
+        grp["LogGabor_ComplexF64"*"_"*sz2str(sz)] = @benchmarkable copyto!($out, $kern)
+
+        out = Matrix{ComplexF32}(undef, sz)
+        kern = Kernel.LogGabor(sz, 1.0f0/6, 0.0f0)
+        grp["LogGabor_ComplexF32"*"_"*sz2str(sz)] = @benchmarkable copyto!($out, $kern)
+    end
+end
