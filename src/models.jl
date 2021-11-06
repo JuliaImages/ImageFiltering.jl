@@ -2,11 +2,14 @@ module Models
 
 using ImageBase
 using ImageBase.ImageCore.MappedArrays: of_eltype
-using ImageBase.FiniteDiff
+using ImageBase.FiniteDiff: fdiv!, fdiff!, fgradient!
 
 # Introduced in ColorVectorSpace v0.9.3
 # https://github.com/JuliaGraphics/ColorVectorSpace.jl/pull/172
 using ImageBase.ImageCore.ColorVectorSpace.Future: abs2
+
+using ..ImageFiltering: ffteltype, freqkernel
+using FFTW
 
 """
 This submodule provides predefined image-related models and its solvers that can be reused
