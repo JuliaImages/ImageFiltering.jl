@@ -516,7 +516,7 @@ function butterworth(n::Real,Wn::Real,ls::Tuple{Integer, Integer})
     @. 1/(1+(sqrt(2)-1)*(df(R)/Wn)^nn)
 end   
 
-
+butterworth(n::Real,Wn::Real,ls::Tuple{Integer, Integer})    = butterworth(n, Wn, (ls,ls))
 
 """
     reflect(kernel) --> reflectedkernel
