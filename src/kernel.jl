@@ -509,7 +509,7 @@ moffat(α::Real, β::Real)                 = moffat(α, β, ceil(Int, (α*2*sqrt
     sum(x.^2)
 end
 
-function butterworth(n::Real,Wn::Real,ls::Tuple{Integer, Integer})
+function butterworth(n::Real, Wn::Real, ls::Tuple{Integer,Integer})
     ws = map(n->(ceil(Int,n)>>1), ls)
     R = CartesianIndices(map(w->IdentityUnitRange(-w:w), ws))
     nn = 2*n
