@@ -1327,7 +1327,7 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
     if length(ind) <= max(k, l)
         throw_imfilter_dim(Rbegin, length(ind), max(k, l))
     end
-    indleft = ind[begin:begin+k-1]
+    indleft = ind[firstindex(ind):firstindex(ind)+k-1]
     indright = ind[end-l+1:end]
     for Iend in Rend
         # Initialize the left border
