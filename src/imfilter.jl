@@ -1312,6 +1312,12 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
                                   out, img, kernel::TriggsSdika{T,k,l},
                                   Rbegin::CartesianIndices, ind::AbstractUnitRange,
                                   Rend::CartesianIndices, border::AbstractBorder) where {T,k,l}
+
+    @noinline function throw_imfilter_dim(R, n, l)
+        dim = ndims(R)+1
+        throw(DimensionMismatch("size $n of img along dimension $dim is too small for filtering with IIR kernel of length $l"))
+    end
+
     if iscopy(kernel)
         if !(out === img)
             copyto!(out, img)
@@ -1319,12 +1325,12 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
         return out
     end
     if length(ind) <= max(k, l)
-        dim = ndims(Rbegin)+1
-        throw(DimensionMismatch("size of img along dimension $dim $(length(ind)) is too small for filtering with IIR kernel of length $(max(k,l))"))
+        throw_imfilter_dim(Rbegin, length(ind), max(k, l))
     end
+    indleft = ind[firstindex(ind):firstindex(ind)+k-1]
+    indright = ind[end-l+1:end]
     for Iend in Rend
         # Initialize the left border
-        indleft = collect(Iterators.take(ind,k))
         for Ibegin in Rbegin
             leftborder!(out, img, kernel, Ibegin, indleft, Iend, border)
         end
@@ -1341,7 +1347,6 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
             end
         end
         # Initialize the right border
-        indright = ind[end-l+1:end]
         for Ibegin in Rbegin
             rightborder!(out, img, kernel, Ibegin, indright, Iend, border)
         end
