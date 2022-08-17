@@ -774,7 +774,10 @@ end
 function imfilter!(r::AbstractCPU{FIRTiled{N}}, out::AbstractArray{S,N}, A::AbstractArray{T,N}, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, inds::Indices=axes(out)) where {S,T,N}
     kern = kernel[1]
     iscopy(kern) && return imfilter!(r, out, A, tail(kernel), border, inds)
-    tmp = tile_allocate(filter_type(A, kernel), r.settings.tilesize, kernel)
+    TTile, f = native_eltype(filter_type(A, kernel))
+    @assert f == 1
+    # @show r.settings.tilesize
+    tmp = tile_allocate(TTile, r.settings.tilesize, kernel)
     _imfilter_tiled!(r, out, A, kernel, border, tmp, inds)
     out
 end
@@ -834,6 +837,7 @@ end
 
 # Single-threaded, pair of kernels (with only one temporary buffer required)
 function _imfilter_tiled!(r::CPU1, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA}, indsout) where AA<:AbstractArray
+    out, A, kernel = maybe_reinterpret(out, A, kernel)
     k1, k2 = kernel
     tile = tiles[1]
     indsk2, indstile = axes(k2), axes(tile)
@@ -850,6 +854,7 @@ end
 
 # Multithreaded, pair of kernels
 function _imfilter_tiled!(r::CPUThreads, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA}, indsout) where AA<:AbstractArray
+    out, A, kernel = maybe_reinterpret(out, A, kernel)
     k1, k2 = kernel
     tile = tiles[1]
     indsk2, indstile = axes(k2), axes(tile)
@@ -908,10 +913,8 @@ end
     out
 end
 
-# The first of the pair in `tmp` has the current data. We also make
-# the second a plain array so there's no doubt about who's holding the
-# proper indices.
-function _imfilter_tiled_swap!(r, out, kernel::Tuple{Any,Any,Vararg{Any}}, border, tmp::Tuple{TileBuffer,Array})
+# The first of the pair in `tmp` has the current data.
+function _imfilter_tiled_swap!(r, out, kernel::Tuple{Any,Any,Vararg{Any}}, border, tmp::Tuple{TileBuffer,AbstractArray})
     tileb1, tile2 = tmp
     k1, kt = kernel[1], tail(kernel)
     parentinds = axes(tileb1)
@@ -922,7 +925,7 @@ function _imfilter_tiled_swap!(r, out, kernel::Tuple{Any,Any,Vararg{Any}}, borde
 end
 
 # on the last call we write to `out` instead of one of the buffers
-function _imfilter_tiled_swap!(r, out, kernel::Tuple{Any}, border, tmp::Tuple{TileBuffer,Array})
+function _imfilter_tiled_swap!(r, out, kernel::Tuple{Any}, border, tmp::Tuple{TileBuffer,AbstractArray})
     tileb1 = tmp[1]
     k1 = kernel[1]
     parentinds = axes(tileb1)
@@ -1014,26 +1017,26 @@ end
 # This is unfortunate, but specializing this saves an add in the inner
 # loop and results in a modest performance improvement. It would be
 # nice if LLVM did this automatically. (@polly?)
-function __imfilter_inbounds!(r, out, A::OffsetArray, kern::OffsetArray, border, R, z)
-    off, k = CartesianIndex(kern.offsets), parent(kern)
-    o, O = safehead(off), safetail(off)
-    Rnew = CartesianIndices(map((x,y)->x.+y, R.indices, Tuple(off)))
-    Rk = CartesianIndices(axes(k))
-    offA, pA = CartesianIndex(A.offsets), parent(A)
-    oA, OA = safehead(offA), safetail(offA)
-    for I in safetail(Rnew)
-        IA = I-OA
-        for i in safehead(Rnew)
-            tmp = z
-            iA = i-oA
-            @inbounds for J in safetail(Rk), j in safehead(Rk)
-                tmp += safe_for_prod(pA[iA+j,IA+J], tmp)*k[j,J]
-            end
-            @inbounds out[i-o,I-O] = tmp
-        end
-    end
-    out
-end
+# function __imfilter_inbounds!(r, out, A::OffsetArray, kern::OffsetArray, border, R, z)
+#     off, k = CartesianIndex(kern.offsets), parent(kern)
+#     o, O = safehead(off), safetail(off)
+#     Rnew = CartesianIndices(map((x,y)->x.+y, R.indices, Tuple(off)))
+#     Rk = CartesianIndices(axes(k))
+#     offA, pA = CartesianIndex(A.offsets), parent(A)
+#     oA, OA = safehead(offA), safetail(offA)
+#     for I in safetail(Rnew)
+#         IA = I-OA
+#         for i in safehead(Rnew)
+#             tmp = z
+#             iA = i-oA
+#             @inbounds for J in safetail(Rk), j in safehead(Rk)
+#                 tmp += safe_for_prod(pA[iA+j,IA+J], tmp)*k[j,J]
+#             end
+#             @inbounds out[i-o,I-O] = tmp
+#         end
+#     end
+#     out
+# end
 
 function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::ReshapedOneD, border::NoPad, inds)
     Rpre, ind, Rpost = iterdims(inds, kern)
@@ -1043,68 +1046,110 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::R
         return out
     end
     p = accumfilter(A[first(R)+first(Rk)], first(k))
-    z = zero(typeof(p+p))
+    z = float(zero(eltype(A)))
+    # z = zero(typeof(p+p))
     _imfilter_inbounds!(r, z, out, A, k, Rpre, ind, Rpost)
 end
 
-# Many of the following are unfortunate specializations
-function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::OffsetVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices)
-    _imfilter_inbounds!(r, z, out, A, parent(k), Rpre, ind, Rpost, k.offsets[1])
-end
+# # Many of the following are unfortunate specializations
+# function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::OffsetVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices)
+#     _imfilter_inbounds!(r, z, out, A, parent(k), Rpre, ind, Rpost, k.offsets[1])
+# end
 
-function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices, koffset=0)
+# LoopVectorization.check_type(::Type{T}) where T<:ColorVectorSpace.MathTypes = true
+# @generated function VectorizationBase.zero_vecunroll(::StaticInt{N}, ::StaticInt{W}, ::Type{Gray{T}}, ::StaticInt{RS}) where {N,W,T,RS}
+#     Expr(:block, Expr(:meta, :inline), :(VectorizationBase._vzero(VecUnroll{$(N-1),$W,$T,Vec{$W,$T}}, StaticInt{$RS}())))
+# end
+# function VectorizationBase._vload_unroll(
+#     sptr::AbstractStridedPointer{Gray{T},N,C,B}, u::Unroll{AU,F,UN,AV,W,M,UX,I}, ::A, ::StaticInt{RS}, ::StaticInt{X}
+#     ) where {T<:NativeTypes,N,C,B,AU,F,UN,AV,W,M,UX,I<:IndexNoUnroll,A<:StaticBool,RS,X}
+# VectorizationBase.VecUnroll{N,1,T,T}(x::S) where {N,T<:VectorizationBase.NativeTypes,S<:FixedPoint{T}} =
+    # VectorizationBase.VecUnroll{N,1,T,T}(reinterpret(x))
+# VectorizationBase.VecUnroll(x::FixedPoint) = VectorizationBase.VecUnroll(reinterpret(x))
+# VectorizationBase.VecUnroll(x::AbstractGray) = VectorizationBase.VecUnroll(gray(x))
+# VectorizationBase.VecUnroll(x::Gray) where {N,T<:VectorizationBase.NativeTypes} =
+#     VectorizationBase.VecUnroll{N,1,T,T}(reinterpret(x))
+
+const LVTypes = Union{VectorizationBase.NativeTypes, SVector{N,<:VectorizationBase.NativeTypes} where N}
+
+const args = Ref{Any}()
+function _imfilter_inbounds!(r::AbstractResource, z, out::AbstractArray{<:LVTypes}, A::AbstractArray{<:LVTypes}, k::AbstractVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices)
+    if !LoopVectorization.check_args(out, A)
+        @show summary(out) summary(A)
+        args[] = (deepcopy(out), deepcopy(A))
+        error("this should have worked")
+    end
     indsk = axes(k, 1)
+    zout = convert(eltype(out), z)
     for Ipost in Rpost
         for i in ind
-            ik = i+koffset
-            for Ipre in Rpre
-                tmp = z
+            @turbo for Ipre in Rpre
+                tmp = zout
                 for j in indsk
-                    @inbounds tmp += safe_for_prod(A[Ipre,ik+j,Ipost], tmp)*k[j]
+                    tmp += safe_for_prod(A[Ipre,i+j,Ipost], z)*k[j]
                 end
-                @inbounds out[Ipre,i,Ipost] = tmp
+                out[Ipre,i,Ipost] = tmp
             end
         end
     end
     out
 end
 
-function _imfilter_inbounds!(r::AbstractResource, out, A::OffsetArray, kern::ReshapedVector, border::NoPad, inds)
-    Rpre, ind, Rpost = iterdims(inds, kern)
-    k = kern.data
-    R, Rk = CartesianIndices(inds), CartesianIndices(axes(kern))
-    if isempty(R) || isempty(Rk)
-        return out
-    end
-    p = accumfilter(A[first(R)+first(Rk)], first(k))
-    z = zero(typeof(p+p))
-    Opre, o, Opost = KernelFactors.indexsplit(CartesianIndex(A.offsets), kern)
-    _imfilter_inbounds!(r, z, out, parent(A), k, Rpre, ind, Rpost, Opre, o, Opost)
-end
-
-function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::OffsetVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices, Opre, o, Opost)
-    _imfilter_inbounds!(r, z, out, A, parent(k), Rpre, ind, Rpost, Opre, o, Opost, k.offsets[1])
-end
-
-function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices, Opre, o, Opost, koffset=0)
+# No @turbo version
+function _imfilter_inbounds!(r::AbstractResource, z, out::AbstractArray, A::AbstractArray, k::AbstractVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices)
     indsk = axes(k, 1)
+    zout = convert(eltype(out), z)
     for Ipost in Rpost
-        IOpost = Ipost - Opost
         for i in ind
-            io = i-o+koffset
-            for Ipre in Rpre
-                IOpre = Ipre - Opre
-                tmp = z
+            @inbounds for Ipre in Rpre
+                tmp = zout
                 for j in indsk
-                    @inbounds tmp += safe_for_prod(A[IOpre,io+j,IOpost], tmp)*k[j]
+                    tmp += safe_for_prod(A[Ipre,i+j,Ipost], z)*k[j]
                 end
-                @inbounds out[Ipre,i,Ipost] = tmp
+                out[Ipre,i,Ipost] = tmp
             end
         end
     end
     out
 end
-# end unfortunate specializations
+
+# function _imfilter_inbounds!(r::AbstractResource, out, A::OffsetArray, kern::ReshapedVector, border::NoPad, inds)
+#     Rpre, ind, Rpost = iterdims(inds, kern)
+#     k = kern.data
+#     R, Rk = CartesianIndices(inds), CartesianIndices(axes(kern))
+#     if isempty(R) || isempty(Rk)
+#         return out
+#     end
+#     p = accumfilter(A[first(R)+first(Rk)], first(k))
+#     z = zero(typeof(p+p))
+#     Opre, o, Opost = KernelFactors.indexsplit(CartesianIndex(A.offsets), kern)
+#     _imfilter_inbounds!(r, z, out, parent(A), k, Rpre, ind, Rpost, Opre, o, Opost)
+# end
+
+# function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::OffsetVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices, Opre, o, Opost)
+#     _imfilter_inbounds!(r, z, out, A, parent(k), Rpre, ind, Rpost, Opre, o, Opost, k.offsets[1])
+# end
+
+# function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::AbstractVector, Rpre::CartesianIndices, ind, Rpost::CartesianIndices, Opre, o, Opost)
+#     indsk = axes(k, 1)
+#     zout = convert(eltype(out), z)
+#     for Ipost in Rpost
+#         IOpost = Ipost - Opost
+#         for i in ind
+#             io = i-o+koffset
+#             @turbo for Ipre in Rpre
+#                 IOpre = Ipre - Opre
+#                 tmp = zout
+#                 for j in indsk
+#                     tmp += safe_for_prod(A[IOpre,io+j,IOpost], z)*k[j]
+#                 end
+#                 @inbounds out[Ipre,i,Ipost] = tmp
+#             end
+#         end
+#     end
+#     out
+# end
+# # end unfortunate specializations
 
 ## commented out because "virtual padding" is commented out
 # function _imfilter_iter!(r::AbstractResource, out, padded, kernel::AbstractArray, iter)

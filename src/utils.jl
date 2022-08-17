@@ -131,3 +131,27 @@ accumfilter(pixelval::Colorant{N0f8}, filterval::N0f8) = float32(c)*Float32(filt
 # In theory, the following might need to be specialized. For safety, make it a
 # standalone function call.
 safe_for_prod(x, ref) = oftype(ref, x)
+
+# For LoopVectorization, the easiest path is to convert to native types
+native_eltype(::Type{T}) where T<:VectorizationBase.NativeTypes = T, 1
+native_eltype(::Type{T}) where T<:FixedPoint = FixedPointNumbers.rawtype(T), FixedPointNumbers.rawone(T)
+native_eltype(::Type{Gray{T}}) where T = native_eltype(T)
+function native_eltype(::Type{RGB{T}}) where T
+    T′, f = native_eltype(T)
+    return SVector{3,T′}, f
+end
+native_eltype(::Type{T}) where T = T, 1
+
+function maybe_reinterpret(out::AbstractArray, A::AbstractArray, kernel::Tuple{Any,Vararg{Any}})
+    Tout = eltype(out)
+    Tout′, outf = native_eltype(Tout)
+    TA = eltype(A)
+    TA′, Af = native_eltype(TA)
+    if Tout′ !== Tout || TA′ !== TA
+        kernel′ = ((kernel[1]/Af)*outf, Base.tail(kernel)...)
+        return (Tout === Tout′ ? out : reinterpret(reshape, Tout′, out),
+                TA === TA′ ? A : reinterpret(reshape, TA′, A),
+                kernel′)
+    end
+    return out, A, kernel
+end

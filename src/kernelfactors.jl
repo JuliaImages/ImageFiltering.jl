@@ -125,6 +125,9 @@ for op in (:+, :-, :*, :/)
 end
 Base.BroadcastStyle(::Type{R}) where {R<:ReshapedOneD{T,N}} where {T,N} = Broadcast.DefaultArrayStyle{N}()
 
+Base.:/(A::ReshapedOneD{T,N,Npre}, x::Real) where {T,N,Npre} = ReshapedOneD{N,Npre}(A.data / x)
+Base.:*(A::ReshapedOneD{T,N,Npre}, x::Real) where {T,N,Npre} = ReshapedOneD{N,Npre}(A.data * x)
+
 _reshape(A::ReshapedOneD{T,N}, ::Val{N}) where {T,N} = A
 _vec(A::ReshapedOneD) = A.data
 Base.vec(A::ReshapedOneD) = A.data  # is this OK? (note indices won't nec. start with 1)
