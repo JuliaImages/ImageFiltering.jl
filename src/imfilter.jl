@@ -502,8 +502,8 @@ See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
 
 
 ## Choices for `alg`
-The `alg` parameter allows you to choose the particular algorithm: `FIR()`
-(finite impulse response, aka traditional digital filtering) or `FFT()`
+The `alg` parameter allows you to choose the particular algorithm: `Algorithm.FIR()`
+(finite impulse response, aka traditional digital filtering) or `Algorithm.FFT()`
 (Fourier-based filtering). If no choice is specified, one will be chosen based
 on the size of the image and kernel in a way that strives to deliver good
 performance. Alternatively you can use a custom filter type, like
