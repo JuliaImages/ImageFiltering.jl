@@ -997,6 +997,25 @@ expand(inds::Indices, kernel) = expand(inds, calculate_padding(kernel))
 expand(inds::Indices, pad::Indices) = firsttype(map_copytail(expand, inds, pad))
 expand(ind::AbstractUnitRange, pad::AbstractUnitRange) = typeof(ind)(first(ind)+first(pad):last(ind)+last(pad))
 expand(ind::Base.OneTo, pad::AbstractUnitRange) = expand(UnitRange(ind), pad)
+expand(ind::SOneTo{T₁}, pad::AbstractUnitRange) where {T₁} = represent_unit_range_with_SOneTo(ind, pad)
+expand(ind::OffsetArrays.IdOffsetRange{T₁, SOneTo{T₂}}, pad::AbstractUnitRange)  where {T₁, T₂} = determine_offset_with_SOneTo(ind, pad)
+
+function represent_unit_range_with_SOneTo(ind::SOneTo{T₁}, pad::AbstractUnitRange) where {T₁}
+    lo = first(ind)+first(pad)
+    hi = last(ind)+last(pad)
+    interval = 1:length(lo:hi)
+    T = typeof(T₁)
+    I = typeof(SOneTo(length(interval)))
+    return OffsetArrays.IdOffsetRange{T, I}(interval, lo - 1)
+end
+
+function determine_offset_with_SOneTo(ind::OffsetArrays.IdOffsetRange{T₁, SOneTo{T₂}}, pad::AbstractUnitRange) where {T₁, T₂}
+    lo = first(ind)+first(pad)
+    hi = last(ind)+last(pad)
+    interval = 1:length(lo:hi) 
+    I = typeof(SOneTo(length(interval)))
+    return OffsetArrays.IdOffsetRange{T₁, I}(interval, lo - 1)
+end
 
 """
     shrink(inds::Indices, kernel)

@@ -341,3 +341,20 @@ end
     @test_throws DimensionMismatch imfilter(CPU1(), A, kern, Fill(0, (0,1)))
     @test_throws DimensionMismatch imfilter(CPU1(), A, kern, Fill(0, (0,0)))
 end
+
+@testset "Static Arrays (issue #252)" begin
+    img = rand(RGB{Float32}, 9, 9)
+    k₁ = [0.2f0 -0.5f0 0.3f0]
+    k₂ = SMatrix{1, 3, Float32}(k₁)
+    border_styles = ["replicate", "circular", "reflect", "symmetric"]
+    for border_style in border_styles        
+        A = imfilter(img, (k₁', k₁), border_style, ImageFiltering.Algorithm.FIR())
+        B = imfilter(img, (k₂', k₂), border_style, ImageFiltering.Algorithm.FIR())
+        @test A ≈ B 
+        k₁ = centered(k₁)
+        k₂ = centered(k₂)
+        A = imfilter(img, (k₁', k₁), border_style, ImageFiltering.Algorithm.FIR())
+        B = imfilter(img, (k₂', k₂), border_style, ImageFiltering.Algorithm.FIR())
+        @test A ≈ B 
+    end
+end
