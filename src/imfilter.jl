@@ -918,7 +918,7 @@ function _imfilter_tiled_swap!(r, out, kernel::Tuple{Any,Any,Vararg{Any}}, borde
     tileinds = shrink(parentinds, k1)
     tileb2 = TileBuffer(tile2, tileinds)
     imfilter!(r, tileb2, tileb1, samedims(tileb2, k1), border, tileinds)
-    _imfilter_tiled_swap!(r, out, kt, border, (tileb2, parent(tileb1)))
+    _imfilter_tiled_swap!(r, out, kt, border, (tileb2, parent(parent(tileb1))))
 end
 
 # on the last call we write to `out` instead of one of the buffers
