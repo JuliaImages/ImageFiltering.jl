@@ -119,8 +119,8 @@ for op in (:+, :-, :*, :/)
     @eval begin
         ($op)(A::ReshapedOneD, B::ReshapedOneD) =
             broadcast($op, convert(AbstractArray, A), convert(AbstractArray, B))
-        @inline ($op)(As::ReshapedOneD...) =
-            broadcast($op, map(A->convert(AbstractArray, A), As)...)
+        @inline ($op)(A::ReshapedOneD, Bs::ReshapedOneD...) =
+            broadcast($op, convert(AbstractArray, A), map(B->convert(AbstractArray, B), Bs)...)
     end
 end
 Base.BroadcastStyle(::Type{R}) where {R<:ReshapedOneD{T,N}} where {T,N} = Broadcast.DefaultArrayStyle{N}()

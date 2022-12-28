@@ -69,7 +69,7 @@ struct BorderArray{T,N,A,B} <: AbstractArray{T,N}
         new{T,N,A,B}(inner, border)
     end
 end
-BorderVector{T,A,B} = BorderArray{T,1,A,B}
+const BorderVector{T,A,B} = BorderArray{T,1,A,B}
 
 function Base.similar(A::BorderArray, ::Type{T}, dims::Dims) where T
     B = similar(A.inner, T, dims)
@@ -154,18 +154,26 @@ function Base.checkbounds(::Type{Bool}, arr::BorderArray, index::CartesianIndex)
     end |> all
 end
 
-function Base.copy!(dst::SparseVector, src::BorderVector)   # ambiguity resolution
+function Base.copy!(dst::AbstractVector, src::BorderVector)
+    # ambiguity resolution for the AbstractArray method below
     axes(dst) == axes(src) || throw(DimensionMismatch("axes(dst) == axes(src) must hold."))
     _copy!(dst, src, src.border)
 end
-function Base.copy!(dst::AbstractArray, src::BorderArray)
+function Base.copy!(dst::AbstractArray{<:Any,N}, src::BorderArray{<:Any,N}) where N
     axes(dst) == axes(src) || throw(DimensionMismatch("axes(dst) == axes(src) must hold."))
     _copy!(dst, src, src.border)
 end
-function Base.copy!(dst::AbstractArray{T,1} where T, src::BorderArray{T,1,A,B} where B where A where T)
-    # fix ambiguity
-    axes(dst) == axes(src) || throw(DimensionMismatch("axes(dst) == axes(src) must hold."))
-    _copy!(dst, src, src.border)
+# ambiguity resolution
+if isdefined(SparseArrays, :AbstractCompressedVector)
+    function Base.copy!(dst::SparseArrays.AbstractCompressedVector, src::BorderVector)
+        axes(dst) == axes(src) || throw(DimensionMismatch("axes(dst) == axes(src) must hold."))
+        _copy!(dst, src, src.border)
+    end
+else
+    function Base.copy!(dst::SparseVector, src::BorderVector)
+        axes(dst) == axes(src) || throw(DimensionMismatch("axes(dst) == axes(src) must hold."))
+        _copy!(dst, src, src.border)
+    end
 end
 
 function _copy!(dst, src, ::Inner)
