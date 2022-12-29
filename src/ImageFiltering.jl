@@ -13,6 +13,14 @@ using Reexport
 
 @reexport using OffsetArrays: centered # this method once lived here
 
+if supertype(TileBuffer) === DenseArray
+    # TiledIteration >= 0.4
+    tilebuf_parent(tilebuf) = parent(parent(tilebuf))
+else
+    # TiledIteration < 0.4
+    tilebuf_parent(tilebuf) = parent(tilebuf)
+end
+
 export Kernel, KernelFactors,
     Pad, Fill, Inner, NA, NoPad,
     BorderArray,
