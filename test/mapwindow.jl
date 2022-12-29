@@ -128,7 +128,7 @@ using ImageFiltering: IdentityUnitRange
     ImageFiltering.MapWindow.replace_function(::typeof(replace_me)) = x -> 2
     @test mapwindow!(replace_me, randn(3), randn(3), (1,)) == [2,2,2]
 
-    function groundtruth(f, A, window::Tuple; indices=nothing)
+    function groundtruth2(f, A, window::Tuple; indices=nothing)
         mapwindow(f,A,window)[indices...]
     end
     for (f,img, window, imginds) ∈ [
@@ -139,7 +139,7 @@ using ImageFiltering: IdentityUnitRange
             (mean   , randn(10,5), (-1:1,0:0), (Base.OneTo(2),1:3)),
         ]
 
-        expected = groundtruth(f,img,window,indices=imginds)
+        expected = groundtruth2(f,img,window,indices=imginds)
         @test expected == @inferred mapwindow(f,img,window,indices=imginds)
         out = similar(expected)
         @test expected == @inferred mapwindow!(f,out,img,window,indices=imginds)
