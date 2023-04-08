@@ -1,12 +1,10 @@
-# see below for imfilter docstring
-
 # Step 1: if necessary, determine the output's element type
 @inline function imfilter(img::AbstractArray, kernel, args...)
     imfilter(filter_type(img, kernel), img, kernel, args...)
 end
 
 # Step 2: if necessary, put the kernel into cannonical (factored) form
-@inline function imfilter(::Type{T}, img::AbstractArray, kernel::Union{ArrayLike,Laplacian}, args...) where T
+@inline function imfilter(::Type{T}, img::AbstractArray, kernel::Union{ArrayLike,Laplacian}, args...) where {T}
     imfilter(T, img, factorkernel(kernel), args...)
 end
 @inline function imfilter(::Type{T}, img::AbstractArray{TI}, kernel::AbstractArray{TK}, args...) where {T<:Integer,TI<:Integer,TK<:Integer}
@@ -14,16 +12,16 @@ end
 end
 
 # Step 3: if necessary, fill in the default border
-function imfilter(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, args...) where T
+function imfilter(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, args...) where {T}
     imfilter(T, img, kernel, "replicate", args...)
 end
 
-function imfilter(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractString, args...) where T
+function imfilter(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractString, args...) where {T}
     imfilter(T, img, kernel, borderinstance(border), args...)
 end
 
 # Step 4: if necessary, allocate the ouput
-@inline function imfilter(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractBorder, args...) where T
+@inline function imfilter(::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractBorder, args...) where {T}
     imfilter!(allocate_output(T, img, kernel, border), img, kernel, border, args...)
 end
 
@@ -32,21 +30,21 @@ end
     imfilter(r, filter_type(img, kernel), img, kernel, args...)
 end
 
-@inline function imfilter(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ArrayLike, args...) where T
+@inline function imfilter(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ArrayLike, args...) where {T}
     imfilter(r, T, img, factorkernel(kernel), args...)
 end
 
 # For steps 3 & 4, we make args... explicit as a means to prevent
 # specifying both r and an algorithm
-function imfilter(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel) where T
+function imfilter(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel) where {T}
     imfilter(r, T, img, kernel, Pad(:replicate))  # supply the default border
 end
 
-function imfilter(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractString) where T
+function imfilter(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractString) where {T}
     imfilter(r, T, img, kernel, borderinstance(border))
 end
 
-function imfilter(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractBorder) where T
+function imfilter(r::AbstractResource, ::Type{T}, img::AbstractArray, kernel::ProcessedKernel, border::AbstractBorder) where {T}
     imfilter!(r, allocate_output(T, img, kernel, border), img, kernel, border)
 end
 
@@ -58,349 +56,43 @@ end
 Filter a one, two or multidimensional array `img` with a `kernel` by computing
 their correlation.
 
-# Details
-The term *filtering* emerges in the context of a Fourier transformation of
-an image, which maps an image from its canonical spatial domain to its
-concomitant frequency domain. Manipulating an image in the frequency domain
-amounts to retaining or discarding particular frequency components—a process
-analogous to sifting or filtering [1].  Because the Fourier transform establishes a
-link between the spatial and frequency representation of an image, one can
-interpret various image manipulations in the spatial domain as filtering
-operations which accept or reject specific frequencies.
+# Extended help
 
-The phrase *spatial filtering* is often used to emphasise that an operation
-is, at least conceptually, devised in the context of the spatial domain of an
-image. One further distinguishes between linear and non-linear spatial
-filtering. A filter is called linear if the operation performed on the pixels is
-linear, and is labeled non-linear otherwise.
+### Choices for `r`
 
-An image filter can be represented by a function
-```math
- w: \\{s\\in \\mathbb{Z} \\mid -k_1 \\le s \\le k_1  \\} \\times  \\{t \\in \\mathbb{Z} \\mid -k_2 \\le t \\le k_2  \\}   \\rightarrow \\mathbb{R},
-```
-where ``k_i  \\in \\mathbb{N}`` (i = 1,2). It is common to define ``k_1 = 2a+1``
-and ``k_2 = 2b + 1``, where ``a`` and ``b`` are integers, which ensures that the
-filter dimensions are of odd size. Typically, ``k_1`` equals ``k_2`` and so,
-dropping the subscripts, one speaks of a ``k \\times k`` filter. Since the
-domain of the filter represents a grid of spatial coordinates, the filter is
-often called a mask and is visualized as a grid. For example, a ``3 \\times 3``
-mask can be potrayed as follows:
-
-```math
-\\scriptsize
-\\begin{matrix}
-\\boxed{
-\\begin{matrix}
-\\phantom{w(-9,-9)} \\\\
-w(-1,-1) \\\\
-\\phantom{w(-9,-9)} \\\\
-\\end{matrix}
-}
-
-&
-
-\\boxed{
-\\begin{matrix}
-\\phantom{w(-9,-9)} \\\\
-w(-1,0) \\\\
-\\phantom{w(-9,-9)} \\\\
-\\end{matrix}
-}
- &
-\\boxed{
-\\begin{matrix}
-\\phantom{w(-9,-9)} \\\\
-w(-1,1) \\\\
-\\phantom{w(-9,-9)} \\\\
-\\end{matrix}
-}
-\\\\
-\\\\
-\\boxed{
-\\begin{matrix}
-\\phantom{w(-9,-9)} \\\\
-w(0,-1) \\\\
-\\phantom{w(-9,-9)} \\\\
-\\end{matrix}
-}
-
-&
-
-\\boxed{
-\\begin{matrix}
-\\phantom{w(-9,-9)} \\\\
-w(0,0) \\\\
-\\phantom{w(-9,-9)} \\\\
-\\end{matrix}
-}
- &
-\\boxed{
-\\begin{matrix}
-\\phantom{w(-9,-9)} \\\\
-w(0,1) \\\\
-\\phantom{w(-9,-9)} \\\\
-\\end{matrix}
-}
-\\\\
-\\\\
-\\boxed{
-\\begin{matrix}
-\\phantom{w(-9,-9)} \\\\
-w(1,-1) \\\\
-\\phantom{w(-9,-9)} \\\\
-\\end{matrix}
-}
-
-&
-
-\\boxed{
-\\begin{matrix}
-\\phantom{w(-9,-9)} \\\\
-w(1,0) \\\\
-\\phantom{w(-9,-9)} \\\\
-\\end{matrix}
-}
- &
-\\boxed{
-\\begin{matrix}
-\\phantom{w(-9,-9)} \\\\
-w(1,1) \\\\
-\\phantom{w(-9,-9)} \\\\
-\\end{matrix}
-}
-\\end{matrix}.
-```
-The values of ``w(s,t)`` are referred to as *filter coefficients*.
-
-## Discrete convolution versus correlation
-
-There are two fundamental and closely related operations that one regularly
-performs on an image with a filter. The operations are called discrete
-*correlation* and *convolution*.
-
-The correlation operation, denoted by the symbol ``\\star``,  is given in two
-dimensions by the expression
-
-```math
-\\begin{aligned}
-g(x,y) = w(x,y) \\star f(x,y) = \\sum_{s = -a}^{a} \\sum_{t=-b}^{b} w(s,t) f(x+s, y+t),
-\\end{aligned}
-```
-whereas the comparable convolution operation, denoted by the symbol ``\\ast``,
-is given in two dimensions by
-
-```math
-\\begin{aligned}
-h(x,y) = w(x,y) \\ast f(x,y) = \\sum_{s = -a}^{a} \\sum_{t=-b}^{b} w(s,t) f(x-s, y-t).
-\\end{aligned}
-```
-Since a digital image is of finite extent, both of these operations are
-undefined at the borders of the image. In particular, for an image of size ``M
-\\times N``, the function ``f(x \\pm s, y \\pm t)`` is only defined for ``1 \\le
-x \\pm s \\le N`` and ``1 \\le y \\pm t \\le M``. In practice one addresses this
-problem by artificially expanding the domain of the image. For example, one can
-pad the image with zeros. Other padding strategies are possible, and they are
-discussed in more detail in the *Options* section of this documentation.
-
-## One-dimensional illustration
-
-The difference between correlation and convolution is best understood with
-recourse to a one-dimensional example  adapted from [1]. Suppose that a filter
-``w:\\{-1,0,1\\}\\rightarrow \\mathbb{R}`` has coefficients
-
-```math
-\\begin{matrix}
-\\boxed{1} & \\boxed{2} & \\boxed{3}
-\\end{matrix}.
-```
-Consider a discrete unit impulse function ``f: \\{x \\in \\mathbb{Z} \\mid 1 \\le x
-\\le 7  \\} \\rightarrow \\{0,1\\}``  that has been padded with zeros. The function
-can be visualised as an image
-
-```math
-\\boxed{
-\\begin{matrix}
-0 & \\boxed{0} & \\boxed{0} & \\boxed{0} & \\boxed{1} & \\boxed{0} & \\boxed{0} & \\boxed{0} & 0
-\\end{matrix}}.
-```
-The correlation operation can be interpreted as sliding ``w`` along the image
-and computing the sum of products at each location. For example,
-```math
-\\begin{matrix}
-0 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 \\\\
-1 & 2 & 3  &  & & & & & \\\\
-& 1 & 2 & 3  &  & & & &  \\\\
-& & 1 & 2 & 3  &  & & &  \\\\
-& & & 1 & 2 & 3  &  & &  \\\\
-& & & & 1 & 2 & 3  &  &  \\\\
-& & & & & 1 & 2 & 3  &  \\\\
-& & & & & & 1 & 2 & 3,
-\\end{matrix}
-```
-yields the output ``g: \\{x \\in \\mathbb{Z} \\mid 1 \\le x \\le 7  \\} \\rightarrow
-\\mathbb{R}``, which when visualized as a digital image, is equal to
-
-```math
-\\boxed{
-\\begin{matrix}
-\\boxed{0} & \\boxed{0} & \\boxed{3} & \\boxed{2} & \\boxed{1} & \\boxed{0} & \\boxed{0}
-\\end{matrix}}.
-```
-
-The interpretation of the convolution operation is analogous to correlation,
-except that the filter ``w`` has been rotated by 180 degrees. In particular,
-
-```math
-\\begin{matrix}
-0 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 \\\\
-3 & 2 & 1  &  & & & & & \\\\
-& 3 & 2 & 1  &  & & & &  \\\\
-& & 3 & 2 & 1  &  & & &  \\\\
-& & & 3 & 2 & 1  &  & &  \\\\
-& & & & 3 & 2 & 1  &  &  \\\\
-& & & & & 3 & 2 & 1  &  \\\\
-& & & & & & 3 & 2 & 1,
-\\end{matrix}
-```
-
-yields the output ``h: \\{x \\in \\mathbb{Z} \\mid 1 \\le x \\le 7  \\} \\rightarrow \\mathbb{R}`` equal to
-
-```math
-\\boxed{
-\\begin{matrix}
-\\boxed{0} & \\boxed{0} & \\boxed{1} & \\boxed{2} & \\boxed{3} & \\boxed{0} & \\boxed{0}
-\\end{matrix}}.
-```
-
-Instead of rotating the filter mask, one could instead rotate ``f`` and still
-obtained the same convolution result. In fact, the conventional notation for
-convolution indicates that ``f`` is flipped and not ``w``. If ``w`` is
-symmetric, then convolution and correlation give the same outcome.
-
- ### Two-dimensional illustration
- For a two-dimensional example, suppose the filter ``w:\\{-1, 0 ,1\\} \\times
- \\{-1,0,1\\} \\rightarrow \\mathbb{R}``  has coefficients
-
-```math
- \\begin{matrix}
- \\boxed{1} & \\boxed{2} & \\boxed{3} \\\\ \\\\
- \\boxed{4} & \\boxed{5} & \\boxed{6} \\\\ \\\\
- \\boxed{7} & \\boxed{8} & \\boxed{9}
- \\end{matrix},
-```
- and consider a two-dimensional discrete unit impulse function
-
-```math
- f:\\{x \\in \\mathbb{Z} \\mid 1 \\le x \\le 7  \\} \\times  \\{y \\in \\mathbb{Z} \\mid 1 \\le y \\le 7  \\}\\rightarrow \\{ 0,1\\}
-```
-
- that has been padded with zeros:
-
-```math
- \\boxed{
- \\begin{matrix}
-   0 &        0  &        0  &        0   &        0  &        0  &   0  \\\\ \\\\
-   0 & \\boxed{0} & \\boxed{0} & \\boxed{0}  & \\boxed{0} & \\boxed{0} &   0  \\\\ \\\\
-   0 & \\boxed{0} & \\boxed{0} & \\boxed{0}  & \\boxed{0} & \\boxed{0} &   0 \\\\ \\\\
-   0 & \\boxed{0} & \\boxed{0} & \\boxed{1}  & \\boxed{0} & \\boxed{0} &   0 \\\\ \\\\
-   0 & \\boxed{0} & \\boxed{0} & \\boxed{0}  & \\boxed{0} & \\boxed{0} &   0 \\\\ \\\\
-   0 & \\boxed{0} & \\boxed{0} & \\boxed{0}  & \\boxed{0} & \\boxed{0} &   0 \\\\ \\\\
-   0 &        0  &        0  &        0   &        0  &        0  &   0
- \\end{matrix}}.
-```
- The correlation operation ``w(x,y) \\star f(x,y)``  yields the output
-
-```math
- \\boxed{
- \\begin{matrix}
- \\boxed{0} & \\boxed{0}  & \\boxed{0} & \\boxed{0} & \\boxed{0} \\\\ \\\\
- \\boxed{0} &  \\boxed{9} & \\boxed{8} & \\boxed{7} & \\boxed{0} \\\\ \\\\
- \\boxed{0} &  \\boxed{6} & \\boxed{5} & \\boxed{4} & \\boxed{0} \\\\ \\\\
- \\boxed{0} &  \\boxed{3} & \\boxed{2} & \\boxed{1} & \\boxed{0} \\\\ \\\\
- \\boxed{0} & \\boxed{0}  & \\boxed{0} & \\boxed{0} & \\boxed{0}
- \\end{matrix}},
-```
- whereas the convolution operation ``w(x,y) \\ast f(x,y)`` produces
-
-```math
- \\boxed{
- \\begin{matrix}
- \\boxed{0} & \\boxed{0} & \\boxed{0} & \\boxed{0} & \\boxed{0} \\\\ \\\\
- \\boxed{0} & \\boxed{1} & \\boxed{2} & \\boxed{3} & \\boxed{0}\\\\ \\\\
- \\boxed{0} & \\boxed{4} & \\boxed{5} & \\boxed{6} & \\boxed{0} \\\\ \\\\
- \\boxed{0} & \\boxed{7} & \\boxed{8} & \\boxed{9} & \\boxed{0} \\\\ \\\\
- \\boxed{0} & \\boxed{0} & \\boxed{0} & \\boxed{0} & \\boxed{0}
- \\end{matrix}}.
-```
-
-## Discrete convolution and correlation as matrix multiplication
-Discrete convolution and correlation operations can also be formulated as a
-matrix multiplication, where one of the inputs is converted to a [Toeplitz](https://en.wikipedia.org/wiki/Toeplitz_matrix)
-matrix, and the other is represented as a column vector. For example, consider a
-function ``f:\\{x \\in \\mathbb{N} \\mid 1 \\le x \\le M \\} \\rightarrow \\mathbb{R}``
-and a filter ``w: \\{s \\in \\mathbb{N} \\mid  -k_1 \\le s \\le k_1  \\} \\rightarrow
-\\mathbb{R}``. Then the matrix multiplication
-
-```math
-\\begin{bmatrix}
-w(-k_1) 	&  0	    & \\ldots	& 0		   & 0			\\\\
-\\vdots 	& w(-k_1) 	& \\ldots	& \\vdots  & 0	        \\\\
-w(k_1) 	    & \\vdots   & \\ldots	& 0		   & \\vdots    \\\\
-0 	    	& w(k_1)	& \\ldots   & w(-k_1)  & 0		    \\\\
-0 	        & 0		    & \\ldots	& \\vdots  & w(-k_1)	\\\\
-\\vdots     & \\vdots	& \\ldots	& w(k_1)   & \\vdots	\\\\
-0           & 0         & 0			& 0		   & w(k_1)
-\\end{bmatrix}
-\\begin{bmatrix}
-f(1) \\\\
-f(2) \\\\
-f(3) \\\\
-\\vdots \\\\
-f(M)
-\\end{bmatrix}
-```
-is equivalent to the convolution ``w(s) \\ast f(x)`` assuming that the border of
-``f(x)`` has been padded with zeros.
-
-To represent multidimensional convolution as matrix multiplication one
-reshapes the multidimensional arrays into column vectors and proceeds in an
-analogous manner. Naturally, the result of the matrix multiplication will need
-to be reshaped into an appropriate multidimensional array.
-
-# Options
-The following subsections describe valid options for the function arguments in
-more detail.
-
-## Choices for `r`
-You can dispatch to different implementations by passing in a resource `r`
+Optionally, you can dispatch to different implementations by passing in a resource `r`
 as defined by the [ComputationalResources](https://github.com/timholy/ComputationalResources.jl) package.
-For example,
+
+For example:
 
 ```julia
-    imfilter(ArrayFireLibs(), img, kernel)
+imfilter(ArrayFireLibs(), img, kernel)
 ```
+
 would request that the computation be performed on the GPU using the
 ArrayFire libraries.
 
-## Choices for `T`
+### Choices for `T`
 
 Optionally, you can control the element type of the output image by
 passing in a type `T` as the first argument.
 
-## Choices for `img`
+### Choices for `img`
 
-You can specify a one, two or multidimensional array defining your image.
+You can specify a one, two, or multidimensional array defining your image.
 
-## Choices for `kernel`
+### Choices for `kernel`
 
-The `kernel[0,0,..]` parameter corresponds to the origin (zero displacement) of
+The `kernel[0, 0,..]` parameter corresponds to the origin (zero displacement) of
 the kernel; you can use `centered` to place the origin at the array center, or
 use the OffsetArrays package to set `kernel`'s indices manually. For example, to
 filter with a random *centered* 3x3 kernel, you could use either of the
 following:
 
-    kernel = centered(rand(3,3))
-    kernel = OffsetArray(rand(3,3), -1:1, -1:1)
+```julia
+kernel = centered(rand(3,3))
+kernel = OffsetArray(rand(3,3), -1:1, -1:1)
+```
 
 The `kernel` parameter can be specified as an array or as a "factored kernel", a
 tuple `(filt1, filt2, ...)` of filters to apply along each axis of the image. In
@@ -412,87 +104,78 @@ dimension. In two dimensions, any kernel passed as a single matrix is checked
 for separability; if you want to eliminate that check, pass the kernel as a
 single-element tuple, `(kernel,)`.
 
+### Choices for `border`
 
-## Choices for `border`
 At the image edge, `border` is used to specify the padding which will be used
-to extrapolate the image beyond its original bounds. As an indicative example
-of each option the results of the padding are illustrated on an image consisting of
-a row of six pixels which are specified alphabetically: ``\\boxed{a \\, b \\, c \\, d \\, e \\, f}``.
-We show the effects of padding only on the left and right border, but analogous
-consequences hold for the top and bottom border.
+to extrapolate the image beyond its original bounds. 
 
-### `"replicate"` (default)
+#### `"replicate"` (default)
 
 The border pixels extend beyond the image boundaries.
-```math
-\\boxed{
-\\begin{array}{l|c|r}
-  a\\, a\\, a\\, a  &  a \\, b \\, c \\, d \\, e \\, f & f \\, f \\, f \\, f
-\\end{array}
-}
-```
-See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
-[`NoPad`](@ref)
 
-### `"circular"`
+```plain
+   ╭────┏━━━━━━┓────╮
+   │aaaa┃abcdef┃ffff│
+   ╰────┗━━━━━━┛────╯
+```
+
+#### `"circular"`
 
 The border pixels wrap around. For instance, indexing beyond the left border
 returns values starting from the right border.
-```math
-\\boxed{
-\\begin{array}{l|c|r}
-  c\\, d\\, e\\, f  &  a \\, b \\, c \\, d \\, e \\, f & a \\, b \\, c \\, d
-\\end{array}
-}
-```
-See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
-[`NoPad`](@ref)
 
-### `"reflect"`
+```plain
+
+   ╭────┏━━━━━━┓────╮
+   │cdef┃abcdef┃abcd│
+   ╰────┗━━━━━━┛────╯
+
+```
+
+#### `"reflect"`
+
 The border pixels reflect relative to a position between pixels. That is, the
 border pixel is omitted when mirroring.
-```math
-\\boxed{
-\\begin{array}{l|c|r}
-  e\\, d\\, c\\, b  &  a \\, b \\, c \\, d \\, e \\, f & e \\, d \\, c \\, b
-\\end{array}
-}
-```
-See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
-[`NoPad`](@ref)
 
-### `"symmetric"`
+```plain
+
+   ╭────┏━━━━━━┓────╮
+   │dcba┃abcdef┃fedc│
+   ╰────┗━━━━━━┛────╯
+
+```
+
+#### `"symmetric"`
+
 The border pixels reflect relative to the edge itself.
-```math
-\\boxed{
-\\begin{array}{l|c|r}
-  d\\, c\\, b\\, a  &  a \\, b \\, c \\, d \\, e \\, f & f \\, e \\, d \\, c
-\\end{array}
-}
-```
-See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
-[`NoPad`](@ref)
 
-### `Fill(m)`
+```plain
+
+   ╭────┏━━━━━━┓────╮
+   │edcb┃abcdef┃edcb│
+   ╰────┗━━━━━━┛────╯
+
+```
+
+#### `Fill(m)`
+
 The border pixels are filled with a specified value ``m``.
-```math
-\\boxed{
-\\begin{array}{l|c|r}
-  m\\, m\\, m\\, m  &  a \\, b \\, c \\, d \\, e \\, f & m \\, m \\, m \\, m
-\\end{array}
-}
-```
-See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
-[`NoPad`](@ref)
 
-### `Inner()`
+```plain
+
+   ╭────┏━━━━━━┓────╮
+   │mmmm┃abcdef┃mmmm│
+   ╰────┗━━━━━━┛────╯
+
+```
+
+#### `Inner()`
+
 Indicate that edges are to be discarded in filtering, only the interior of the
 result is to be returned.
 
-See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
-[`NoPad`](@ref)
+#### `NA()`
 
-### `NA()`
 Choose filtering using "NA" (Not Available) boundary conditions. This
 is most appropriate for filters that have only positive weights, such
 as blurring filters.
@@ -500,8 +183,8 @@ as blurring filters.
 See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
 [`NoPad`](@ref)
 
+### Choices for `alg`
 
-## Choices for `alg`
 The `alg` parameter allows you to choose the particular algorithm: `Algorithm.FIR()`
 (finite impulse response, aka traditional digital filtering) or `Algorithm.FFT()`
 (Fourier-based filtering). If no choice is specified, one will be chosen based
@@ -509,65 +192,6 @@ on the size of the image and kernel in a way that strives to deliver good
 performance. Alternatively you can use a custom filter type, like
 [`KernelFactors.IIRGaussian`](@ref).
 
-# Examples
-The following subsections highlight some common use cases.
-
-## Convolution versus correlation
-
-```julia
-
-# Create a two-dimensional discrete unit impulse function.
-f = fill(0,(9,9));
-f[5,5] = 1;
-
-# Specify a filter coefficient mask and set the center of the mask as the origin.
-w = centered([1 2 3; 4 5 6 ; 7 8 9]);
-
-#=
- The default operation of `imfilter` is correlation.  By reflecting `w` we
- compute the convolution of `f` and `w`.  `Fill(0,w)` indicates that we wish to
- pad the border of `f` with zeros. The amount of padding is automatically
- determined by considering the length of w.
-=#
-correlation = imfilter(f,w,Fill(0,w))
-convolution = imfilter(f,reflect(w),Fill(0,w))
-
-```
-
-## Miscellaneous border padding options
-```julia
-# Example function values f, and filter coefficients w.
-f = reshape(1.0:81.0,9,9)
-w = centered(reshape(1.0:9.0,3,3))
-
-# You can designate the type of padding by specifying an appropriate string.
-imfilter(f,w,"replicate")
-imfilter(f,w,"circular")
-imfilter(f,w,"symmetric")
-imfilter(f,w,"reflect")
-
-# Alternatively, you can explicitly use the Pad type to designate the padding style.
-imfilter(f,w,Pad(:replicate))
-imfilter(f,w,Pad(:circular))
-imfilter(f,w,Pad(:symmetric))
-imfilter(f,w,Pad(:reflect))
-
-# If you want to pad with a specific value then use the Fill type.
-imfilter(f,w,Fill(0,w))
-imfilter(f,w,Fill(1,w))
-imfilter(f,w,Fill(-1,w))
-
-#=
-  Specify 'Inner()' if you want to retrieve the interior sub-array of f for which
-  the filtering operation is defined without padding.
-=#
-imfilter(f,w,Inner())
-```
-
-# References
-1. R. C. Gonzalez and R. E. Woods. *Digital Image Processing (3rd Edition)*.  Upper Saddle River, NJ, USA: Prentice-Hall,  2006.
-
-See also: [`imfilter!`](@ref), [`centered`](@ref OffsetArrays.centered), [`padarray`](@ref), [`Pad`](@ref), [`Fill`](@ref), [`Inner`](@ref), [`KernelFactors.IIRGaussian`](@ref).
 """
 imfilter
 
@@ -656,18 +280,18 @@ imfilter!
 # Step 6: pad the input
 # NA "padding": normalizing by the number of available values (similar to nanmean)
 function imfilter!(r::AbstractResource,
-                   out::AbstractArray{S,N},
-                   img::AbstractArray{T,N},
-                   kernel::ProcessedKernel,
-                   border::NA{na}) where {T,S,N,na}
+    out::AbstractArray{S,N},
+    img::AbstractArray{T,N},
+    kernel::ProcessedKernel,
+    border::NA{na}) where {T,S,N,na}
     _imfilter_na!(r, out, img, kernel, na)
 end
 
 function _imfilter_na!(r::AbstractResource,
-                       out::AbstractArray{S,N},
-                       img::AbstractArray{T,N},
-                       kernel::ProcessedKernel,
-                       na) where {T,S,N}
+    out::AbstractArray{S,N},
+    img::AbstractArray{T,N},
+    kernel::ProcessedKernel,
+    na) where {T,S,N}
     naflag = na.(img)
     hasna = any(naflag)
     if isseparable(kernel) && !hasna
@@ -680,10 +304,10 @@ end
 
 # for types that can't have NaNs, we can skip the isnan check
 function _imfilter_na!(r::AbstractResource,
-                       out::AbstractArray{S,N},
-                       img::AbstractArray{T,N},
-                       kernel::ProcessedKernel,
-                       na::typeof(isnan)) where {T<:Union{Integer,FixedColorant},S,N}
+    out::AbstractArray{S,N},
+    img::AbstractArray{T,N},
+    kernel::ProcessedKernel,
+    na::typeof(isnan)) where {T<:Union{Integer,FixedColorant},S,N}
     if !isseparable(kernel)
         naflag = fill(false, axes(img))
         imfilter_na_inseparable!(r, out, img, naflag, kernel)
@@ -695,20 +319,20 @@ end
 
 # Any other kind of not-fully-specified padding
 function imfilter!(r::AbstractResource,
-                   out::AbstractArray{S,N},
-                   img::AbstractArray{T,N},
-                   kernel::ProcessedKernel,
-                   border::BorderSpecAny) where {S,T,N}
+    out::AbstractArray{S,N},
+    img::AbstractArray{T,N},
+    kernel::ProcessedKernel,
+    border::BorderSpecAny) where {S,T,N}
     bord = border(kernel, img, Alg(r))  # if it's FFT, the size of img is also relevant
     imfilter!(r, out, img, kernel, bord)
 end
 
 # Any fully-specified padding
 function imfilter!(r::AbstractResource,
-                   out::AbstractArray{S,N},
-                   img::AbstractArray{T,N},
-                   kernel::ProcessedKernel,
-                   border::AbstractBorder) where {S,T,N}
+    out::AbstractArray{S,N},
+    img::AbstractArray{T,N},
+    kernel::ProcessedKernel,
+    border::AbstractBorder) where {S,T,N}
     A = padarray(S, img, border)
     # By specifying NoPad(), we ensure that dispatch will never
     # accidentally "go back" to an earlier routine and apply more
@@ -833,7 +457,7 @@ function _imfilter!(r, out::AbstractArray, A1, A2::Tuple{AbstractArray,AbstractA
 end
 
 # Single-threaded, pair of kernels (with only one temporary buffer required)
-function _imfilter_tiled!(r::CPU1, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA}, indsout) where AA<:AbstractArray
+function _imfilter_tiled!(r::CPU1, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA}, indsout) where {AA<:AbstractArray}
     k1, k2 = kernel
     tile = tiles[1]
     indsk2, indstile = axes(k2), axes(tile)
@@ -849,7 +473,7 @@ function _imfilter_tiled!(r::CPU1, out, A, kernel::Tuple{Any,Any}, border::NoPad
 end
 
 # Multithreaded, pair of kernels
-function _imfilter_tiled!(r::CPUThreads, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA}, indsout) where AA<:AbstractArray
+function _imfilter_tiled!(r::CPUThreads, out, A, kernel::Tuple{Any,Any}, border::NoPad, tiles::Vector{AA}, indsout) where {AA<:AbstractArray}
     k1, k2 = kernel
     tile = tiles[1]
     indsk2, indstile = axes(k2), axes(tile)
@@ -859,7 +483,7 @@ function _imfilter_tiled!(r::CPUThreads, out, A, kernel::Tuple{Any,Any}, border:
     _imfilter_tiled_threads!(CPU1(r), out, A, samedims(out, k1), samedims(out, k2), border, tileinds_all, tiles)
 end
 # This must be in a separate function due to #15276
-@noinline function _imfilter_tiled_threads!(r1, out, A, k1, k2, border, tileinds_all, tile::Vector{AA}) where AA<:AbstractArray
+@noinline function _imfilter_tiled_threads!(r1, out, A, k1, k2, border, tileinds_all, tile::Vector{AA}) where {AA<:AbstractArray}
     Threads.@threads for i = 1:length(tileinds_all)
         id = Threads.threadid()
         tileinds = tileinds_all[i]
@@ -871,7 +495,7 @@ end
 end
 
 # Single-threaded, multiple kernels (requires two tile buffers, swapping on each iteration)
-function _imfilter_tiled!(r::CPU1, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}}, indsout) where AA<:AbstractArray
+function _imfilter_tiled!(r::CPU1, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}}, indsout) where {AA<:AbstractArray}
     k1, kt = kernel[1], tail(kernel)
     tilepair = tiles[1]
     indstile = axes(tilepair[1])
@@ -886,7 +510,7 @@ function _imfilter_tiled!(r::CPU1, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, b
 end
 
 # Multithreaded, multiple kernels
-function _imfilter_tiled!(r::CPUThreads, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}}, indsout) where AA<:AbstractArray
+function _imfilter_tiled!(r::CPUThreads, out, A, kernel::Tuple{Any,Any,Vararg{Any}}, border::NoPad, tiles::Vector{Tuple{AA,AA}}, indsout) where {AA<:AbstractArray}
     k1, kt = kernel[1], tail(kernel)
     tilepair = tiles[1]
     indstile = axes(tilepair[1])
@@ -896,7 +520,7 @@ function _imfilter_tiled!(r::CPUThreads, out, A, kernel::Tuple{Any,Any,Vararg{An
     _imfilter_tiled_threads!(CPU1(r), out, A, samedims(out, k1), kt, border, tileinds_all, tiles)
 end
 # This must be in a separate function due to #15276
-@noinline function _imfilter_tiled_threads!(r1, out, A, k1, kt, border, tileinds_all, tiles::Vector{Tuple{AA,AA}}) where AA<:AbstractArray
+@noinline function _imfilter_tiled_threads!(r1, out, A, k1, kt, border, tileinds_all, tiles::Vector{Tuple{AA,AA}}) where {AA<:AbstractArray}
     Threads.@threads for i = 1:length(tileinds_all)
         tileinds = tileinds_all[i]
         id = Threads.threadid()
@@ -957,11 +581,11 @@ at each successive stage.
 See also: [`imfilter`](@ref).
 """
 function imfilter!(r::AbstractResource,
-                   out::AbstractArray{S,N},
-                   A::AbstractArray{T,N},
-                   kern::NDimKernel{N},
-                   border::NoPad,
-                   inds::Indices{N}=axes(out)) where {S,T,N}
+    out::AbstractArray{S,N},
+    A::AbstractArray{T,N},
+    kern::NDimKernel{N},
+    border::NoPad,
+    inds::Indices{N}=axes(out)) where {S,T,N}
     (isempty(A) || isempty(kern)) && return out
     indso, indsA, indsk = axes(out), axes(A), axes(kern)
     if iscopy(kern)
@@ -975,8 +599,8 @@ function imfilter!(r::AbstractResource,
             throw(DimensionMismatch("output indices $indso disagree with requested indices $inds"))
         end
         # Check that input A is big enough not to throw a BoundsError
-        if      first(indsAi) > first(indsi) + first(indski) ||
-                last(indsA[i])  < last(indsi)  + last(indski)
+        if first(indsAi) > first(indsi) + first(indski) ||
+           last(indsA[i]) < last(indsi) + last(indski)
             throw(DimensionMismatch("requested indices $inds and kernel indices $indsk do not agree with indices of padded input, $indsA"))
         end
     end
@@ -995,7 +619,7 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern, b
         return out
     end
     p = accumfilter(A[first(R)+first(Rk)], first(kern))
-    z = zero(typeof(p+p))
+    z = zero(typeof(p + p))
     __imfilter_inbounds!(r, out, A, kern, border, R, z)
 end
 
@@ -1004,9 +628,9 @@ function __imfilter_inbounds!(r, out, A, kern, border, R, z)
     for I in safetail(R), i in safehead(R)
         tmp = z
         @inbounds for J in safetail(Rk), j in safehead(Rk)
-            tmp += safe_for_prod(A[i+j,I+J], tmp)*kern[j,J]
+            tmp += safe_for_prod(A[i+j, I+J], tmp) * kern[j, J]
         end
-        @inbounds out[i,I] = tmp
+        @inbounds out[i, I] = tmp
     end
     out
 end
@@ -1017,19 +641,19 @@ end
 function __imfilter_inbounds!(r, out, A::OffsetArray, kern::OffsetArray, border, R, z)
     off, k = CartesianIndex(kern.offsets), parent(kern)
     o, O = safehead(off), safetail(off)
-    Rnew = CartesianIndices(map((x,y)->x.+y, R.indices, Tuple(off)))
+    Rnew = CartesianIndices(map((x, y) -> x .+ y, R.indices, Tuple(off)))
     Rk = CartesianIndices(axes(k))
     offA, pA = CartesianIndex(A.offsets), parent(A)
     oA, OA = safehead(offA), safetail(offA)
     for I in safetail(Rnew)
-        IA = I-OA
+        IA = I - OA
         for i in safehead(Rnew)
             tmp = z
-            iA = i-oA
+            iA = i - oA
             @inbounds for J in safetail(Rk), j in safehead(Rk)
-                tmp += safe_for_prod(pA[iA+j,IA+J], tmp)*k[j,J]
+                tmp += safe_for_prod(pA[iA+j, IA+J], tmp) * k[j, J]
             end
-            @inbounds out[i-o,I-O] = tmp
+            @inbounds out[i-o, I-O] = tmp
         end
     end
     out
@@ -1043,7 +667,7 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::AbstractArray, kern::R
         return out
     end
     p = accumfilter(A[first(R)+first(Rk)], first(k))
-    z = zero(typeof(p+p))
+    z = zero(typeof(p + p))
     _imfilter_inbounds!(r, z, out, A, k, Rpre, ind, Rpost)
 end
 
@@ -1056,13 +680,13 @@ function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::A
     indsk = axes(k, 1)
     for Ipost in Rpost
         for i in ind
-            ik = i+koffset
+            ik = i + koffset
             for Ipre in Rpre
                 tmp = z
                 for j in indsk
-                    @inbounds tmp += safe_for_prod(A[Ipre,ik+j,Ipost], tmp)*k[j]
+                    @inbounds tmp += safe_for_prod(A[Ipre, ik+j, Ipost], tmp) * k[j]
                 end
-                @inbounds out[Ipre,i,Ipost] = tmp
+                @inbounds out[Ipre, i, Ipost] = tmp
             end
         end
     end
@@ -1077,7 +701,7 @@ function _imfilter_inbounds!(r::AbstractResource, out, A::OffsetArray, kern::Res
         return out
     end
     p = accumfilter(A[first(R)+first(Rk)], first(k))
-    z = zero(typeof(p+p))
+    z = zero(typeof(p + p))
     Opre, o, Opost = KernelFactors.indexsplit(CartesianIndex(A.offsets), kern)
     _imfilter_inbounds!(r, z, out, parent(A), k, Rpre, ind, Rpost, Opre, o, Opost)
 end
@@ -1091,14 +715,14 @@ function _imfilter_inbounds!(r::AbstractResource, z, out, A::AbstractArray, k::A
     for Ipost in Rpost
         IOpost = Ipost - Opost
         for i in ind
-            io = i-o+koffset
+            io = i - o + koffset
             for Ipre in Rpre
                 IOpre = Ipre - Opre
                 tmp = z
                 for j in indsk
-                    @inbounds tmp += safe_for_prod(A[IOpre,io+j,IOpost], tmp)*k[j]
+                    @inbounds tmp += safe_for_prod(A[IOpre, io+j, IOpost], tmp) * k[j]
                 end
-                @inbounds out[Ipre,i,Ipost] = tmp
+                @inbounds out[Ipre, i, Ipost] = tmp
             end
         end
     end
@@ -1161,33 +785,33 @@ for default padding.
 See also: [`imfilter`](@ref).
 """
 function imfilter!(r::AbstractCPU{FFT},
-                   out::AbstractArray{S,N},
-                   img::AbstractArray{T,N},
-                   kernel::AbstractArray{K,N},
-                   border::NoPad) where {S,T,K,N}
+    out::AbstractArray{S,N},
+    img::AbstractArray{T,N},
+    kernel::AbstractArray{K,N},
+    border::NoPad) where {S,T,K,N}
     imfilter!(r, out, img, (kernel,), border)
 end
 
 function imfilter!(r::AbstractCPU{FFT},
-                   out::AbstractArray{S,N},
-                   A::AbstractArray{T,N},
-                   kernel::Tuple{AbstractArray},
-                   border::NoPad) where {S,T,N}
+    out::AbstractArray{S,N},
+    A::AbstractArray{T,N},
+    kernel::Tuple{AbstractArray},
+    border::NoPad) where {S,T,N}
     _imfilter_fft!(r, out, A, kernel, border)  # ambiguity resolution
 end
 function imfilter!(r::AbstractCPU{FFT},
-                   out::AbstractArray{S,N},
-                   A::AbstractArray{T,N},
-                   kernel::Tuple{AbstractArray,Vararg{AbstractArray}},
-                   border::NoPad) where {S,T,N}
+    out::AbstractArray{S,N},
+    A::AbstractArray{T,N},
+    kernel::Tuple{AbstractArray,Vararg{AbstractArray}},
+    border::NoPad) where {S,T,N}
     _imfilter_fft!(r, out, A, kernel, border)
 end
 
 function _imfilter_fft!(r::AbstractCPU{FFT},
-                   out::AbstractArray{S,N},
-                   A::AbstractArray{T,N},
-                   kernel::Tuple{AbstractArray,Vararg{AbstractArray}},
-                   border::NoPad) where {S,T,N}
+    out::AbstractArray{S,N},
+    A::AbstractArray{T,N},
+    kernel::Tuple{AbstractArray,Vararg{AbstractArray}},
+    border::NoPad) where {S,T,N}
     kern = samedims(A, kernelconv(kernel...))
     krn = FFTView(zeros(eltype(kern), map(length, axes(A))))
     for I in CartesianIndices(axes(kern))
@@ -1210,9 +834,9 @@ end
 function filtfft(A, krn)
     B = rfft(A)
     B .*= conj!(rfft(krn))
-    irfft(B, length(axes(A,1)))
+    irfft(B, length(axes(A, 1)))
 end
-function filtfft(A::AbstractArray{C}, krn) where C<:Colorant
+function filtfft(A::AbstractArray{C}, krn) where {C<:Colorant}
     Av, dims = channelview_dims(A)
     kernrs = kreshape(C, krn)
     B = rfft(Av, dims)
@@ -1220,10 +844,10 @@ function filtfft(A::AbstractArray{C}, krn) where C<:Colorant
     Avf = irfft(B, length(axes(Av, dims[1])), dims)
     colorview(base_colorant_type(C){eltype(Avf)}, Avf)
 end
-channelview_dims(A::AbstractArray{C,N}) where {C<:Colorant,N} = channelview(A), ntuple(d->d+1, Val(N))
+channelview_dims(A::AbstractArray{C,N}) where {C<:Colorant,N} = channelview(A), ntuple(d -> d + 1, Val(N))
 channelview_dims(A::AbstractArray{C,N}) where {C<:ImageCore.Color1,N} = channelview(A), ntuple(identity, Val(N))
 
-function kreshape(::Type{C}, krn::FFTView) where C<:Colorant
+function kreshape(::Type{C}, krn::FFTView) where {C<:Colorant}
     kern = parent(krn)
     kernrs = FFTView(reshape(kern, 1, size(kern)...))
 end
@@ -1237,10 +861,10 @@ kreshape(::Type{C}, krn::FFTView) where {C<:ImageCore.Color1} = krn
 # Note this is safe for inplace use, i.e., out === img
 
 function imfilter!(r::AbstractResource{IIR},
-                   out::AbstractArray{S,N},
-                   img::AbstractArray{T,N},
-                   kernel::Tuple{TriggsSdika, Vararg{TriggsSdika}},
-                   border::BorderSpec) where {S,T,N}
+    out::AbstractArray{S,N},
+    img::AbstractArray{T,N},
+    kernel::Tuple{TriggsSdika,Vararg{TriggsSdika}},
+    border::BorderSpec) where {S,T,N}
     isa(border, Pad) && border.style != :replicate && throw(ArgumentError("only \"replicate\" is supported"))
     length(kernel) <= N || throw(DimensionMismatch("cannot have more kernels than dimensions"))
     inds = axes(img)
@@ -1271,7 +895,7 @@ function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, 
     k, l = length(kernel.a), length(kernel.b)
     # This next part is not type-stable, which is why _imfilter_dim! has a @noinline
     Rbegin = CartesianIndices(inds[1:dim-1])
-    Rend   = CartesianIndices(inds[dim+1:end])
+    Rend = CartesianIndices(inds[dim+1:end])
     _imfilter_dim!(r, out, img, kernel, Rbegin, inds[dim], Rend, border)
 end
 function imfilter!(r::AbstractResource, out::AbstractArray, img::AbstractArray, kernel::TriggsSdika, dim::Integer, border::AbstractString)
@@ -1289,13 +913,13 @@ function _imfilter_inplace_tuple!(r, out, img, kernel, Rbegin, inds, Rend, borde
     ind = first(inds)
     _imfilter_dim!(r, out, img, first(kernel), Rbegin, ind, Rend, border)
     _imfilter_inplace_tuple!(r,
-                             out,
-                             out,
-                             tail(kernel),
-                             CartesianIndices((Rbegin.indices..., ind)),
-                             tail(inds),
-                             _tail(Rend),
-                             border)
+        out,
+        out,
+        tail(kernel),
+        CartesianIndices((Rbegin.indices..., ind)),
+        tail(inds),
+        _tail(Rend),
+        border)
 end
 # When the final kernel has been used, return the output
 _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = out
@@ -1309,12 +933,12 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
 # require that the arrays have efficient linear indexing. For more
 # information, see http://julialang.org/blog/2016/02/iteration.
 @noinline function _imfilter_dim!(r::AbstractResource,
-                                  out, img, kernel::TriggsSdika{T,k,l},
-                                  Rbegin::CartesianIndices, ind::AbstractUnitRange,
-                                  Rend::CartesianIndices, border::AbstractBorder) where {T,k,l}
+    out, img, kernel::TriggsSdika{T,k,l},
+    Rbegin::CartesianIndices, ind::AbstractUnitRange,
+    Rend::CartesianIndices, border::AbstractBorder) where {T,k,l}
 
     @noinline function throw_imfilter_dim(R, n, l)
-        dim = ndims(R)+1
+        dim = ndims(R) + 1
         throw(DimensionMismatch("size $n of img along dimension $dim is too small for filtering with IIR kernel of length $l"))
     end
 
@@ -1337,11 +961,11 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
         # Propagate forwards. We omit the final point in case border
         # is "replicate", so that the original value is still
         # available. rightborder! will handle that point.
-        for i = range(first(ind)+k, stop = ind[end-1])
+        for i = range(first(ind) + k, stop=ind[end-1])
             @inbounds for Ibegin in Rbegin
                 tmp = accumfilter(img[Ibegin, i, Iend], one(T))
                 for j = 1:k
-                    tmp += kernel.a[j]*safe_for_prod(out[Ibegin, i-j, Iend], tmp)
+                    tmp += kernel.a[j] * safe_for_prod(out[Ibegin, i-j, Iend], tmp)
                 end
                 out[Ibegin, i, Iend] = tmp
             end
@@ -1355,7 +979,7 @@ _imfilter_inplace_tuple!(r, out, img, ::Tuple{}, Rbegin, inds, Rend, border) = o
             @inbounds for Ibegin in Rbegin
                 tmp = accumfilter(out[Ibegin, i, Iend], one(T))
                 for j = 1:l
-                    tmp += kernel.b[j]*safe_for_prod(out[Ibegin, i+j, Iend], tmp)
+                    tmp += kernel.b[j] * safe_for_prod(out[Ibegin, i+j, Iend], tmp)
                 end
                 out[Ibegin, i, Iend] = tmp
             end
@@ -1378,16 +1002,16 @@ function leftborder!(out, img, kernel, Ibegin, indleft, Iend, border::Pad)
     _leftborder!(out, img, kernel, Ibegin, indleft, Iend, img[Ibegin, indleft[1], Iend])
 end
 function _leftborder!(out, img, kernel::TriggsSdika{T,k,l}, Ibegin, indleft, Iend, iminus) where {T,k,l}
-    uminus = iminus/(1-kernel.asum)
+    uminus = iminus / (1 - kernel.asum)
     n = 0
     for i in indleft
         n += 1
         tmp = accumfilter(img[Ibegin, i, Iend], one(T))
         for j = 1:n-1
-            tmp += kernel.a[j]*safe_for_prod(out[Ibegin, i-j, Iend], tmp)
+            tmp += kernel.a[j] * safe_for_prod(out[Ibegin, i-j, Iend], tmp)
         end
         for j = n:k
-            tmp += kernel.a[j]*uminus
+            tmp += kernel.a[j] * uminus
         end
         out[Ibegin, i, Iend] = tmp
     end
@@ -1406,12 +1030,12 @@ function _rightborder!(out, img, kernel::TriggsSdika{T,k,l}, Ibegin, indright, I
     i = last(indright)
     tmp = accumfilter(img[Ibegin, i, Iend], one(T))
     for j = 1:k
-        tmp += kernel.a[j]*safe_for_prod(out[Ibegin, i-j, Iend], tmp)
+        tmp += kernel.a[j] * safe_for_prod(out[Ibegin, i-j, Iend], tmp)
     end
     out[Ibegin, i, Iend] = tmp
     # Initialize the v values at and beyond the right edge
-    uplus = iplus/(1-kernel.asum)
-    vplus = uplus/(1-kernel.bsum)
+    uplus = iplus / (1 - kernel.asum)
+    vplus = uplus / (1 - kernel.bsum)
     vright = kernel.M * rightΔu(out, uplus, Ibegin, last(indright), Iend, kernel) .+ vplus
     out[Ibegin, last(indright), Iend] = vright[1]
     # Propagate inward
@@ -1420,10 +1044,10 @@ function _rightborder!(out, img, kernel::TriggsSdika{T,k,l}, Ibegin, indright, I
         n += 1
         tmp = accumfilter(out[Ibegin, i, Iend], one(T))
         for j = 1:n-1
-            tmp += kernel.b[j]*safe_for_prod(out[Ibegin, i+j, Iend], tmp)
+            tmp += kernel.b[j] * safe_for_prod(out[Ibegin, i+j, Iend], tmp)
         end
         for j = n:l
-            tmp += kernel.b[j]*safe_for_prod(vright[j-n+2], tmp)
+            tmp += kernel.b[j] * safe_for_prod(vright[j-n+2], tmp)
         end
         out[Ibegin, i, Iend] = tmp
     end
@@ -1432,15 +1056,15 @@ end
 
 # Part of Triggs & Sdika, Eq. 14
 function rightΔu(img, uplus, Ibegin, i, Iend, kernel::TriggsSdika{T,3,l}) where {T,l}
-    @inbounds ret = SVector(img[Ibegin, i,   Iend]-uplus,
-                            img[Ibegin, i-1, Iend]-uplus,
-                            img[Ibegin, i-2, Iend]-uplus)
+    @inbounds ret = SVector(img[Ibegin, i, Iend] - uplus,
+        img[Ibegin, i-1, Iend] - uplus,
+        img[Ibegin, i-2, Iend] - uplus)
     ret
 end
 
 ### NA boundary conditions
 
-function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, naflag, kernel::Tuple{Vararg{AnyIIR}}) where T
+function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, naflag, kernel::Tuple{Vararg{AnyIIR}}) where {T}
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
     copyto!(out, img)
     out[naflag] .= zero(T)
@@ -1454,11 +1078,11 @@ function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, naflag, kernel:
     out
 end
 
-function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, naflag, kernel::Tuple) where T
+function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, naflag, kernel::Tuple) where {T}
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
     imgtmp = copyto!(similar(out, axes(img)), img)
     imgtmp[naflag] .= Ref(zero(T))
-    validpixels = copyto!(similar(Array{eltype(T)}, axes(img)), mappedarray(x->!x, naflag))
+    validpixels = copyto!(similar(Array{eltype(T)}, axes(img)), mappedarray(x -> !x, naflag))
     imfilter!(r, out, imgtmp, kernel, fc)
     vp = imfilter(r, validpixels, kernel, fn)
     for I in eachindex(out)
@@ -1467,7 +1091,7 @@ function imfilter_na_inseparable!(r, out::AbstractArray{T}, img, naflag, kernel:
     out
 end
 
-function imfilter_na_separable!(r, out::AbstractArray{T}, img, kernel::Tuple) where T
+function imfilter_na_separable!(r, out::AbstractArray{T}, img, kernel::Tuple) where {T}
     fc, fn = Fill(zero(T)), Fill(zero(eltype(T)))  # color, numeric
     imfilter!(r, out, img, kernel, fc)
     normalize_separable!(r, out, kernel, fn)
@@ -1477,7 +1101,7 @@ end
 
 filter_type(img::AbstractArray{S}, kernel) where {S} = filter_type(S, kernel)
 
-filter_type(::Type{S}, kernel::ArrayLike{T}) where {S,T} = typeof(zero(S)*zero(T) + zero(S)*zero(T))
+filter_type(::Type{S}, kernel::ArrayLike{T}) where {S,T} = typeof(zero(S) * zero(T) + zero(S) * zero(T))
 filter_type(::Type{S}, ::Laplacian) where {S<:Union{Normed,FixedColorant}} = float32(S)
 filter_type(::Type{S}, kernel::Laplacian) where {S<:Colorant} = S
 filter_type(::Type{S}, ::Laplacian) where {S<:AbstractFloat} = S
@@ -1485,12 +1109,12 @@ filter_type(::Type{S}, ::Laplacian) where {S<:Signed} = S
 filter_type(::Type{S}, ::Laplacian) where {S<:Unsigned} = signed_type(S)
 filter_type(::Type{Bool}, ::Laplacian) = Int8
 
-signed_type(::Type{UInt8})  = Int16
+signed_type(::Type{UInt8}) = Int16
 signed_type(::Type{UInt16}) = Int32
 signed_type(::Type{UInt32}) = Int64
 signed_type(::Type{T}) where {T<:Integer} = Int
 
-@inline function filter_type(::Type{S}, kernel::Tuple{Any,Vararg{Any}}) where S
+@inline function filter_type(::Type{S}, kernel::Tuple{Any,Vararg{Any}}) where {S}
     T = filter_type(S, kernel[1])
     filter_type(T, S, tail(kernel))
 end
@@ -1503,7 +1127,7 @@ filter_type(::Type{T}, ::Type{S}, kernel::Tuple{}) where {T,S} = T
 factorkernel(kernel::AbstractArray) = (kernelshift(axes(kernel), kernel),)
 factorkernel(L::Laplacian) = (L,)
 
-function factorkernel(kernel::AbstractMatrix{T}) where T
+function factorkernel(kernel::AbstractMatrix{T}) where {T}
     inds = axes(kernel)
     m, n = map(length, inds)
     kern = Array{T}(undef, m, n)
@@ -1524,10 +1148,10 @@ function factorstridedkernel(inds, kernel::StridedMatrix)
         return (dummykernel(axes(ks)), ks)
     end
     s = S[1]
-    u, v = U[:,1:1], Vt[1:1,:]
+    u, v = U[:, 1:1], Vt[1:1, :]
     ss = sqrt(s)
-    (kernelshift((inds[1], dummyind(inds[1])), ss*u),
-     kernelshift((dummyind(inds[2]), inds[2]), ss*v))
+    (kernelshift((inds[1], dummyind(inds[1])), ss * u),
+        kernelshift((dummyind(inds[2]), inds[2]), ss * v))
 end
 
 kernelshift(inds::NTuple{N,Base.OneTo}, A::StridedArray) where {N} = _kernelshift(inds, A)
@@ -1563,31 +1187,31 @@ _maxlen(len) = len
 Base.length(A::ReshapedVector) = length(A.data)
 
 isseparable(kernels::Tuple{Vararg{AnyIIR}}) = true
-isseparable(kernels::Tuple) = all(x->nextendeddims(x)==1, kernels)
+isseparable(kernels::Tuple) = all(x -> nextendeddims(x) == 1, kernels)
 
 normalize_separable!(r::AbstractResource, A, ::Tuple{}, border) = error("this shouldn't happen")
-function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,TriggsSdika}, border) where N
+function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,TriggsSdika}, border) where {N}
     inds = axes(A)
     function imfilter_inplace!(r, a, kern, border)
         imfilter!(r, a, a, (kern,), border)
     end
-    filtdims = ntuple(d->imfilter_inplace!(r, fill(1.0, inds[d]), kernels[d], border), Val(N))
+    filtdims = ntuple(d -> imfilter_inplace!(r, fill(1.0, inds[d]), kernels[d], border), Val(N))
     normalize_dims!(A, filtdims)
 end
-function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,ReshapedIIR}, border) where N
+function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,ReshapedIIR}, border) where {N}
     normalize_separable!(r, A, map(_vec, kernels), border)
 end
 
-function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,Any}, border) where N
+function normalize_separable!(r::AbstractResource, A, kernels::NTuple{N,Any}, border) where {N}
     inds = axes(A)
     # some kernels require floats here
-    filtdims = ntuple(d->imfilter(r, fill(1.0, inds[d]), _vec(kernels[d]), border), Val(N))
+    filtdims = ntuple(d -> imfilter(r, fill(1.0, inds[d]), _vec(kernels[d]), border), Val(N))
     normalize_dims!(A, filtdims)
 end
 
 function normalize_dims!(A::AbstractArray{T,N}, factors::NTuple{N}) where {T,N}
     for I in CartesianIndices(axes(A))
-        tmp = A[I]/factors[1][I[1]]
+        tmp = A[I] / factors[1][I[1]]
         for d = 2:N
             tmp /= factors[d][I[d]]
         end
@@ -1596,9 +1220,9 @@ function normalize_dims!(A::AbstractArray{T,N}, factors::NTuple{N}) where {T,N}
     A
 end
 
-iscopy(kernel::AbstractArray) = all(x->x==0:0, axes(kernel)) && first(kernel) == 1
+iscopy(kernel::AbstractArray) = all(x -> x == 0:0, axes(kernel)) && first(kernel) == 1
 iscopy(kernel::Laplacian) = false
-iscopy(kernel::TriggsSdika) = all(x->x==0, kernel.a) && all(x->x==0, kernel.b) && kernel.scale == 1
+iscopy(kernel::TriggsSdika) = all(x -> x == 0, kernel.a) && all(x -> x == 0, kernel.b) && kernel.scale == 1
 iscopy(kernel::ReshapedOneD) = iscopy(kernel.data)
 
 kernelconv(kernel) = kernel
@@ -1610,7 +1234,7 @@ function kernelconv(k1, k2, kernels...)
     ref = accumfilter(zero(eltype(k1)), zero(eltype(k2)))
     for I1 in R1
         for I2 in R2
-            out[I1+I2] += safe_for_prod(k1N[I1], ref)*k2N[I2]
+            out[I1+I2] += safe_for_prod(k1N[I1], ref) * k2N[I2]
         end
     end
     kernelconv(out, kernels...)
@@ -1642,18 +1266,18 @@ safehead(::CartesianIndex{0}) = CartesianIndex(())
 
 ## Tiling utilities
 
-function tile_allocate(::Type{T}, kernel) where T
+function tile_allocate(::Type{T}, kernel) where {T}
     sz = map(length, calculate_padding(kernel))
     tsz = padded_tilesize(T, sz)
     tile_allocate(T, tsz, kernel)
 end
 
-function tile_allocate(::Type{T}, tsz::Dims, kernel::Tuple{Any,Any}) where T
+function tile_allocate(::Type{T}, tsz::Dims, kernel::Tuple{Any,Any}) where {T}
     # Allocate a single tile for a 2-stage filter
     [Array{T}(undef, tsz) for i = 1:Threads.nthreads()]
 end
 
-function tile_allocate(::Type{T}, tsz::Dims, kernel::Tuple{Any,Any,Vararg{Any}}) where T
+function tile_allocate(::Type{T}, tsz::Dims, kernel::Tuple{Any,Any,Vararg{Any}}) where {T}
     # Allocate a pair of tiles and swap buffers at each stage
     [(Array{T}(undef, tsz), Array{T}(undef, tsz)) for i = 1:Threads.nthreads()]
 end
@@ -1661,7 +1285,7 @@ end
 ## Whole-image temporaries
 const fillbuf_nan = Ref(false)  # used only for testing purposes
 
-function tempbuffer(A::AbstractArray, ::Type{T}, kernel::Tuple{Any,Any}) where T
+function tempbuffer(A::AbstractArray, ::Type{T}, kernel::Tuple{Any,Any}) where {T}
     A2 = similar(A, T)
     if fillbuf_nan[]
         fill!(A2, NaN)  # for testing purposes
@@ -1671,6 +1295,6 @@ end
 
 # If there are more than two stages of filtering, we need two
 # temporaries to avoid overwriting the input image
-function tempbuffer(A::AbstractArray, ::Type{T}, kernel::Tuple{Any,Any,Any,Vararg{Any}}) where T
+function tempbuffer(A::AbstractArray, ::Type{T}, kernel::Tuple{Any,Any,Any,Vararg{Any}}) where {T}
     (similar(A, T), similar(A, T))
 end

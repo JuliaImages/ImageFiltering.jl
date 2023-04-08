@@ -58,6 +58,7 @@ x-axis (second dimension). `diff1 == rotr90(diff2)`
 ```julia
     (diff,) = sobel(extended::NTuple{N,Bool}, d)
 ```
+
 Return (a tuple of) the N-dimensional correlation kernel for gradient compution
 along the dimension `d` using the Sobel operator. If `extended[dim]` is false,
 `diff` will have size 1 along that dimension.
