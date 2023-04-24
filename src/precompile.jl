@@ -1,6 +1,6 @@
-using SnoopPrecompile
+using PrecompileTools
 
-@precompile_setup begin
+@setup_workload begin
     images2d = Any[
         rand(Float32, 100, 100),
         rand(Float64, 100, 100),
@@ -12,7 +12,7 @@ using SnoopPrecompile
         rand(Gray{N0f16}, 100, 100, 10),
     ]
     # We could put the kernels and resources here too, but it makes sense to precompile them
-    @precompile_all_calls begin
+    @compile_workload begin
         kernels2d = Any[
             Kernel.gaussian((3, 3)),
             KernelFactors.gaussian((3, 3)),
