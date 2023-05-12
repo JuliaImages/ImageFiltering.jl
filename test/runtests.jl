@@ -5,6 +5,8 @@ using TestImages
 using ImageQualityIndexes
 import StaticArrays
 using Random
+using FFTW
+using Statistics
 
 @testset "Project meta quality checks" begin
     # Ambiguity test
@@ -43,7 +45,7 @@ include("gradient.jl")
 include("mapwindow.jl")
 include("extrema.jl")
 include("basic.jl")
-include("gabor.jl")
+include("gaborkernels.jl")
 include("models.jl")
 
 
@@ -70,4 +72,7 @@ if CUDA_FUNCTIONAL
 else
     @warn "CUDA test: disabled"
 end
+
+@info "Beginning deprecation tests, warnings are expected"
+include("deprecated.jl")
 nothing

@@ -1,5 +1,3 @@
-using ImageFiltering, Test, Statistics
-
 @testset "gabor" begin
     σx = 8
     σy = 12
@@ -7,7 +5,6 @@ using ImageFiltering, Test, Statistics
     size_y = 6*σy+1
     γ = σx/σy
     # zero size forces default kernel width, with warnings
-    @info "Four warnings are expected"
     kernel = Kernel.gabor(0,0,σx,0,5,γ,0)
     @test isequal(size(kernel[1]),(size_x,size_y))
     kernel = Kernel.gabor(0,0,σx,π,5,γ,0)

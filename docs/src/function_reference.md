@@ -23,7 +23,9 @@ Kernel.gaussian
 Kernel.DoG
 Kernel.LoG
 Kernel.Laplacian
-Kernel.gabor
+Kernel.Gabor
+Kernel.LogGabor
+Kernel.LogGaborComplex
 Kernel.moffat
 ```
 
