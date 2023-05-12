@@ -13,6 +13,7 @@ dimensionality. The following kernels are supported:
   - `Laplacian`
   - `gabor`
   - `moffat`
+  - `tophat`
 
 See also: [`KernelFactors`](@ref).
 """
@@ -507,6 +508,34 @@ moffat(α::Real, β::Real)                 = moffat(α, β, ceil(Int, (α*2*sqrt
 @inline function df(I::CartesianIndex)
     x = SVector(Tuple(I))
     sum(x.^2)
+end
+
+"""
+    tophat(r) -> k
+    tophat(r, ls) -> k
+
+Constructs a 2D Tophat kernel, or a 2D Disk kernel. The default size is the `2r` rounded up to the nearest odd integer.
+"""
+function tophat(r::Integer)
+    # default size: 2r rounded up to nearest odd integer
+    i = ceil(Int, 2 * r)
+    s = iseven(i) ? i + 1 : i
+    return tophat(r, (s, s))
+end
+
+function tophat(r::Real, sizes::Tuple{Integer, Integer})   
+    u, v = sizes
+    amplitude = inv(π * r^2)
+    kern = zeros(typeof(amplitude), u, v)
+
+    cy, cx = u / 2 + 0.5, v / 2 + 0.5
+    for idx in CartesianIndices(axes(kern))
+        x, y = idx.I
+        if (x - cx)^2 + (y - cy)^2 ≤ r^2
+            kern[idx] = amplitude
+        end
+    end
+    return kern ./ sum(kern) # renormalize 
 end
 
 """
