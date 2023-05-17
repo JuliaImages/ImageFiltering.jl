@@ -32,6 +32,10 @@ supported:
   - `gaussian`
   - `IIRGaussian` (approximate gaussian filtering, fast even for large σ)
 
+The two modules [`Kernel`](@ref) and [`KernelFactors`](@ref) implement popular
+correlation kernels in "dense" and "factored" forms, respectively. Type
+`?Kernel` or `?KernelFactors` at the REPL to see which kernels are supported.
+
 ## Correlation, not convolution
 
 The ImageFiltering package uses the following formula to calculate the filtered
@@ -130,13 +134,3 @@ If the kernel is a two dimensional array, `imfilter` will attempt to
 factor it; if successful, it will use the separable algorithm. You can
 prevent this automatic factorization by passing the kernel as a tuple,
 e.g., as `(kernp,)`.
-
-## Popular kernels in Kernel and KernelFactors modules
-
-The two modules [`Kernel`](@ref) and [`KernelFactors`](@ref) implement popular
-correlation kernels in "dense" and "factored" forms, respectively. Type
-`?Kernel` or `?KernelFactors` at the REPL to see which kernels are supported.
-
-A common task in image processing and computer vision is computing
-image *gradients* (derivatives), for which there is the dedicated
-function [`imgradients`](@ref).

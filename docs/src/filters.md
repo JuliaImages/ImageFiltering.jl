@@ -1,8 +1,10 @@
 # Filtering images
 
-The `imfilter()` function filters a one, two or multidimensional array `img` with a `kernel` by computing their correlation.
-
 ## Introduction
+
+The ImageFilters.jl package provides tools for applying transformations to
+arrays, with a particular focus on the kinds of operations used in image
+processing, such as blurring, sharpening, and edge-enhancement.
 
 The term *filtering* emerges in the context of a Fourier transformation of an
 image, which maps an image from its canonical spatial domain to its concomitant
@@ -20,6 +22,8 @@ filter is called *linear* if the operation performed on the pixels is linear,
 and is labeled non-linear otherwise.
 
 ## Function options
+
+The `imfilter()` function filters a one, two or multidimensional array `img` with a `kernel` by computing their correlation.
 
 The syntax for `imfilter()` is as follows:
 
@@ -169,6 +173,22 @@ is most appropriate for filters that have only positive weights summing to 1,
 such as blurring filters---rather than "make up" values beyond the edges,
 the result is normalized by the number of in-bounds pixels (similar to [`nanmean`](https://brenhinkeller.github.io/NaNStatistics.jl/dev/#NaNStatistics.nanmean-Tuple{Any})).
 
+For example:
+
+```julia
+julia> img = [0, 0, 1, 0, 0, 0, 1];
+
+julia> imfilter(img, centered([1, 1, 1]/3), NA())
+7-element Vector{Float64}:
+ 0.0
+ 0.3333333333333333
+ 0.3333333333333333
+ 0.3333333333333333
+ 0.0
+ 0.3333333333333333
+ 0.5
+```
+
 See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
 [`NoPad`](@ref)
 
@@ -183,21 +203,28 @@ performance. Alternatively you can use a custom filter type, like
 
 ## Convolution versus correlation
 
-The default operation of `imfilter` is correlation.  By reflecting `w` we
-compute the convolution of `f` and `w`. `Fill(0,w)` indicates that we wish to
-pad the border of `f` with zeros. The amount of padding is automatically
-determined by considering the length of w.
+The default operation of `imfilter` is correlation. 
+
+In the following example, consider the image matrix `f` and a centered filter coefficient
+mask `w`.
+
+The specification `Fill(0, w)` indicates that we wish to pad the border of `f` with zeros. The
+amount of padding is automatically determined by considering the length of `w`.
 
 ```julia
 # Create a two-dimensional discrete unit impulse function.
-f = fill(0,(9,9));
-f[5,5] = 1;
+f = fill(0, (9, 9));
+f[5, 5] = 1
 
 # Specify a filter coefficient mask and set the center of the mask as the origin.
 w = centered([1 2 3; 4 5 6 ; 7 8 9]);
+```
 
-correlation = imfilter(f,w,Fill(0,w))
-convolution = imfilter(f,reflect(w),Fill(0,w))
+By reflecting `w` we compute the convolution of `f` and `w`. Compare the correlation and convolution:
+
+```julia
+correlation = imfilter(f, w, Fill(0, w))
+convolution = imfilter(f, reflect(w), Fill(0, w))
 ```
 
 ## Miscellaneous border padding options

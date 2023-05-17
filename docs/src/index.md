@@ -25,7 +25,11 @@ The main functions provided by this package are:
 |[`findlocalminima`](@ref) | Returns the coordinates of elements whose value is smaller than all of their immediate neighbors |
 |[`findlocalmaxima`](@ref) | Returns the coordinates of elements whose value is larger than all of their immediate neighbors |
 
-Common kernels (filters) are organized in the `Kernel` and `KernelFactors` modules.
+Common kernels (filters) are organized in the `Kernel` and `KernelFactors` modules. 
+
+A common task in image processing and computer vision is computing
+image *gradients* (derivatives), for which there is the dedicated
+function [`imgradients`](@ref).
 
 ## Examples
 
@@ -87,7 +91,7 @@ the computation to be single-threaded.
 
 ### Feature: Models
 
-The `Models` submodule provides predefined image-related models and its solvers that can be reused
+The `ImageFilter.Models` submodule provides predefined image-related models and its solvers that can be reused
 by many image processing tasks.
 
-For example, solve the Rudin Osher Fatemi (ROF) model using the primal-dual method.
+For example, the `solve_ROF_PD()` function uses the primal-dual method to return a smoothed version of an image using Rudin-Osher-Fatemi (ROF) filtering, more commonly known as Total Variation (TV) denoising or TV regularization.
