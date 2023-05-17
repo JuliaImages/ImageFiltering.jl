@@ -165,8 +165,9 @@ result is to be returned.
 #### `NA()`
 
 Choose filtering using "NA" (Not Available) boundary conditions. This
-is most appropriate for filters that have only positive weights, such
-as blurring filters.
+is most appropriate for filters that have only positive weights summing to 1,
+such as blurring filters---rather than "make up" values beyond the edges,
+the result is normalized by the number of in-bounds pixels (similar to [`nanmean`](https://brenhinkeller.github.io/NaNStatistics.jl/dev/#NaNStatistics.nanmean-Tuple{Any})).
 
 See also: [`Pad`](@ref), [`padarray`](@ref), [`Inner`](@ref), [`NA`](@ref)  and
 [`NoPad`](@ref)
