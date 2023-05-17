@@ -53,7 +53,7 @@ passing in a type `T` as the first argument.
 
 ### Choices for `img`
 
-You can specify a one, two, or multidimensional array defining your image.
+You must provide a one, two, or multidimensional array as the input image.
 
 ### Choices for `kernel`
 
