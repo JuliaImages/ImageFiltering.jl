@@ -1,5 +1,7 @@
 # Filtering functions
 
+## Functions
+
 ```@docs
 imfilter
 imfilter!
@@ -8,42 +10,42 @@ mapwindow
 mapwindow!
 ```
 
-# Kernel
+## Kernel
 
 ```@docs
 Kernel
-Kernel.sobel
-Kernel.prewitt
 Kernel.ando3
 Kernel.ando4
 Kernel.ando5
 Kernel.bickley
-Kernel.scharr
-Kernel.gaussian
 Kernel.DoG
-Kernel.LoG
-Kernel.Laplacian
 Kernel.gabor
+Kernel.gaussian
+Kernel.Laplacian
+Kernel.LoG
 Kernel.moffat
+Kernel.prewitt
+Kernel.scharr
+Kernel.sobel
 ```
 
-# KernelFactors
+## KernelFactors
 
 ```@docs
 KernelFactors
-KernelFactors.sobel
-KernelFactors.prewitt
-KernelFactors.bickley
-KernelFactors.scharr
 KernelFactors.ando3
 KernelFactors.ando4
 KernelFactors.ando5
+KernelFactors.bickley
 KernelFactors.gaussian
 KernelFactors.IIRGaussian
+KernelFactors.prewitt
+KernelFactors.scharr
+KernelFactors.sobel
 KernelFactors.TriggsSdika
 ```
 
-# Kernel utilities
+## Kernel utilities
 
 ```@docs
 OffsetArrays.center
@@ -52,19 +54,26 @@ kernelfactors
 reflect
 ```
 
-# Boundaries and padding
+## Boundaries and padding
 
 ```@docs
-padarray
 BorderArray
-Pad
 Fill
 Inner
 NA
 NoPad
+Pad
+padarray
 ```
 
-# Algorithms
+## Find local extrema
+
+```@docs
+findlocalmaxima
+findlocalminima
+```
+
+## Algorithms
 
 ```@docs
 Algorithm.FIR
@@ -73,13 +82,13 @@ Algorithm.IIR
 Algorithm.Mixed
 ```
 
-# Solvers for predefined models
+## Solvers for predefined models
 
 ```@autodocs
 Modules = [ImageFiltering.Models]
 ```
 
-# Internal machinery
+## Internal machinery
 
 ```@docs
 KernelFactors.ReshapedOneD

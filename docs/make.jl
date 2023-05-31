@@ -14,20 +14,31 @@ format = Documenter.HTML(prettyurls = get(ENV, "CI", nothing) == "true",
                          assets = assets)
 
 makedocs(
-    modules  = [ImageFiltering, OffsetArrays, Kernel, KernelFactors, ImageFiltering.MapWindow],
-    format   = format,
-    sitename = "ImageFiltering",
-    pages    = [
+    modules=[ImageFiltering, OffsetArrays, Kernel, KernelFactors, ImageFiltering.MapWindow],
+    format=format,
+    sitename="ImageFiltering",
+    pages=[
         "index.md",
-        demos,
-        "Function reference" => "function_reference.md"
+        "Tutorials" => [
+            "Tutorial 1" => "tutorials/tutorial1.md",
+            ],
+        demos, 
+        "Filtering images" => "filters.md",
+        "Kernels" => "kernels.md",
+        "Gradients" => "gradients.md",
+        "Map window" => "mapwindows.md",
+        "Padding arrays" => "padarrays.md",
+        "Reference" => [
+            "Technical overview" => "reference/technical.md"
+            "Function reference" => "reference/function_reference.md"
+        ],
     ],
     # Note(johnnychen94): doctest is moved as part of unit test for two reasons:
     # - we want to run doctest for various Julia versions on various platforms.
     # - `doctest=true` for `makedocs` will trigger not only doctest of ImageFiltering but also
     #   that of other packages listed in `modules`. It usually throws warnings that don't
     #   belong to the scope of this package.
-    doctest = false
+    doctest=false
 )
 
 demos_cb()

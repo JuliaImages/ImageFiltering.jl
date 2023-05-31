@@ -8,3 +8,4 @@ docs/src/democards
 Manifest.toml
 /.benchmarkci
 /benchmark/*.json
+.DS_Store
