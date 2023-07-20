@@ -1,7 +1,7 @@
 name = "ImageFiltering"
 uuid = "6a3955dd-da59-5b1f-98d4-e7296123deb5"
 author = ["Tim Holy <tim.holy@gmail.com>", "Jan Weidner <jw3126@gmail.com>"]
-version = "0.7.5"
+version = "0.7.6"
 
 [deps]
 CatIndices = "aafaddc9-749c-510e-ac4f-586e18779b91"
@@ -27,7 +27,7 @@ DataStructures = "0.17.7, 0.18"
 FFTViews = "0.3"
 FFTW = "0.3, 1"
 ImageBase = "0.1.5"
-ImageCore = "0.9"
+ImageCore = "0.9, 0.10"
 OffsetArrays = "1.9"
 Reexport = "1.1"
 PrecompileTools = "1"
