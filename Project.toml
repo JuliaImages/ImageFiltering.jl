@@ -1,7 +1,7 @@
 name = "ImageFiltering"
 uuid = "6a3955dd-da59-5b1f-98d4-e7296123deb5"
 author = ["Tim Holy <tim.holy@gmail.com>", "Jan Weidner <jw3126@gmail.com>"]
-version = "0.7.6"
+version = "0.7.7"
 
 [deps]
 CatIndices = "aafaddc9-749c-510e-ac4f-586e18779b91"
@@ -33,13 +33,12 @@ Reexport = "1.1"
 PrecompileTools = "1"
 StaticArrays = "0.10, 0.11, 0.12, 1.0"
 TiledIteration = "0.2, 0.3, 0.4, 0.5"
-julia = "1"
+julia = "1.6"
 
 [extras]
 AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 ImageIO = "82e4d734-157c-48bb-816b-45c225c6df19"
-ImageMagick = "6218d12a-5da1-5696-b52f-db25d2ecc6d1"
 ImageMetadata = "bc367c6b-8a6b-528e-b4bd-a4b897500b49"
 ImageQualityIndexes = "2996bd0c-7a13-11e9-2da2-2f5ce47296a9"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
@@ -48,4 +47,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TestImages = "5e47fb64-e119-507b-a336-dd2b206d9990"
 
 [targets]
-test = ["AxisArrays", "Documenter", "ImageIO", "ImageMagick", "ImageMetadata", "ImageQualityIndexes", "Logging", "Random", "Test", "TestImages"]
+test = ["AxisArrays", "Documenter", "ImageIO", "ImageMetadata", "ImageQualityIndexes", "Logging", "Random", "Test", "TestImages"]
