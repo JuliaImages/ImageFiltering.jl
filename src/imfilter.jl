@@ -107,7 +107,7 @@ single-element tuple, `(kernel,)`.
 ### Choices for `border`
 
 At the image edge, `border` is used to specify the padding which will be used
-to extrapolate the image beyond its original bounds. 
+to extrapolate the image beyond its original bounds.
 
 #### `"replicate"` (default)
 
@@ -484,12 +484,17 @@ function _imfilter_tiled!(r::CPUThreads, out, A, kernel::Tuple{Any,Any}, border:
 end
 # This must be in a separate function due to #15276
 @noinline function _imfilter_tiled_threads!(r1, out, A, k1, k2, border, tileinds_all, tile::Vector{AA}) where {AA<:AbstractArray}
-    Threads.@threads for i = 1:length(tileinds_all)
-        id = Threads.threadid()
-        tileinds = tileinds_all[i]
-        tileb = TileBuffer(tile[id], tileinds)
-        imfilter!(r1, tileb, A, k1, border, tileinds)
-        imfilter!(r1, out, tileb, k2, border, shrink(tileinds, k2))
+    ntasks = Threads.nthreads()
+    parts = Iterators.partition(tileinds_all, ceil(Int, length(tileinds_all) / ntasks))
+    @sync for (task_n, part) in enumerate(parts)
+        Threads.@spawn begin
+            _tile = tile[task_n]
+            for tileinds in part
+                tileb = TileBuffer(_tile, tileinds)
+                imfilter!(r1, tileb, A, k1, border, tileinds)
+                imfilter!(r1, out, tileb, k2, border, shrink(tileinds, k2))
+            end
+        end
     end
     out
 end
@@ -521,13 +526,17 @@ function _imfilter_tiled!(r::CPUThreads, out, A, kernel::Tuple{Any,Any,Vararg{An
 end
 # This must be in a separate function due to #15276
 @noinline function _imfilter_tiled_threads!(r1, out, A, k1, kt, border, tileinds_all, tiles::Vector{Tuple{AA,AA}}) where {AA<:AbstractArray}
-    Threads.@threads for i = 1:length(tileinds_all)
-        tileinds = tileinds_all[i]
-        id = Threads.threadid()
-        tile1, tile2 = tiles[id]
-        tileb1 = TileBuffer(tile1, tileinds)
-        imfilter!(r1, tileb1, A, k1, border, tileinds)
-        _imfilter_tiled_swap!(r1, out, kt, border, (tileb1, tile2))
+    ntasks = Threads.nthreads()
+    parts = Iterators.partition(tileinds_all, ceil(Int, length(tileinds_all) / ntasks))
+    @sync for (task_n, part) in enumerate(parts)
+        Threads.@spawn begin
+            tile1, tile2 = tiles[task_n]
+            for tileinds in part
+                tileb1 = TileBuffer(tile1, tileinds)
+                imfilter!(r1, tileb1, A, k1, border, tileinds)
+                _imfilter_tiled_swap!(r1, out, kt, border, (tileb1, tile2))
+            end
+        end
     end
     out
 end
