@@ -6,31 +6,48 @@
 # ---
 
 # In this tutorial we see how can we can effectively use max and min filter to distinguish
-# between smooth and texture edges  in grayscale images.
+# between smooth and texture edges in grayscale images. The example in this demo comes from [1].
 
 # We will use the [`mapwindow`](@ref) function in `ImageFiltering.jl` which provides a general
-# functionality to apply any function to the window around each pixel.
+# functionality to apply any function to the window around each pixel. 
+# [Custom median filters](@ref median_filter_example) is another usage example of `mapwindow`.
 
 using ImageCore, ImageShow, ImageFiltering
+using MappedArrays
 using TestImages
 
-img = Gray.(testimage("house");)      # Original Image
+img = Gray.(testimage("house")); # Original Image
 
-# We can use the `minimum` function to compute the minimum of the grayscale values in the given
-# matrix or array. For example: 
-minimum([Gray(0.7),Gray(0.5),Gray(0.0)]) # Should return Gray(0.0) i.e black.
-# 
-filter_size = (15, 15)
-## Using the `mapwindow` function, we create an image of the local minimum.
-## `mapwindow` maps the given function over a moving window of given size.
-img_min = mapwindow(minimum, img, filter_size)
-## Similarly for maximum
-img_max = mapwindow(maximum, img, filter_size)
-## The max(min) filter
-img_max_min = mapwindow(maximum, img_min, filter_size)
-## The min(max) filter
-img_min_max = mapwindow(minimum, img_max, filter_size)
+# We need four statistics for our demo, they are: the local minimum, maximum, min-max, max-min of
+# the input image. We can use `mapwindow` to get them.
+
+window_size = (15, 15)
+img_min = mapwindow(minimum, img, window_size)
+img_max = mapwindow(maximum, img, window_size)
+img_max_min = mapwindow(maximum, img_min, window_size)
+img_min_max = mapwindow(minimum, img_max, window_size)
 mosaicview(img_min, img_max, img_max_min, img_min_max; nrow=1)
+
+# When `f` is one of `maximum`, `minimum` and `maximum`, `mapwindow(f, img, window_size)` will use
+# a streaming version Lemire max-min filter[2] to do the filtering work. This is more efficient
+# than a plain maximum implementation.
+
+# ```julia
+# using BenchmarkTools
+# f(x) = minimum(x) # do note that `f !== minimum`
+# @btime mapwindow(f, $img, window_size) # 47.508 ms (202831 allocations: 12.91 MiB)
+# @btime mapwindow(minimum, $img, window_size) # 13.216 ms (58 allocations: 1.75 MiB)
+# ```
+
+# `mapwindow` with `maximum`/`minimum` actually only uses the partial results from `mapwindow` with
+# `extrema`, so if we need both results, we could half the computation by directly calling `extrema`
+# and doing a manual splitting. Also, we could use a `MappedArrays.mappedarray` view to reduce the
+# allocation.
+
+img_extrema = mapwindow(extrema, img, window_size) # half the computation
+img_min = mappedarray(first, img_extrema) # 0 allocation
+img_max = mappedarray(last, img_extrema) # 0 allocation
+#md nothing #hide
 
 # Now that we are done with the basic filtered images, we proceed to the next part
 # which is edge detection using these filters.
@@ -72,7 +89,9 @@ mosaicview(img, ramp, edge, edge_smoothed; nrow=2)
 
 # # References
 
-# Verbeek, P. W., Vrooman, H. A., & Van Vliet, L. J. (1988). [Low-level image processing by max-min filters](https://core.ac.uk/download/pdf/194053536.pdf). Signal Processing, 15(3), 249-258.
+# [1] Verbeek, P. W., Vrooman, H. A., & Van Vliet, L. J. (1988). [Low-level image processing by max-min filters](https://core.ac.uk/download/pdf/194053536.pdf). Signal Processing, 15(3), 249-258.
+
+# [2] Lemire, D. (2006). [Streaming maximum-minimum filter using no more than three comparisons per element](https://lemire.me/en/publication/arxiv0610046/). arXiv preprint cs/0610046.
 
 ## save covers #src
 using ImageMagick #src
