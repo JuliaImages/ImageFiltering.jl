@@ -132,7 +132,7 @@ accumfilter(pixelval::Colorant{N0f8}, filterval::N0f8) = float32(c)*Float32(filt
 # standalone function call.
 safe_for_prod(x, ref) = oftype(ref, x)
 
-function _warn_if_transposed_from_offset_vector(kernel::ProcessedKernel)
+function _warn_if_transposed_from_offset_vector(kernel::Tuple)
     if any(_is_transposed_offset_vector, kernel)
         @warn "A transposed OffsetVector automatically has an index of 1 in the first dimension. " *
             "Consider using an OffsetMatrix to control the offset of each dimension."
