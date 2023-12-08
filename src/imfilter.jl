@@ -227,6 +227,10 @@ end
 
 # Step 5: if necessary, pick an algorithm
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::AbstractBorder)
+    if any(x -> (isa(x, Adjoint) || isa(x, Transpose)) && isa(x.parent, OffsetVector) && first(OffsetArrays.center(x.parent)) != 1, kernel)
+        @warn "A transposed OffsetVector automatically has an index of 1 in the first dimension. \
+            Consider using an OffsetMatrix to control the index of each dimension."
+    end
     imfilter!(out, img, kernel, border, filter_algorithm(out, img, kernel))
 end
 
