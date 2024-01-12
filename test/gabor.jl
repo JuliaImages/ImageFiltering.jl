@@ -7,11 +7,15 @@ using ImageFiltering, Test, Statistics
     size_y = 6*σy+1
     γ = σx/σy
     # zero size forces default kernel width, with warnings
-    @info "Four warnings are expected"
-    kernel = Kernel.gabor(0,0,σx,0,5,γ,0)
-    @test isequal(size(kernel[1]),(size_x,size_y))
-    kernel = Kernel.gabor(0,0,σx,π,5,γ,0)
-    @test isequal(size(kernel[1]),(size_x,size_y))
+
+    @test_logs (:warn, r"The input parameter size_") match_mode=:any begin
+        kernel = Kernel.gabor(0,0,σx,0,5,γ,0)
+        @test isequal(size(kernel[1]),(size_x,size_y))
+    end
+    @test_logs (:warn, r"The input parameter size_") match_mode=:any begin
+        kernel = Kernel.gabor(0,0,σx,π,5,γ,0)
+        @test isequal(size(kernel[1]),(size_x,size_y))
+    end
 
     for x in 0:4, y in 0:4, z in 0:4, t in 0:4
         σx1 = 2*x+1

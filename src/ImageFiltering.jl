@@ -1,12 +1,14 @@
 module ImageFiltering
 
 using FFTW
+using RealFFTs
 using ImageCore, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
 # Where possible we avoid a direct dependency to reduce the number of [compat] bounds
 # using FixedPointNumbers: Normed, N0f8 # reexported by ImageCore
 using ImageCore.MappedArrays
 using Statistics, LinearAlgebra
 using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
+import Base: copy!
 using OffsetArrays: IdentityUnitRange   # using the one in OffsetArrays makes this work with multiple Julia versions
 using SparseArrays   # only needed to fix an ambiguity in borderarray
 using Reexport
@@ -30,7 +32,8 @@ export Kernel, KernelFactors,
     imgradients, padarray, centered, kernelfactors, reflect,
     freqkernel, spacekernel,
     findlocalminima, findlocalmaxima,
-    blob_LoG, BlobLoG
+    blob_LoG, BlobLoG,
+    planned_fft
 
 FixedColorant{T<:Normed} = Colorant{T}
 StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
@@ -50,16 +53,33 @@ function Base.transpose(A::StaticOffsetArray{T,2}) where T
 end
 
 module Algorithm
+    import FFTW
     # deliberately don't export these, but it's expected that they
     # will be used as Algorithm.FFT(), etc.
     abstract type Alg end
-    "Filter using the Fast Fourier Transform" struct FFT <: Alg end
+    "Filter using the Fast Fourier Transform" struct FFT <: Alg
+        plan1::Union{Function,Nothing}
+        plan2::Union{Function,Nothing}
+        plan3::Union{Function,Nothing}
+    end
+    FFT() = FFT(nothing, nothing, nothing)
+    function Base.show(io::IO, alg::FFT)
+        if alg.plan1 === nothing && alg.plan2 === nothing && alg.plan3 === nothing
+            print(io, "FFT()")
+        else
+            print(io, "FFT(planned)")
+        end
+    end
     "Filter using a direct algorithm" struct FIR <: Alg end
+    Base.show(io::IO, alg::FIR) = print(io, "FIR()")
     "Cache-efficient filtering using tiles" struct FIRTiled{N} <: Alg
         tilesize::Dims{N}
     end
+    Base.show(io::IO, ::FIRTiled{N}) where N = print(io, "FIRTiled{$N}()")
     "Filter with an Infinite Impulse Response filter" struct IIR <: Alg end
+    Base.show(io::IO, alg::IIR) = print(io, "IIR()")
     "Filter with a cascade of mixed types (IIR, FIR)" struct Mixed <: Alg end
+    Base.show(io::IO, alg::Mixed) = print(io, "Mixed()")
 
     FIRTiled() = FIRTiled(())
 end
