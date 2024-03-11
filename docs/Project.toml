@@ -16,5 +16,5 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 TestImages = "5e47fb64-e119-507b-a336-dd2b206d9990"
 
 [compat]
-DemoCards = "0.4"
-Documenter = "0.27"
+DemoCards = "0.4, 0.5"
+Documenter = "1"
