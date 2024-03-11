@@ -11,18 +11,24 @@ demos, demos_cb, demos_assets = makedemos("demos")
 assets = []
 isnothing(demos_assets) || (push!(assets, demos_assets))
 format = Documenter.HTML(prettyurls = get(ENV, "CI", nothing) == "true",
-                         assets = assets)
+                         assets = assets,
+                         size_threshold_ignore = [
+                            "demos/search/template_matching.md",
+                            "demos/filters/min_max_filter.md"
+                            ]
+                        )
 
 makedocs(
     modules=[ImageFiltering, OffsetArrays, Kernel, KernelFactors, ImageFiltering.MapWindow],
     format=format,
     sitename="ImageFiltering",
+    warnonly = :missing_docs,
     pages=[
         "index.md",
         "Tutorials" => [
             "Tutorial 1" => "tutorials/tutorial1.md",
             ],
-        demos, 
+        demos,
         "Filtering images" => "filters.md",
         "Kernels" => "kernels.md",
         "Gradients" => "gradients.md",
