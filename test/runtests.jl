@@ -6,6 +6,13 @@ using ImageQualityIndexes
 import StaticArrays
 using Random
 
+function typestring(::Type{T}) where T   # from https://github.com/JuliaImages/ImageCore.jl/pull/133
+    buf = IOBuffer()
+    show(buf, T)
+    String(take!(buf))
+end
+
+@testset "ImageFiltering" verbose=true begin
 @testset "Project meta quality checks" begin
     # Ambiguity test
     if Base.VERSION >= v"1.6.0-DEV.1005"   # julia #37616
@@ -26,12 +33,6 @@ using Random
     end
 end
 
-function typestring(::Type{T}) where T   # from https://github.com/JuliaImages/ImageCore.jl/pull/133
-    buf = IOBuffer()
-    show(buf, T)
-    String(take!(buf))
-end
-
 include("compat.jl")
 include("border.jl")
 include("nd.jl")
@@ -49,7 +50,6 @@ include("models.jl")
 
 CUDA_INSTALLED = false
 try
-    global CUDA_INSTALLED
     # This errors with `IOError` when nvidia driver is not available,
     # in which case we don't even need to try `using CUDA`
     run(pipeline(`nvidia-smi`, stdout=devnull, stderr=devnull))
@@ -71,3 +71,5 @@ else
     @warn "CUDA test: disabled"
 end
 nothing
+
+end

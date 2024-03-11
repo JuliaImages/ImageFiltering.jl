@@ -1,12 +1,14 @@
 module ImageFiltering
 
 using FFTW
+using RFFT
 using ImageCore, FFTViews, OffsetArrays, StaticArrays, ComputationalResources, TiledIteration
 # Where possible we avoid a direct dependency to reduce the number of [compat] bounds
 # using FixedPointNumbers: Normed, N0f8 # reexported by ImageCore
 using ImageCore.MappedArrays
 using Statistics, LinearAlgebra
 using Base: Indices, tail, fill_to_length, @pure, depwarn, @propagate_inbounds
+import Base: copy!
 using OffsetArrays: IdentityUnitRange   # using the one in OffsetArrays makes this work with multiple Julia versions
 using SparseArrays   # only needed to fix an ambiguity in borderarray
 using Reexport
@@ -30,7 +32,8 @@ export Kernel, KernelFactors,
     imgradients, padarray, centered, kernelfactors, reflect,
     freqkernel, spacekernel,
     findlocalminima, findlocalmaxima,
-    blob_LoG, BlobLoG
+    blob_LoG, BlobLoG,
+    planned_fft
 
 FixedColorant{T<:Normed} = Colorant{T}
 StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
@@ -50,10 +53,16 @@ function Base.transpose(A::StaticOffsetArray{T,2}) where T
 end
 
 module Algorithm
+    import FFTW
     # deliberately don't export these, but it's expected that they
     # will be used as Algorithm.FFT(), etc.
     abstract type Alg end
-    "Filter using the Fast Fourier Transform" struct FFT <: Alg end
+    "Filter using the Fast Fourier Transform" struct FFT <: Alg
+        plan1::Union{Function,Nothing}
+        plan2::Union{Function,Nothing}
+        plan3::Union{Function,Nothing}
+    end
+    FFT() = FFT(nothing, nothing, nothing)
     "Filter using a direct algorithm" struct FIR <: Alg end
     "Cache-efficient filtering using tiles" struct FIRTiled{N} <: Alg
         tilesize::Dims{N}

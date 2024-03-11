@@ -50,6 +50,8 @@ Base.zero(::Type{WrappedFloat}) = WrappedFloat(0.0)
     v = fill(0xff, 10)
     kern = centered(fill(0xff, 3))
     @info "Two warnings are expected"
+    # TODO: use @test_logs (:warn, r"Likely overflow or conversion error detected") match_mode=:any
+    # julia has an internal error currently on 1.10.2 that this hits https://github.com/JuliaLang/julia/pull/50759
     @test_throws InexactError imfilter(v, kern)
     vout = imfilter(UInt32, v, kern)
     @test eltype(vout) == UInt32
@@ -106,8 +108,8 @@ Base.zero(::Type{WrappedFloat}) = WrappedFloat(0.0)
         around_i = [abs(i-j) <= 15 for j in eachindex(v)]
         @test all(isequal(x), wf[around_i])
         @test wf[.!around_i] ≈ vf[.!around_i]
-    end   
-   
+    end
+
     # Issue #110
     img = reinterpret(WrappedFloat, rand(128))
     kern = centered(rand(31))
@@ -129,6 +131,7 @@ end
     img = trues(10,10,10)
     kernel = centered(trues(3,3,3)/27)
     for border in ("replicate", "circular", "symmetric", "reflect", Fill(true))
+        # TODO: add support for boolean images in planned_fft
         for alg in (Algorithm.FIR(), Algorithm.FIRTiled(), Algorithm.FFT())
             @test imfilter(img, kernel, border) ≈ img
         end

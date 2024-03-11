@@ -826,7 +826,7 @@ function _imfilter_fft!(r::AbstractCPU{FFT},
     for I in CartesianIndices(axes(kern))
         krn[I] = kern[I]
     end
-    Af = filtfft(A, krn)
+    Af = filtfft(A, krn, r.settings.plan1, r.settings.plan2, r.settings.plan3)
     if map(first, axes(out)) == map(first, axes(Af))
         R = CartesianIndices(axes(out))
         copyto!(out, R, Af, R)
@@ -837,13 +837,61 @@ function _imfilter_fft!(r::AbstractCPU{FFT},
         src = view(FFTView(Af), axes(dest)...)
         copyto!(dest, src)
     end
-    out
+    return out
 end
 
+function buffered_planned_rfft(a::AbstractArray{T}) where {T}
+    buf = RFFT.RCpair{T}(undef, size(a))
+    plan = RFFT.plan_rfft!(buf; flags=FFTW.MEASURE)
+    return function (arr::AbstractArray{T}) where {T}
+        copy!(buf, OffsetArrays.no_offset_view(arr))
+        return plan(buf)
+    end
+end
+function buffered_planned_irfft(a::AbstractArray{T}) where {T}
+    buf = RFFT.RCpair{T}(undef, size(a))
+    plan = RFFT.plan_irfft!(buf; flags=FFTW.MEASURE)
+    return function (arr::AbstractArray{T}) where {T}
+        copy!(buf, OffsetArrays.no_offset_view(arr))
+        return plan(buf)
+    end
+end
+
+function planned_fft(A::AbstractArray{T,N},
+            kernel::ProcessedKernel,
+            border::BorderSpecAny=Pad(:replicate)
+            ) where {T<:AbstractFloat,N}
+    bord = border(kernel, A, Algorithm.FFT())
+    _A = padarray(T, A, bord)
+    bfp1 = buffered_planned_rfft(_A)
+    kern = samedims(_A, kernelconv(kernel...))
+    krn = FFTView(zeros(eltype(kern), map(length, axes(_A))))
+    bfp2 = buffered_planned_rfft(krn)
+    bfp3 = buffered_planned_irfft(_A)
+    return Algorithm.FFT(bfp1, bfp2, bfp3)
+end
+planned_fft(A::AbstractArray, kernel, border::AbstractString) = planned_fft(A, kernel, borderinstance(border))
+planned_fft(A::AbstractArray, kernel::Union{ArrayLike,Laplacian}, border::BorderSpecAny) = planned_fft(A, factorkernel(kernel), border)
+
+function filtfft(A, krn, planned_rfft1::Function, planned_rfft2::Function, planned_irfft::Function)
+    B = complex(planned_rfft1(A))
+    B .*= conj!(complex(planned_rfft2(krn)))
+    return real(planned_irfft(complex(B)))
+end
+# TODO: this does not work. See TODO below
+function filtfft(A::AbstractArray{C}, krn, planned_rfft1::Function, planned_rfft2::Function, planned_irfft::Function) where {C<:Colorant}
+    Av, dims = channelview_dims(A)
+    kernrs = kreshape(C, krn)
+    B = complex(planned_rfft1(Av, dims)) # TODO: dims is not supported by planned_rfft1
+    B .*= conj!(complex(planned_rfft2(kernrs)))
+    Avf = real(planned_irfft(complex(B)))
+    return colorview(base_colorant_type(C){eltype(Avf)}, Avf)
+end
+filtfft(A, krn, ::Nothing, ::Nothing, ::Nothing) = filtfft(A, krn)
 function filtfft(A, krn)
     B = rfft(A)
     B .*= conj!(rfft(krn))
-    irfft(B, length(axes(A, 1)))
+    return irfft(B, length(axes(A, 1)))
 end
 function filtfft(A::AbstractArray{C}, krn) where {C<:Colorant}
     Av, dims = channelview_dims(A)
