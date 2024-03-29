@@ -238,6 +238,14 @@ using ImageFiltering: IdentityUnitRange
         fwhm = ceil(Int, (α*2*sqrt(2^(1/β) - 1)) * 4)
         @test Kernel.moffat(α, β) == Kernel.moffat(α, β, (fwhm, fwhm))
     end
+
+    @testset "butterworth" begin
+        a = rand()
+        b = rand()
+        @test Kernel.butterworth(a,b,(3,3)) == Kernel.butterworth(a,b,3)
+        @test Kernel.butterworth(a,b,(4,4)) == Kernel.butterworth(a,b,4)
+    end
+
 end
 
 nothing
