@@ -841,6 +841,11 @@ function _imfilter_fft!(r::AbstractCPU{FFT},
 end
 
 function filtfft(A, krn)
+    B = fft(A)
+    B .*= conj!(fft(krn))
+    ifft(B)
+end
+function filtfft(A::AbstractArray{AT}, krn::AbstractArray{KT}) where {AT<:Real,KT<:Real}
     B = rfft(A)
     B .*= conj!(rfft(krn))
     irfft(B, length(axes(A, 1)))
