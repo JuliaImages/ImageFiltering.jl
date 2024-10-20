@@ -840,23 +840,38 @@ function _imfilter_fft!(r::AbstractCPU{FFT},
     out
 end
 
-function filtfft(A, krn)
-    B = fft(A)
-    B .*= conj!(fft(krn))
-    ifft(B)
+# NOTE: FFT followed by IFFT can be optimized using conjugate symmetry for real arrays
+@inline _fft(A::AbstractArray{T}) where {T<:Real} = rfft(A)
+@inline _fft(A::AbstractArray{T}) where {T<:Complex} = fft(A)
+@inline _ifft(_::Type{<:Real}, A, d::Int) = irfft(A, d)
+@inline _ifft(_::Type{<:Complex}, A, _::Int) = ifft(A)
+# NOTE: If for one array, the optimization is used and not for the other, the two arrays do not have the same sizes
+# which needs to be dealt with in the element-wise multiplication
+@inline function _stretch_mul(AT::Type{<:Complex}, A_fft::AbstractArray, BT::Type{<:Real}, B_fft::AbstractArray, d::Int)
+    A_fft[1, :] .*= B_fft[1, :]
+    A_fft[2:(d÷2+1), 1] .*= B_fft[2:end, 1]
+    A_fft[(d÷2+2):end, 1] .*= conj(reverse(B_fft[2:(end-iseven(d)), 1]))
+    A_fft[2:(d÷2+1), 2:end] .*= B_fft[2:end, 2:end]
+    A_fft[(d÷2+2):end, 2:end] .*= conj(reverse(B_fft[2:(end-iseven(d)), 2:end]))
+    return A_fft
 end
-function filtfft(A::AbstractArray{AT}, krn::AbstractArray{KT}) where {AT<:Real,KT<:Real}
-    B = rfft(A)
-    B .*= conj!(rfft(krn))
-    irfft(B, length(axes(A, 1)))
+@inline _stretch_mul(AT::Type{<:Real}, A_fft::AbstractArray, BT::Type{<:Complex}, B_fft::AbstractArray, d::Int) = _stretch_mul(BT, B_fft, AT, A_fft, d)
+@inline _stretch_mul(AT::Type{<:Real}, A_fft::AbstractArray, BT::Type{<:Real}, B_fft::AbstractArray, _::Int) = A_fft .* B_fft
+@inline _stretch_mul(AT::Type{<:Complex}, A_fft::AbstractArray, BT::Type{<:Complex}, B_fft::AbstractArray, _::Int) = A_fft .* B_fft
+function filtfft(A::AbstractArray{ST}, krn::AbstractArray{KT}) where {ST<:Union{Real,Complex},KT<:Union{Real,Complex}}
+    CT = promote_type(ST, KT)
+    B = _fft(A)
+    fft_out = _stretch_mul(ST, B, KT, conj!(_fft(krn)), length(axes(A, 1)))
+    _ifft(CT, fft_out, length(axes(A, 1)))
 end
-function filtfft(A::AbstractArray{C}, krn) where {C<:Colorant}
+
+function filtfft(A::AbstractArray{CT}, krn) where {CT<:Colorant}
     Av, dims = channelview_dims(A)
-    kernrs = kreshape(C, krn)
+    kernrs = kreshape(CT, krn)
     B = rfft(Av, dims)
     B .*= conj!(rfft(kernrs, dims))
     Avf = irfft(B, length(axes(Av, dims[1])), dims)
-    colorview(base_colorant_type(C){eltype(Avf)}, Avf)
+    colorview(base_colorant_type(CT){eltype(Avf)}, Avf)
 end
 channelview_dims(A::AbstractArray{C,N}) where {C<:Colorant,N} = channelview(A), ntuple(d -> d + 1, Val(N))
 channelview_dims(A::AbstractArray{C,N}) where {C<:ImageCore.Color1,N} = channelview(A), ntuple(identity, Val(N))
