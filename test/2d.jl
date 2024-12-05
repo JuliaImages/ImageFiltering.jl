@@ -2,7 +2,7 @@ using ImageFiltering, ImageCore, OffsetArrays, FFTViews, ComputationalResources
 using LinearAlgebra
 using Test
 using ImageFiltering: IdentityUnitRange
-using ImageFiltering: borderinstance
+using ImageFiltering: borderinstance, filtfft
 
 @testset "tiling" begin
     m = zeros(UInt8, 20, 20)
