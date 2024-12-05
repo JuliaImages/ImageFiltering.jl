@@ -337,7 +337,22 @@ end
     @test_throws err imfilter(CPU1(), A, kern, Fill(0, (3,)))
     kernf = ImageFiltering.factorkernel(kern)
     err = DimensionMismatch("output indices (OffsetArrays.IdOffsetRange(values=0:9, indices=0:9), OffsetArrays.IdOffsetRange(values=1:8, indices=1:8)) disagree with requested indices (1:8, 0:9)")
-    @test_throws err imfilter(CPU1(), A, kern, Fill(0, (1,0)))
-    @test_throws DimensionMismatch imfilter(CPU1(), A, kern, Fill(0, (0,1)))
-    @test_throws DimensionMismatch imfilter(CPU1(), A, kern, Fill(0, (0,0)))
+    @test_throws err imfilter(CPU1(), A, kern, Fill(0, (1, 0)))
+    @test_throws DimensionMismatch imfilter(CPU1(), A, kern, Fill(0, (0, 1)))
+    @test_throws DimensionMismatch imfilter(CPU1(), A, kern, Fill(0, (0, 0)))
+end
+
+@testset "Complex FFT" begin
+
+    A = rand(10, 10)
+    B = rand(10, 10)
+    @test filtfft(A, B) ≈ filtfft(ComplexF32.(A), B)
+    @test filtfft(A, B) ≈ filtfft(A, ComplexF32.(B))
+    @test filtfft(A, B) ≈ filtfft(ComplexF32.(A), ComplexF32.(B))
+
+    C = rand(9, 9)
+    D = rand(9, 9)
+    @test filtfft(C, D) ≈ filtfft(ComplexF32.(C), D)
+    @test filtfft(C, D) ≈ filtfft(C, ComplexF32.(D))
+    @test filtfft(C, D) ≈ filtfft(ComplexF32.(C), ComplexF32.(D))
 end
