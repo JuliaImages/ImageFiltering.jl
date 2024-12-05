@@ -7,8 +7,6 @@ on:
     branches:
       - master
   pull_request:
-  schedule:
-    - cron: '20 00 1 * *'
 
 jobs:
   test:
@@ -16,32 +14,44 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        julia-version: ['1.6', '1', 'nightly']
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        version:
+          - '1'    # Current stable version
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macOS-13
+        arch:
+          - x64
+        include:
+          - os: macOS-latest
+            arch: aarch64
+            version: '1'
+          - os: ubuntu-latest
+            arch: x86
+            version: '1'
+          - os: ubuntu-latest
+            arch: x64
+            version: 'min'
+          - os: ubuntu-latest
+            arch: x64
+            version: 'nightly'
 
     steps:
-      - uses: actions/checkout@v1.0.0
+      - uses: actions/checkout@v4
       - name: "Set up Julia"
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@v2
         with:
-          version: ${{ matrix.julia-version }}
+          version: ${{ matrix.version }}
+          arch: ${{ matrix.arch }}
 
       - name: Cache artifacts
-        uses: actions/cache@v1
-        env:
-          cache-name: cache-artifacts
-        with:
-          path: ~/.julia/artifacts
-          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-test-${{ env.cache-name }}-
-            ${{ runner.os }}-test-
-            ${{ runner.os }}-
+        uses: julia-actions/cache@v2
 
       - name: "Unit Test"
-        uses: julia-actions/julia-runtest@v1
+        uses: julia-actions/julia-runtest@master
 
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v1
+      - uses: codecov/codecov-action@v4
         with:
           file: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
