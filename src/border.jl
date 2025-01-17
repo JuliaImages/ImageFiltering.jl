@@ -564,23 +564,23 @@ Generate an index-vector to be used for padding. `inds` specifies the image axes
 function padindex(border::Pad, lo::Int, inds::UnitRange{Int}, hi::Int)
     if border.style == :replicate
         indsnew = Vector{Int}(undef, length(inds) + lo + hi)
-		indsnew[1:lo] .= first(inds)
-		indsnew[lo .+ eachindex(inds)] .= inds
-		indsnew[lo + length(inds) + 1:end] .= last(inds)
+        indsnew[1:lo] .= first(inds)
+        indsnew[lo .+ eachindex(inds)] .= inds
+        indsnew[lo + length(inds) + 1:end] .= last(inds)
         OffsetArray(indsnew, first(inds)-lo:last(inds)+hi)
     elseif border.style == :circular
         return modrange(extend(lo, inds, hi), inds)
     elseif border.style == :symmetric
         indsnew = Vector{Int}(undef, 2length(inds))
-		indsnew[eachindex(inds)] .= inds
-		indsnew[end:-1:length(inds) + 1] .= inds
+        indsnew[eachindex(inds)] .= inds
+        indsnew[end:-1:length(inds) + 1] .= inds
         I = OffsetArray(indsnew, (0:2*length(inds)-1) .+ first(inds))
         r = modrange(extend(lo, inds, hi), axes(I, 1))
         return I[r]
     elseif border.style == :reflect
-        indsnew = Vector{Int}(undef, 2length(inds))
-		indsnew[eachindex(inds)] .= inds
-		indsnew[length(inds) + 1:end] .= last(inds)-1:-1:first(inds)+1
+        indsnew = Vector{Int}(undef, 2length(inds) - 2)
+        indsnew[eachindex(inds)] .= inds
+        indsnew[length(inds) + 1:end] .= last(inds)-1:-1:first(inds)+1
         I = OffsetArray(indsnew, (0:2*length(inds)-3) .+ first(inds))
         return I[modrange(extend(lo, inds, hi), axes(I, 1))]
     else
