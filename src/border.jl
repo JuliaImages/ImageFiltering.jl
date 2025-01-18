@@ -579,7 +579,7 @@ function padindex(border::Pad, lo::Int, inds::UnitRange{Int}, hi::Int)
         r = modrange(extend(lo, inds, hi), axes(I, 1))
         return I[r]
     elseif border.style == :reflect
-        I = OffsetArray(undef, (0:2*length(inds)-3) .+ first(inds))
+        I = OffsetArray{Int}(undef, (0:2*length(inds)-3) .+ first(inds))
         offview = OffsetArrays.no_offset_view(I)
         offview[eachindex(inds)] .= inds
         offview[length(inds) + 1:end] .= last(inds)-1:-1:first(inds)+1
