@@ -563,7 +563,7 @@ Generate an index-vector to be used for padding. `inds` specifies the image axes
 """
 function padindex(border::Pad, lo::Int, inds::UnitRange{Int}, hi::Int)
     if border.style == :replicate
-        indsnew = OffsetArray{Int}(undef, length(inds) + lo + hi, first(inds)-lo:last(inds)+hi)
+        indsnew = OffsetArray{Int}(undef, first(inds)-lo:last(inds)+hi)
         offview = OffsetArrays.no_offset_view(indsnew)
         offview[1:lo] .= first(inds)
         offview[lo .+ eachindex(inds)] .= inds
