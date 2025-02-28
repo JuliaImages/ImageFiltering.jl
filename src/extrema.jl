@@ -6,7 +6,7 @@ It has fields:
 - σ: the value of σ which lead to the largest `-LoG`-filtered amplitude at this location
 - amplitude: the value of the `-LoG(σ)`-filtered image at the peak
 
-Note that the radius is equal to σ√2.
+Note that the radius is equal to σ√N for a N-dimensional image.
 
 See also: [`blob_LoG`](@ref).
 """
@@ -96,7 +96,7 @@ function multiLoG(img::AbstractArray{T,N}, sigmas, σshape) where {T,N}
     @inbounds for (isigma, σ) in enumerate(sigmas)
         LoG_slice = @view img_LoG[isigma, colons...]
         imfilter!(LoG_slice, img, Kernel.LoG(ntuple(i->σ*σshape[i], Val(N))), "reflect")
-        LoG_slice .*= -σ
+        LoG_slice .*= -σ^2
     end
     return img_LoG
 end
