@@ -53,7 +53,7 @@ Gray.(threshold)
 
 # Now we see small blobs at the locations which match our template and we can label the connected regions by `label_components`.  This will enumerate are connected regions and `component_centroids` can be used to get the centroid of each region.  `component_centroids` also return the centroid for the background region, which is at the first position and we will omit it.
 
-centroids = component_centroids(label_components(threshold))[2:end]
+centroids = component_centroids(label_components(threshold))[begin+1:end]
 
 # To check if it worked correctly we can overlay the centroids with the original image using the `Plots` package. As the images are stored using the first index for rows we have to reverse the order of the coordinates to match the order of the plotting library.
 plot(Gray.(img), size=(512,512))
