@@ -65,7 +65,7 @@ module Algorithm
 end
 using .Algorithm: Alg, FFT, FIR, FIRTiled, IIR, Mixed
 
-Alg(r::AbstractResource{A}) where {A<:Alg} = r.settings
+Algorithm.Alg(r::AbstractResource{A}) where {A<:Alg} = r.settings
 
 include("utils.jl")
 include("compat.jl")
