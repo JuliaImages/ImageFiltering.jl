@@ -21,7 +21,7 @@ rescaled_map = adjust_histogram(res, LinearStretching())
 threshold = rescaled_map .< 0.05
 Gray.(threshold)
 
-centroids = component_centroids(label_components(threshold))[2:end]
+centroids = component_centroids(label_components(threshold))[begin+1:end]
 
 plot(Gray.(img), size=(512,512))
 scatter!(reverse.(centroids), label="centroids", ms=10, alpha=0.5, c=:red, msw=3)
