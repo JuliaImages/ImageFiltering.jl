@@ -46,4 +46,3 @@ denoised_img = mapwindow(median!, noisy_img, (5, 5))
 mosaicview(img, noisy_img, denoised_img; nrow=1)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
-

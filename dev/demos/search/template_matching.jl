@@ -27,4 +27,3 @@ plot(Gray.(img), size=(512,512))
 scatter!(reverse.(centroids), label="centroids", ms=10, alpha=0.5, c=:red, msw=3)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
-

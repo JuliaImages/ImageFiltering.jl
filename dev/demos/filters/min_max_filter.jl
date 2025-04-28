@@ -39,4 +39,3 @@ edge_smoothed = img_min_max - img_max_min
 mosaicview(img, ramp, edge, edge_smoothed; nrow=2)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
-
