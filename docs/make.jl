@@ -25,7 +25,7 @@ makedocs(
         "Tutorials" => [
             "Tutorial 1" => "tutorials/tutorial1.md",
         ],
-        "Demos" => demos,
+        demos,
         "Filtering images" => "filters.md",
         "Kernels" => "kernels.md",
         "Gradients" => "gradients.md",
