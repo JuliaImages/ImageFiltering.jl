@@ -563,16 +563,26 @@ Generate an index-vector to be used for padding. `inds` specifies the image axes
 """
 function padindex(border::Pad, lo::Int, inds::UnitRange{Int}, hi::Int)
     if border.style == :replicate
-        indsnew = Int[fill(first(inds), lo); inds; fill(last(inds), hi)]
-        OffsetArray(indsnew, first(inds)-lo:last(inds)+hi)
+        indsnew = OffsetArray{Int}(undef, first(inds)-lo:last(inds)+hi)
+        offview = OffsetArrays.no_offset_view(indsnew)
+        offview[1:lo] .= first(inds)
+        offview[lo .+ eachindex(inds)] .= inds
+        offview[lo + length(inds) + 1:end] .= last(inds)
+        return indsnew
     elseif border.style == :circular
         return modrange(extend(lo, inds, hi), inds)
     elseif border.style == :symmetric
-        I = OffsetArray(Int[inds; reverse(inds)], (0:2*length(inds)-1) .+ first(inds))
+        I = OffsetArray{Int}(undef, (0:2*length(inds)-1) .+ first(inds))
+        offview = OffsetArrays.no_offset_view(I)
+        offview[eachindex(inds)] .= inds
+        offview[end:-1:length(inds) + 1] .= inds
         r = modrange(extend(lo, inds, hi), axes(I, 1))
         return I[r]
     elseif border.style == :reflect
-        I = OffsetArray(Int[inds; last(inds)-1:-1:first(inds)+1], (0:2*length(inds)-3) .+ first(inds))
+        I = OffsetArray{Int}(undef, (0:2*length(inds)-3) .+ first(inds))
+        offview = OffsetArrays.no_offset_view(I)
+        offview[eachindex(inds)] .= inds
+        offview[length(inds) + 1:end] .= last(inds)-1:-1:first(inds)+1
         return I[modrange(extend(lo, inds, hi), axes(I, 1))]
     else
         error("border style $(border.style) unrecognized")
