@@ -334,7 +334,9 @@ function LoG(σs::NTuple{N}) where N
         xσ = x.^2 ./ σ2
         (sum(xσ./σ2) - σ2i) * exp(-sum(xσ)/2)
     end
-    [C*df(I, σ2, σ2i) for I in R]
+    h = [C*df(I, σ2, σ2i) for I in R]
+    # make the kernel sum to zero
+    return h .- sum(h)/length(h)
 end
 LoG(σ::Real) = LoG((σ,σ))
 
