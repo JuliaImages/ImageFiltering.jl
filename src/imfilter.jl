@@ -955,6 +955,21 @@ end
 planned_fft(A::AbstractArray, kernel, border::AbstractString) = planned_fft(A, kernel, borderinstance(border))
 planned_fft(A::AbstractArray, kernel::Union{ArrayLike,Laplacian}, border::BorderSpecAny) = planned_fft(A, factorkernel(kernel), border)
 
+# Error methods for NA borders - these should not be used with planned FFT
+function planned_fft(A::AbstractArray{T,N},
+            kernel::ProcessedKernel,
+            border::NA) where {T,N}
+    throw(ArgumentError("NA borders are not supported with planned FFT algorithms."))
+end
+
+function planned_fft(A::AbstractArray,
+            kernel::Union{ArrayLike,Laplacian},
+            border::NA)
+    throw(ArgumentError("NA borders are not supported with planned FFT algorithms."))
+end
+
+planned_fft(A::AbstractArray, kernel, border::NA) = throw(ArgumentError("NA borders are not supported with planned FFT algorithms."))
+
 # Unified filtfft function for planned FFT operations
 function filtfft(A::AbstractArray{T}, krn, planned_rfft1::Function, planned_rfft2::Function, planned_irfft::Function) where {T}
     if T <: Colorant

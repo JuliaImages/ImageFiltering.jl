@@ -449,3 +449,18 @@ end
     @test filtfft(C, D) ≈ filtfft(C, ComplexF32.(D))
     @test filtfft(C, D) ≈ filtfft(ComplexF32.(C), ComplexF32.(D))
 end
+
+@testset "Planned FFT with NA borders should error" begin
+    imgf = zeros(Float64, 5, 7); imgf[3,4] = 1.0
+    imgi = zeros(Int, 5, 7); imgi[3,4] = 1
+    imgc = fill(RGB{Float64}(0,0,0), 5, 7); imgc[3,4] = RGB{Float64}(1,0,0)
+    kernel = OffsetArray([0.1 0.2; 0.4 0.5], -1:0, 1:2)
+    na_border = NA()
+
+    @test_throws ArgumentError planned_fft(imgf, kernel, na_border)
+    @test_throws ArgumentError planned_fft(imgi, kernel, na_border)
+    @test_throws ArgumentError planned_fft(imgc, kernel, na_border)
+    kern_tuple = (OffsetArray([0.2, 0.8], -1:0), OffsetArray([0.3 0.6], 0:0, 1:2))
+    @test_throws ArgumentError planned_fft(imgf, kern_tuple, na_border)
+    @test_throws ArgumentError planned_fft(imgf, Kernel.Laplacian(), na_border)
+end
