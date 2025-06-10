@@ -290,6 +290,45 @@ end
         imgf = imfilter(img, Kernel.gaussian((3,3)))
         @test axes(imgf) == axes(img)
     end
+
+    @testset "Planned FFT edge cases" begin
+        # Test case 1: axes(result) != axes(A) but size(result) == size(A)
+        A_offset = OffsetArray(rand(Float64, 6, 8), (-1, 1))
+        kernel = rand(Float64, 3, 3)
+        planned_alg = planned_fft(A_offset, kernel, Fill(0.0))
+        result_planned = imfilter(A_offset, kernel, Fill(0.0), planned_alg)
+        result_standard = imfilter(A_offset, kernel, Fill(0.0), Algorithm.FFT())
+        @test axes(result_planned) == axes(A_offset)
+        @test result_planned ≈ result_standard
+
+        # Test case 2: size(result) != size(A) - create artificial size mismatch
+        A = rand(Float64, 7, 9)
+        bord = Fill(0.0)(rand(3,5), A, Algorithm.FFT())
+        _A = ImageFiltering.padarray(Float64, A, bord)
+        kern = ImageFiltering.samedims(_A, ImageFiltering.kernelconv(rand(3,5)))
+        krn = FFTView(zeros(eltype(kern), map(length, axes(_A))))
+
+        # Create custom planned function that returns larger buffer
+        original_irfft = ImageFiltering.buffered_planned_irfft(_A)
+        custom_irfft = function(arr)
+            result = original_irfft(arr)
+            if size(result, 1) > 2 && size(result, 2) > 2
+                # Return buffer that's 1 larger in each dimension
+                larger = zeros(eltype(result), size(result, 1) + 1, size(result, 2) + 1)
+                larger[1:size(result,1), 1:size(result,2)] = result
+                return larger
+            end
+            return result
+        end
+
+        result_custom = ImageFiltering.filtfft(_A, krn,
+            ImageFiltering.buffered_planned_rfft(_A),
+            ImageFiltering.buffered_planned_rfft(krn),
+            custom_irfft)
+        result_standard = ImageFiltering.filtfft(_A, krn)
+        @test size(result_custom) == size(_A)
+        @test result_custom ≈ result_standard
+    end
 end
 
 @testset "Borders (issue #85)" begin
