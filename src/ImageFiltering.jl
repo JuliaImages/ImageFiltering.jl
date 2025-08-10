@@ -111,8 +111,6 @@ function __init__()
     pop!(LOAD_PATH)
 end
 
-if Base.VERSION >= v"1.4.2"
-    include("precompile.jl")
-end
+include("precompile.jl")
 
 end # module
