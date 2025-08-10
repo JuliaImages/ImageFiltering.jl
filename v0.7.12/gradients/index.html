@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Gradients · ImageFiltering</title><meta name="title" content="Gradients · ImageFiltering"/><meta property="og:title" content="Gradients · ImageFiltering"/><meta property="twitter:title" content="Gradients · ImageFiltering"/><meta name="description" content="Documentation for ImageFiltering."/><meta property="og:description" content="Documentation for ImageFiltering."/><meta property="twitter:description" content="Documentation for ImageFiltering."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script><link href="../democards/gridtheme.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../"><img src="../assets/logo.svg" alt="ImageFiltering logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../">ImageFiltering</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">ImageFiltering.jl</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../tutorials/tutorial1/">Tutorial 1</a></li></ul></li><li><a class="tocitem" href="../demos/">Examples</a></li><li><a class="tocitem" href="../filters/">Filtering images</a></li><li><a class="tocitem" href="../kernels/">Kernels</a></li><li class="is-active"><a class="tocitem" href>Gradients</a><ul class="internal"><li><a class="tocitem" href="#The-imgradients-function"><span>The <code>imgradients</code> function</span></a></li><li><a class="tocitem" href="#Output"><span>Output</span></a></li><li><a class="tocitem" href="#Example"><span>Example</span></a></li><li><a class="tocitem" href="#kernelfun-options"><span><code>kernelfun</code> options</span></a></li><li><a class="tocitem" href="#Details"><span>Details</span></a></li><li><a class="tocitem" href="#References"><span>References</span></a></li></ul></li><li><a class="tocitem" href="../mapwindows/">Map window</a></li><li><a class="tocitem" href="../padarrays/">Padding arrays</a></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../reference/technical/">Technical overview</a></li><li><a class="tocitem" href="../reference/function_reference/">Function reference</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Gradients</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Gradients</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/JuliaImages/ImageFiltering.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Image-gradients"><a class="docs-heading-anchor" href="#Image-gradients">Image gradients</a><a id="Image-gradients-1"></a><a class="docs-heading-anchor-permalink" href="#Image-gradients" title="Permalink"></a></h1><h2 id="The-imgradients-function"><a class="docs-heading-anchor" href="#The-imgradients-function">The <code>imgradients</code> function</a><a id="The-imgradients-function-1"></a><a class="docs-heading-anchor-permalink" href="#The-imgradients-function" title="Permalink"></a></h2><p>This function estimate the gradient of <code>img</code> in the direction of the first and second dimension at all points of the image, using a kernel specified by <code>kernelfun</code>.</p><pre><code class="language-julia hljs">imgradients(img, kernelfun=KernelFactors.ando3, border=&quot;replicate&quot;) -&gt; gimg1, gimg2, ...</code></pre><h2 id="Output"><a class="docs-heading-anchor" href="#Output">Output</a><a id="Output-1"></a><a class="docs-heading-anchor-permalink" href="#Output" title="Permalink"></a></h2><p>The gradient is returned as a tuple-of-arrays, one for each dimension of the input; <code>gimg1</code> corresponds to the derivative with respect to the first dimension, <code>gimg2</code> to the second, and so on.</p><h2 id="Example"><a class="docs-heading-anchor" href="#Example">Example</a><a id="Example-1"></a><a class="docs-heading-anchor-permalink" href="#Example" title="Permalink"></a></h2><p>This example compares the quality of the gradient estimation methods in terms of the accuracy with which the orientation of the gradient is estimated.</p><pre><code class="language-julia hljs">using Images
+
+values = LinRange(-1,1,128);
+w = 1.6*pi;
+
+## Define a function of a sinusoidal grating, f(x,y) = sin( (w*x)^2 + (w*y)^2 ),
+## together with its exact partial derivatives.
+I = [sin( (w*x)^2 + (w*y)^2 ) for y in values, x in values];
+Ix = [2*w*x*cos( (w*x)^2 + (w*y)^2 ) for y in values, x in values];
+Iy = [2*w*y*cos( (w*x)^2 + (w*y)^2 ) for y in values, x in values];
+
+## Determine the exact orientation of the gradients.
+direction_true = atan.(Iy./Ix);
+
+for kernelfunc in (KernelFactors.prewitt, KernelFactors.sobel,
+                   KernelFactors.ando3, KernelFactors.scharr,
+                   KernelFactors.bickley)
+
+    ## Estimate the gradients and their orientations.
+    Gy, Gx = imgradients(I,kernelfunc, &quot;replicate&quot;);
+    direction_estimated = atan.(Gy./Gx);
+
+    ## Determine the mean absolute deviation between the estimated and true
+    ## orientation. Ignore the values at the border since we expect them to be
+    ## erroneous.
+    error = mean(abs.(direction_true[2:end-1,2:end-1] -
+                     direction_estimated[2:end-1,2:end-1]));
+
+    error = round(error, digits=5);
+    println(&quot;Using \$kernelfunc results in a mean absolute deviation of \$error&quot;)
+end</code></pre><p>The output of this code is:</p><pre><code class="language-julia hljs">Using ImageFiltering.KernelFactors.prewitt results in a mean absolute deviation of 0.01069
+Using ImageFiltering.KernelFactors.sobel results in a mean absolute deviation of 0.00522
+Using ImageFiltering.KernelFactors.ando3 results in a mean absolute deviation of 0.00365
+Using ImageFiltering.KernelFactors.scharr results in a mean absolute deviation of 0.00126
+Using ImageFiltering.KernelFactors.bickley results in a mean absolute deviation of 0.00038</code></pre><h2 id="kernelfun-options"><a class="docs-heading-anchor" href="#kernelfun-options"><code>kernelfun</code> options</a><a id="kernelfun-options-1"></a><a class="docs-heading-anchor-permalink" href="#kernelfun-options" title="Permalink"></a></h2><p>You can specify your choice of the finite-difference scheme via the <code>kernelfun</code> parameter. You can also indicate how to deal with the pixels on the border of the image with the <code>border</code> parameter.</p><h3 id="Choices-for-kernelfun"><a class="docs-heading-anchor" href="#Choices-for-kernelfun">Choices for <code>kernelfun</code></a><a id="Choices-for-kernelfun-1"></a><a class="docs-heading-anchor-permalink" href="#Choices-for-kernelfun" title="Permalink"></a></h3><p>In general <code>kernelfun</code> can be any function which satisfies the following interface:</p><pre><code class="language-julia hljs">    kernelfun(extended::NTuple{N,Bool}, d) -&gt; kern_d,</code></pre><p>where <code>kern_d</code> is the kernel for producing the derivative with respect to the <span>$d$</span>th dimension of an <span>$N$</span>-dimensional array. The parameter <code>extended[i]</code> is true if the image is of size &gt; 1 along dimension <span>$i$</span>. The parameter <code>kern_d</code> may be provided as a dense or factored kernel, with factored representations recommended when the kernel is separable.</p><p>Some valid <code>kernelfun</code> options are described below.</p><h4 id="KernelFactors.prewitt"><a class="docs-heading-anchor" href="#KernelFactors.prewitt"><code>KernelFactors.prewitt</code></a><a id="KernelFactors.prewitt-1"></a><a class="docs-heading-anchor-permalink" href="#KernelFactors.prewitt" title="Permalink"></a></h4><p>With the <em>prewit</em> option [3] the computation of the gradient is based on the kernels:</p><p class="math-container">\[\begin{aligned}
+\mathbf{H}_{x_1} &amp; = \frac{1}{6}
+    \begin{bmatrix}
+    -1 &amp; -1 &amp; -1 \\
+    0 &amp; 0 &amp; 0 \\
+    1 &amp; 1 &amp; 1
+    \end{bmatrix}
+&amp;
+\mathbf{H}_{x_2} &amp; =  \frac{1}{6}
+    \begin{bmatrix}
+    -1 &amp; 0 &amp; 1 \\
+    -1 &amp; 0 &amp; 1 \\
+    -1 &amp; 0 &amp; 1
+    \end{bmatrix} \\
+&amp; = \frac{1}{6}
+    \begin{bmatrix}
+    1 \\
+    1  \\
+    1
+    \end{bmatrix}
+    \begin{bmatrix}
+    -1 &amp; 0 &amp; 1
+    \end{bmatrix}
+&amp;
+&amp; = \frac{1}{6}
+    \begin{bmatrix}
+    -1 \\
+    0  \\
+    1
+    \end{bmatrix}
+    \begin{bmatrix}
+    1 &amp; 1 &amp; 1
+    \end{bmatrix}.
+\end{aligned}\]</p><p>See also: <a href="#KernelFactors.prewitt"><code>KernelFactors.prewitt</code></a> and <a href="../reference/function_reference/#ImageFiltering.Kernel.prewitt"><code>Kernel.prewitt</code></a></p><h4 id="KernelFactors.sobel"><a class="docs-heading-anchor" href="#KernelFactors.sobel"><code>KernelFactors.sobel</code></a><a id="KernelFactors.sobel-1"></a><a class="docs-heading-anchor-permalink" href="#KernelFactors.sobel" title="Permalink"></a></h4><p>The <em>sobel</em> option [4] designates the kernels</p><p class="math-container">\[\begin{aligned}
+\mathbf{H}_{x_1} &amp; = \frac{1}{8}
+    \begin{bmatrix}
+    -1 &amp; -2 &amp; -1 \\
+     0 &amp; 0 &amp; 0 \\
+     1 &amp; 2 &amp; 1
+    \end{bmatrix}
+&amp;
+\mathbf{H}_{x_2} &amp; = \frac{1}{8}
+    \begin{bmatrix}
+    -1 &amp; 0 &amp; 1 \\
+    -2 &amp; 0 &amp; 2 \\
+    -1 &amp; 0 &amp; 1
+    \end{bmatrix} \\
+&amp; = \frac{1}{8}
+    \begin{bmatrix}
+    -1 \\
+    0  \\
+    1
+    \end{bmatrix}
+    \begin{bmatrix}
+    1 &amp; 2 &amp; 1
+    \end{bmatrix}
+&amp;
+&amp; = \frac{1}{8}
+    \begin{bmatrix}
+    1 \\
+    2  \\
+    1
+    \end{bmatrix}
+    \begin{bmatrix}
+    -1 &amp; 0 &amp; 1
+    \end{bmatrix}.
+\end{aligned}\]</p><p>See also:  <a href="#KernelFactors.sobel"><code>KernelFactors.sobel</code></a> and <a href="../reference/function_reference/#ImageFiltering.Kernel.sobel"><code>Kernel.sobel</code></a></p><h4 id="KernelFactors.ando3"><a class="docs-heading-anchor" href="#KernelFactors.ando3"><code>KernelFactors.ando3</code></a><a id="KernelFactors.ando3-1"></a><a class="docs-heading-anchor-permalink" href="#KernelFactors.ando3" title="Permalink"></a></h4><p>The <em>ando3</em> option [5] specifies the kernels</p><p class="math-container">\[\begin{aligned}
+\mathbf{H}_{x_1} &amp;  =
+    \begin{bmatrix}
+    -0.112737 &amp; -0.274526 &amp; -0.112737 \\
+     0 &amp; 0 &amp; 0 \\
+     0.112737 &amp; 0.274526 &amp; 0.112737
+    \end{bmatrix}
+&amp;
+\mathbf{H}_{x_2}  &amp; =
+    \begin{bmatrix}
+    -0.112737 &amp; 0 &amp; 0.112737 \\
+    -0.274526 &amp; 0 &amp; 0.274526 \\
+    -0.112737 &amp; 0 &amp; 0.112737
+    \end{bmatrix} \\
+&amp;  = \begin{bmatrix}
+    -1 \\
+    0  \\
+    1
+    \end{bmatrix}
+    \begin{bmatrix}
+    0.112737 &amp; 0.274526 &amp; 0.112737
+    \end{bmatrix}
+&amp;
+&amp;  = \begin{bmatrix}
+    0.112737 \\
+    0.274526  \\
+    0.112737
+    \end{bmatrix}
+    \begin{bmatrix}
+    -1 &amp; 0 &amp; 1
+    \end{bmatrix}.
+\end{aligned}
+\]</p><p>See also: <a href="#KernelFactors.ando3"><code>KernelFactors.ando3</code></a>, and <a href="../reference/function_reference/#ImageFiltering.Kernel.ando3"><code>Kernel.ando3</code></a>;  <a href="../reference/function_reference/#ImageFiltering.KernelFactors.ando4"><code>KernelFactors.ando4</code></a>, and <a href="../reference/function_reference/#ImageFiltering.Kernel.ando4"><code>Kernel.ando4</code></a>; <a href="../reference/function_reference/#ImageFiltering.KernelFactors.ando5"><code>KernelFactors.ando5</code></a>, and <a href="../reference/function_reference/#ImageFiltering.Kernel.ando5"><code>Kernel.ando5</code></a></p><h4 id="KernelFactors.scharr"><a class="docs-heading-anchor" href="#KernelFactors.scharr"><code>KernelFactors.scharr</code></a><a id="KernelFactors.scharr-1"></a><a class="docs-heading-anchor-permalink" href="#KernelFactors.scharr" title="Permalink"></a></h4><p>The <em>scharr</em> option [6] designates the kernels</p><p class="math-container">\[\begin{aligned}
+\mathbf{H}_{x_{1}} &amp; =
+\frac{1}{32}
+\begin{bmatrix}
+-3 &amp; -10 &amp; -3 \\
+0 &amp; 0 &amp; 0 \\
+ 3 &amp; 10 &amp; 3
+\end{bmatrix}
+&amp;
+\mathbf{H}_{x_{2}} &amp; =
+\frac{1}{32}
+\begin{bmatrix}
+-3 &amp; 0 &amp; 3 \\
+-10 &amp; 0 &amp; 10\\
+-3 &amp; 0 &amp; 3
+\end{bmatrix} \\
+&amp; = \frac{1}{32}
+\begin{bmatrix}
+    -1 \\
+    0  \\
+    1
+\end{bmatrix}
+\begin{bmatrix}
+    3 &amp; 10 &amp; 3
+\end{bmatrix}
+&amp;
+&amp; = \frac{1}{32}
+\begin{bmatrix}
+    3 \\
+    10  \\
+    3
+\end{bmatrix}
+\begin{bmatrix}
+    -1 &amp; 0 &amp; 1
+\end{bmatrix}.
+\end{aligned}\]</p><p>See also:  <a href="#KernelFactors.scharr"><code>KernelFactors.scharr</code></a> and <a href="../reference/function_reference/#ImageFiltering.Kernel.scharr"><code>Kernel.scharr</code></a></p><h4 id="KernelFactors.bickley"><a class="docs-heading-anchor" href="#KernelFactors.bickley"><code>KernelFactors.bickley</code></a><a id="KernelFactors.bickley-1"></a><a class="docs-heading-anchor-permalink" href="#KernelFactors.bickley" title="Permalink"></a></h4><p>The <em>bickley</em> option [7,8] designates the kernels</p><p class="math-container">\[\begin{aligned}
+\mathbf{H}_{x_1} &amp; = \frac{1}{12}
+    \begin{bmatrix}
+        -1 &amp; -4 &amp; -1 \\
+         0 &amp; 0 &amp; 0 \\
+         1 &amp; 4 &amp; 1
+    \end{bmatrix}
+&amp;
+\mathbf{H}_{x_2} &amp; = \frac{1}{12}
+    \begin{bmatrix}
+        -1 &amp; 0 &amp; 1 \\
+        -4 &amp; 0 &amp; 4 \\
+        -1 &amp; 0 &amp; 1
+    \end{bmatrix} \\
+&amp; = \frac{1}{12}
+    \begin{bmatrix}
+        -1 \\
+        0  \\
+        1
+    \end{bmatrix}
+    \begin{bmatrix}
+        1 &amp; 4 &amp; 1
+    \end{bmatrix}
+&amp;
+&amp;  = \frac{1}{12}
+   \begin{bmatrix}
+        1 \\
+        4  \\
+        1
+   \end{bmatrix}
+   \begin{bmatrix}
+        -1 &amp; 0 &amp; 1
+   \end{bmatrix}.
+\end{aligned}\]</p><p>See also:  <a href="#KernelFactors.bickley"><code>KernelFactors.bickley</code></a> and <a href="../reference/function_reference/#ImageFiltering.Kernel.bickley"><code>Kernel.bickley</code></a></p><h3 id="Choices-for-border"><a class="docs-heading-anchor" href="#Choices-for-border">Choices for <code>border</code></a><a id="Choices-for-border-1"></a><a class="docs-heading-anchor-permalink" href="#Choices-for-border" title="Permalink"></a></h3><p>At the image edge, <code>border</code> is used to specify the padding which will be used to extrapolate the image beyond its original bounds. As an indicative example of each option the results of the padding are illustrated on an image consisting of a row of six pixels which are specified alphabetically: <span>$\boxed{a \, b \, c \, d \, e \, f}$</span>. We show the effects of padding only on the left and right border, but analogous consequences hold for the top and bottom border.</p><h4 id="&quot;replicate&quot;"><a class="docs-heading-anchor" href="#&quot;replicate&quot;"><code>&quot;replicate&quot;</code></a><a id="&quot;replicate&quot;-1"></a><a class="docs-heading-anchor-permalink" href="#&quot;replicate&quot;" title="Permalink"></a></h4><p>The border pixels extend beyond the image boundaries.</p><p class="math-container">\[\boxed{
+\begin{array}{l|c|r}
+  a\, a\, a\, a  &amp;  a \, b \, c \, d \, e \, f &amp; f \, f \, f \, f
+\end{array}
+}\]</p><p>See also: <a href="../reference/function_reference/#ImageFiltering.Pad"><code>Pad</code></a>, <a href="../reference/function_reference/#ImageFiltering.padarray"><code>padarray</code></a>, <a href="../reference/function_reference/#ImageFiltering.Inner"><code>Inner</code></a> and <a href="../reference/function_reference/#ImageFiltering.NoPad"><code>NoPad</code></a></p><h4 id="&quot;circular&quot;"><a class="docs-heading-anchor" href="#&quot;circular&quot;"><code>&quot;circular&quot;</code></a><a id="&quot;circular&quot;-1"></a><a class="docs-heading-anchor-permalink" href="#&quot;circular&quot;" title="Permalink"></a></h4><p>The border pixels wrap around. For instance, indexing beyond the left border returns values starting from the right border.</p><p class="math-container">\[\boxed{
+\begin{array}{l|c|r}
+  c\, d\, e\, f  &amp;  a \, b \, c \, d \, e \, f &amp; a \, b \, c \, d
+\end{array}
+}\]</p><p>See also: <a href="../reference/function_reference/#ImageFiltering.Pad"><code>Pad</code></a>, <a href="../reference/function_reference/#ImageFiltering.padarray"><code>padarray</code></a>, <a href="../reference/function_reference/#ImageFiltering.Inner"><code>Inner</code></a> and <a href="../reference/function_reference/#ImageFiltering.NoPad"><code>NoPad</code></a></p><h4 id="&quot;symmetric&quot;"><a class="docs-heading-anchor" href="#&quot;symmetric&quot;"><code>&quot;symmetric&quot;</code></a><a id="&quot;symmetric&quot;-1"></a><a class="docs-heading-anchor-permalink" href="#&quot;symmetric&quot;" title="Permalink"></a></h4><p>The border pixels reflect relative to a position between pixels. That is, the border pixel is omitted when mirroring.</p><p class="math-container">\[\boxed{
+\begin{array}{l|c|r}
+  e\, d\, c\, b  &amp;  a \, b \, c \, d \, e \, f &amp; e \, d \, c \, b
+\end{array}
+}\]</p><p>See also: <a href="../reference/function_reference/#ImageFiltering.Pad"><code>Pad</code></a>, <a href="../reference/function_reference/#ImageFiltering.padarray"><code>padarray</code></a>, <a href="../reference/function_reference/#ImageFiltering.Inner"><code>Inner</code></a> and <a href="../reference/function_reference/#ImageFiltering.NoPad"><code>NoPad</code></a></p><h4 id="&quot;reflect&quot;"><a class="docs-heading-anchor" href="#&quot;reflect&quot;"><code>&quot;reflect&quot;</code></a><a id="&quot;reflect&quot;-1"></a><a class="docs-heading-anchor-permalink" href="#&quot;reflect&quot;" title="Permalink"></a></h4><p>The border pixels reflect relative to the edge itself.</p><p class="math-container">\[\boxed{
+\begin{array}{l|c|r}
+  d\, c\, b\, a  &amp;  a \, b \, c \, d \, e \, f &amp; f \, e \, d \, c
+\end{array}
+}\]</p><p>See also: <a href="../reference/function_reference/#ImageFiltering.Pad"><code>Pad</code></a>, <a href="../reference/function_reference/#ImageFiltering.padarray"><code>padarray</code></a>, <a href="../reference/function_reference/#ImageFiltering.Inner"><code>Inner</code></a> and <a href="../reference/function_reference/#ImageFiltering.NoPad"><code>NoPad</code></a></p><h2 id="Details"><a class="docs-heading-anchor" href="#Details">Details</a><a id="Details-1"></a><a class="docs-heading-anchor-permalink" href="#Details" title="Permalink"></a></h2><p>To appreciate the difference between various gradient estimation methods it is helpful to distinguish between: (1) a continuous scalar-valued <em>analogue</em> image <span>$f_\textrm{A}(x_1,x_2)$</span>, where <span>$x_1,x_2 \in \mathbb{R}$</span>, and (2) its discrete <em>digital</em> realization <span>$f_\textrm{D}(x_1&#39;,x_2&#39;)$</span>, where <span>$x_1&#39;,x_2&#39; \in \mathbb{N}$</span>, <span>$1 \le x_1&#39; \le M$</span> and <span>$1 \le x_2&#39; \le N$</span>.</p><h3 id="Analogue-image"><a class="docs-heading-anchor" href="#Analogue-image">Analogue image</a><a id="Analogue-image-1"></a><a class="docs-heading-anchor-permalink" href="#Analogue-image" title="Permalink"></a></h3><p>The gradient of a continuous analogue image <span>$f_{\textrm{A}}(x_1,x_2)$</span> at location <span>$(x_1,x_2)$</span> is defined as the vector</p><p class="math-container">\[\nabla \mathbf{f}_{\textrm{A}}(x_1,x_2) = \frac{\partial
+f_{\textrm{A}}(x_1,x_2)}{\partial x_1} \mathbf{e}_{1} +
+\frac{\partial f_{\textrm{A}}(x_1,x_2)}{\partial x_2} \mathbf{e}_{2},\]</p><p>where <span>$\mathbf{e}_{d}$</span> <span>$(d = 1,2)$</span> is the unit vector in the <span>$x_d$</span>-direction. The gradient points in the direction of maximum rate of change of <span>$f_{\textrm{A}}$</span> at the coordinates <span>$(x_1,x_2)$</span>. The gradient can be used to compute the derivative of a function in an arbitrary direction. In particular, the derivative of <span>$f_{\textrm{A}}$</span> in the direction of a unit vector <span>$\mathbf{u}$</span> is given by <span>$\nabla_{\mathbf{u}}f_\textrm{A}(x_1,x_2) = \nabla \mathbf{f}_{\textrm{A}}(x_1,x_2) \cdot \mathbf{u}$</span>, where <span>$\cdot$</span> denotes the dot product.</p><h3 id="Digital-image"><a class="docs-heading-anchor" href="#Digital-image">Digital image</a><a id="Digital-image-1"></a><a class="docs-heading-anchor-permalink" href="#Digital-image" title="Permalink"></a></h3><p>In practice, we acquire a digital image <span>$f_\textrm{D}(x_1&#39;,x_2&#39;)$</span> where the light intensity is known only at a discrete set of locations. This means that the required partial derivatives are undefined and need to be approximated using discrete difference formulae [1].</p><p>A straightforward way to approximate the partial derivatives is to use central-difference formulae</p><p class="math-container">\[ \frac{\partial f_{\textrm{D}}(x_1&#39;,x_2&#39;)}{\partial x_1&#39;}  \approx
+        \frac{f_{\textrm{D}}(x_1&#39;+1,x_2&#39;) - f_{\textrm{D}}(x_1&#39;-1,x_2&#39;) }{2}\]</p><p>and</p><p class="math-container">\[ \frac{\partial f_{\textrm{D}}(x_1&#39;,x_2&#39;)}{\partial x_2&#39;}   \approx
+         \frac{f_{\textrm{D}}(x_1&#39;,x_2&#39;+1) - f_{\textrm{D}}(x_1&#39;,x_2&#39;-1)}{2}.\]</p><p>However, the central-difference formulae are very sensitive to noise. When working with noisy image data, one can obtain a better approximation of the partial derivatives by using a suitable weighted combination of the neighboring image intensities. The weighted combination can be represented as a <em>discrete convolution</em> operation between the image and a <em>kernel</em> which characterizes the requisite weights. In particular, if <span>$h_{x_d}$</span> (<span>$d = 1,2)$</span> represents a <span>$2r+1 \times 2r+1$</span> kernel, then</p><p class="math-container">\[ \frac{\partial f_{\textrm{D}}(x_1&#39;,x_2&#39;)}{\partial x_d&#39;}  \approx
+\sum_{i = -r}^r \sum_{j = -r}^r
+f_\textrm{D}(x_1&#39;-i,x_2&#39;-j)
+  h_{x_d}(i,j).\]</p><p>The kernel is frequently also called a <em>mask</em> or <em>convolution matrix</em>.</p><h3 id="Weighting-schemes-and-approximation-error"><a class="docs-heading-anchor" href="#Weighting-schemes-and-approximation-error">Weighting schemes and approximation error</a><a id="Weighting-schemes-and-approximation-error-1"></a><a class="docs-heading-anchor-permalink" href="#Weighting-schemes-and-approximation-error" title="Permalink"></a></h3><p>The choice of weights determines the magnitude of the approximation error and whether the finite-difference scheme is <em>isotropic</em>. A finite-difference scheme is isotropic if the approximation error does not depend on the orientation of the coordinate system and <em>anisotropic</em> if the approximation error has a directional bias [2]. With a continuous analogue image the magnitude of the gradient would be invariant upon rotation of the coordinate system, but in practice one cannot obtain perfect isotropy with a finite set of discrete points. Hence a finite-difference scheme is typically considered isotropic if the leading error term in the approximation does not have preferred directions.</p><p>Most finite-difference schemes that are used in image processing are based on <span>$3 \times 3$</span> kernels, and as noted by [7], many can also be parametrized by a single parameter <span>$\alpha$</span> as follows:</p><p class="math-container">\[\mathbf{H}_{x_{1}} =
+\frac{1}{4 + 2\alpha}
+\begin{bmatrix}
+-1 &amp; -\alpha &amp; -1 \\
+0 &amp; 0 &amp; 0 \\
+ 1 &amp; \alpha &amp; 1
+\end{bmatrix}
+\quad
+\text{and}
+\quad
+\mathbf{H}_{x_{2}} =
+\frac{1}{2 + 4\alpha}
+\begin{bmatrix}
+-1 &amp; 0 &amp; 1 \\
+-\alpha &amp; 0 &amp; \alpha \\
+ -1 &amp; 0 &amp; 1
+\end{bmatrix},\]</p><p>where</p><p class="math-container">\[\alpha =
+\begin{cases}
+0,  &amp; \text{Simple Finite Difference}; \\
+1, &amp;  \text{Prewitt}; \\
+2, &amp;  \text{Sobel}; \\
+2.4351, &amp;  \text{Ando}; \\
+\frac{10}{3}, &amp;  \text{Scharr}; \\
+4, &amp;  \text{Bickley}.
+\end{cases}\]</p><h3 id="Separable-kernels"><a class="docs-heading-anchor" href="#Separable-kernels">Separable kernels</a><a id="Separable-kernels-1"></a><a class="docs-heading-anchor-permalink" href="#Separable-kernels" title="Permalink"></a></h3><p>A kernel is called <em>separable</em> if it can be expressed as the convolution of two one-dimensional filters. With a matrix representation of the kernel, separability means that the kernel matrix can be written as an outer product of two vectors. Separable kernels offer computational advantages since instead of performing a two-dimensional convolution one can perform a sequence of one-dimensional convolutions.</p><h2 id="References"><a class="docs-heading-anchor" href="#References">References</a><a id="References-1"></a><a class="docs-heading-anchor-permalink" href="#References" title="Permalink"></a></h2><ol><li>B. Jahne, <em>Digital Image Processing</em> (5th ed.). Springer Publishing Company, Incorporated, 2005. <a href="https://doi.org/10.1007/3-540-27563-0">10.1007/3-540-27563-0</a></li><li>M. Patra  and  M. Karttunen, &quot;Stencils with isotropic discretization error for differential operators,&quot; <em>Numer. Methods Partial Differential Eq.</em>, vol. 22, pp. 936–953, 2006. <a href="https://doi.org/doi:10.1002/num.20129">doi:10.1002/num.20129</a></li><li>J. M. Prewitt, &quot;Object enhancement and extraction,&quot; <em>Picture processing and Psychopictorics</em>, vol. 10, no. 1, pp. 15–19, 1970.</li><li>P.-E. Danielsson and O. Seger, &quot;Generalized and separable sobel operators,&quot; in  <em>Machine Vision for Three-Dimensional Scenes</em>,  H. Freeman, Ed.  Academic Press, 1990,  pp. 347–379. <a href="https://doi.org/doi:10.1016/b978-0-12-266722-0.50016-6">doi:10.1016/b978-0-12-266722-0.50016-6</a></li><li>S. Ando, &quot;Consistent gradient operators,&quot; <em>IEEE Transactions on Pattern Analysis and Machine Intelligence</em>, vol. 22, no.3, pp. 252–265, 2000. <a href="https://doi.org/doi:10.1109/34.841757">doi:10.1109/34.841757</a></li><li>H. Scharr and  J. Weickert, &quot;An anisotropic diffusion algorithm with optimized rotation invariance,&quot; <em>Mustererkennung 2000</em>, pp. 460–467, 2000. <a href="https://doi.org/doi:10.1007/978-3-642-59802-9_58">doi:10.1007/978-3-642-59802-9_58</a></li><li>A. Belyaev, &quot;Implicit image differentiation and filtering with applications to image sharpening,&quot; <em>SIAM Journal on Imaging Sciences</em>, vol. 6, no. 1, pp. 660–679, 2013. <a href="https://doi.org/doi:10.1137/12087092x">doi:10.1137/12087092x</a></li><li>W. G. Bickley, &quot;Finite difference formulae for the square lattice,&quot; <em>The Quarterly Journal of Mechanics and Applied Mathematics</em>, vol. 1, no. 1, pp. 35–42, 1948.  <a href="https://doi.org/doi:10.1093/qjmam/1.1.35">doi:10.1093/qjmam/1.1.35</a></li></ol></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../kernels/">« Kernels</a><a class="docs-footer-nextpage" href="../mapwindows/">Map window »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Sunday 10 August 2025 22:05">Sunday 10 August 2025</span>. Using Julia version 1.11.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
