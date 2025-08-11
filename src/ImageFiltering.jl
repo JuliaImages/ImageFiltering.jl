@@ -32,9 +32,9 @@ export Kernel, KernelFactors,
     findlocalminima, findlocalmaxima,
     blob_LoG, BlobLoG
 
-FixedColorant{T<:Normed} = Colorant{T}
-StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
-OffsetVector{T} = OffsetArray{T,1}
+const FixedColorant{T<:Normed} = Colorant{T}
+const StaticOffsetArray{T,N,A<:StaticArray} = OffsetArray{T,N,A}
+const OffsetVector{T} = OffsetArray{T,1}
 
 # Add a fix that should have been included in julia-1.0.3
 if isdefined(Broadcast, :_sametype) && !isdefined(Broadcast, :axistype)
@@ -72,23 +72,23 @@ include("compat.jl")
 include("kernelfactors.jl")
 using .KernelFactors: TriggsSdika, IIRFilter, ReshapedOneD, iterdims, kernelfactors
 
-ReshapedVector{T,N,Npre,V<:AbstractVector} = ReshapedOneD{T,N,Npre,V}
-ArrayType{T} = Union{AbstractArray{T}, ReshapedVector{T}}
-ReshapedIIR{T,N,Npre,V<:IIRFilter} = ReshapedOneD{T,N,Npre,V}
-AnyIIR{T} = Union{IIRFilter{T}, ReshapedIIR{T}}
-ArrayLike{T} = Union{ArrayType{T}, AnyIIR{T}}
+const ReshapedVector{T,N,Npre,V<:AbstractVector} = ReshapedOneD{T,N,Npre,V}
+const ArrayType{T} = Union{AbstractArray{T}, ReshapedVector{T}}
+const ReshapedIIR{T,N,Npre,V<:IIRFilter} = ReshapedOneD{T,N,Npre,V}
+const AnyIIR{T} = Union{IIRFilter{T}, ReshapedIIR{T}}
+const ArrayLike{T} = Union{ArrayType{T}, AnyIIR{T}}
 
 include("kernel.jl")
 using .Kernel
 using .Kernel: Laplacian, reflect, ando3, ando4, ando5, scharr, bickley, prewitt, sobel, gabor, moffat
 
-NDimKernel{N,K} = Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N}}
+const NDimKernel{N,K} = Union{AbstractArray{K,N},ReshapedOneD{K,N},Laplacian{N}}
 
 include("border.jl")
 include("borderarray.jl")
 
-BorderSpec{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}
-BorderSpecNoNa{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}
+const BorderSpec{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}
+const BorderSpecNoNa{T} = Union{Pad{0}, Fill{T,0}, Inner{0}}
 const BorderSpecAny = Union{BorderSpec,NA,NoPad}
 
 const ProcessedKernel = Tuple
