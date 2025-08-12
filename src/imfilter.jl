@@ -227,6 +227,7 @@ end
 
 # Step 5: if necessary, pick an algorithm
 function imfilter!(out::AbstractArray, img::AbstractArray, kernel::ProcessedKernel, border::AbstractBorder)
+    _warn_if_transposed_from_offset_vector(kernel)
     imfilter!(out, img, kernel, border, filter_algorithm(out, img, kernel))
 end
 
