@@ -126,7 +126,7 @@ const SmallInts = Union{UInt8,Int8,UInt16,Int16}
 accumfilter(pixelval::SmallInts, filterval::SmallInts) = Int(pixelval)*Int(filterval)
 # advice: don't use FixedPoint for the kernel
 accumfilter(pixelval::N0f8, filterval::N0f8) = Float32(pixelval)*Float32(filterval)
-accumfilter(pixelval::Colorant{N0f8}, filterval::N0f8) = float32(c)*Float32(filterval)
+accumfilter(pixelval::Colorant{N0f8}, filterval::N0f8) = float32(pixelval)*Float32(filterval)
 
 # In theory, the following might need to be specialized. For safety, make it a
 # standalone function call.

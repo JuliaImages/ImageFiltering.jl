@@ -49,8 +49,11 @@ Base.zero(::Type{WrappedFloat}) = WrappedFloat(0.0)
     # Element-type widening (issue #17)
     v = fill(0xff, 10)
     kern = centered(fill(0xff, 3))
-    @info "Two warnings are expected"
-    @test_throws InexactError imfilter(v, kern)
+
+    @test_logs (:warn, r"Likely overflow or conversion error detected") begin
+        @test_throws InexactError imfilter(v, kern)
+    end
+
     vout = imfilter(UInt32, v, kern)
     @test eltype(vout) == UInt32
     @test all(x->x==0x0002fa03, vout)
@@ -106,8 +109,8 @@ Base.zero(::Type{WrappedFloat}) = WrappedFloat(0.0)
         around_i = [abs(i-j) <= 15 for j in eachindex(v)]
         @test all(isequal(x), wf[around_i])
         @test wf[.!around_i] ≈ vf[.!around_i]
-    end   
-   
+    end
+
     # Issue #110
     img = reinterpret(WrappedFloat, rand(128))
     kern = centered(rand(31))
@@ -119,7 +122,9 @@ end
     # issue #17
     img = fill(typemax(Int16), 10, 10)
     kern = centered(Int16[1 2 2 2 1])
-    @test_throws InexactError imfilter(img, kern)
+    @test_logs (:warn, r"Likely overflow or conversion error detected") begin
+        @test_throws InexactError imfilter(img, kern)
+    end
     ret = imfilter(Int32, img, kern)
     @test eltype(ret) == Int32
     @test all(x->x==262136, ret)
@@ -129,6 +134,7 @@ end
     img = trues(10,10,10)
     kernel = centered(trues(3,3,3)/27)
     for border in ("replicate", "circular", "symmetric", "reflect", Fill(true))
+        # TODO: add support for boolean images in planned_fft
         for alg in (Algorithm.FIR(), Algorithm.FIRTiled(), Algorithm.FFT())
             @test imfilter(img, kernel, border) ≈ img
         end
