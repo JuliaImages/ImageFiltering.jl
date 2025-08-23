@@ -26,7 +26,7 @@ export Kernel, KernelFactors,
     BorderArray,
     Algorithm,
     imfilter, imfilter!,
-    mapwindow, mapwindow!,
+    mapwindow, mapwindow!, findall_window,
     imgradients, padarray, centered, kernelfactors, reflect,
     freqkernel, spacekernel,
     findlocalminima, findlocalmaxima,
@@ -99,6 +99,7 @@ include("specialty.jl")
 include("mapwindow.jl")
 using .MapWindow
 include("extrema.jl")
+include("findall_window.jl")
 
 include("models.jl")
 
