@@ -511,6 +511,26 @@ moffat(α::Real, β::Real)                 = moffat(α, β, ceil(Int, (α*2*sqrt
 end
 
 """
+butterworth(n,Wn,ls{tuple}) -> k
+Returns a multidimensional dimensional Butterworth kernel contained in an OffsetArray(::Matrix{Float64})
+
+    - `n` is the order of the filter
+    - `Wn` is the normalized cutoff frequency
+    - `ls` is the size of the kernel
+#Citation
+Selesnick, Ivan W., and C. Sidney Burrus. "Generalized digital Butterworth filter design." IEEE Transactions on signal processing 46.6 (1998): 1688-1694.
+"""
+
+function butterworth(n::Real, Wn::Real, ls::Tuple{Integer,Integer})
+    ws = map(n->(ceil(Int,n)>>1), ls)
+    R = CartesianIndices(map(w->IdentityUnitRange(-w:w), ws))
+    nn = 2*n
+    @. 1/(1+(sqrt(2)-1)*(df(R)/Wn)^nn)
+end   
+
+butterworth(n::Real, Wn::Real, ls::Integer)    = butterworth(n, Wn, (ls,ls))
+
+"""
     reflect(kernel) --> reflectedkernel
 
 Compute the pointwise reflection around 0, 0, ... of the kernel
