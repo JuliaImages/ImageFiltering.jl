@@ -938,7 +938,9 @@ function planned_fft(A::AbstractArray{T,N},
             ) where {T,N}
     # Check if any kernel is an IIR filter (not compatible with FFT)
     for k in kernel
-        if k isa IIRFilter
+        # Check both direct IIR filters and ReshapedOneD-wrapped IIR filters
+        k_data = k isa ReshapedOneD ? k.data : k
+        if k_data isa IIRFilter
             throw(ArgumentError("planned_fft does not support IIR filters like TriggsSdika or IIRGaussian. " *
                               "IIR filters use a different algorithm that cannot be accelerated with FFT plans. " *
                               "Use Algorithm.IIR() instead, or use imfilter without a plan."))
