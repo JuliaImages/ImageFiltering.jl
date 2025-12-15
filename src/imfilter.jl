@@ -826,7 +826,7 @@ function _imfilter_fft!(r::AbstractCPU{FFT},
     for I in CartesianIndices(axes(kern))
         krn[I] = kern[I]
     end
-    Af = filtfft(A, krn)
+    Af = filtfft(A, krn, r.settings.plan1, r.settings.plan2, r.settings.plan3)
     if map(first, axes(out)) == map(first, axes(Af))
         R = CartesianIndices(axes(out))
         copyto!(out, R, Af, R)
@@ -858,6 +858,299 @@ end
 @inline _stretch_mul(AT::Type{<:Real}, A_fft::AbstractArray, BT::Type{<:Complex}, B_fft::AbstractArray, d::Int) = _stretch_mul(BT, B_fft, AT, A_fft, d)
 @inline _stretch_mul(AT::Type{<:Real}, A_fft::AbstractArray, BT::Type{<:Real}, B_fft::AbstractArray, _::Int) = A_fft .* B_fft
 @inline _stretch_mul(AT::Type{<:Complex}, A_fft::AbstractArray, BT::Type{<:Complex}, B_fft::AbstractArray, _::Int) = A_fft .* B_fft
+
+"""
+    buffered_planned_rfft(a::AbstractArray{T}, dims=1:ndims(a)) where {T}
+
+Create a buffered, planned real FFT function for arrays with the same size and type as `a`.
+
+Returns a function that performs an in-place rfft using a pre-computed plan.
+Each call allocates a task-local buffer to ensure thread safety when used concurrently.
+
+For full transforms (all dimensions), uses `RealFFTs.RCpair` for efficiency.
+For partial transforms, uses standard FFTW plans.
+
+This is an internal function used by [`planned_fft`](@ref).
+"""
+function buffered_planned_rfft(a::AbstractArray{T}, dims=1:ndims(a)) where {T}
+    numeric_type = T <: Real ? T : real(T)
+
+    if dims == 1:ndims(a) && length(dims) == ndims(a)
+        # Use RealFFTs.RCpair for full transforms (more efficient)
+        buf_proto = RealFFTs.RCpair{numeric_type}(undef, size(a))
+        plan = RealFFTs.plan_rfft!(buf_proto; flags=FFTW.ESTIMATE)
+        buf_size = size(a)
+        
+        # Use task-local storage for thread-safe buffer reuse
+        bufs = Dict{UInt, RealFFTs.RCpair{numeric_type}}()
+        bufs_lock = ReentrantLock()
+        
+        return function (arr::AbstractArray)
+            tid = objectid(current_task())
+            buf = lock(bufs_lock) do
+                get!(bufs, tid) do
+                    RealFFTs.RCpair{numeric_type}(undef, buf_size)
+                end
+            end
+            copy!(buf, OffsetArrays.no_offset_view(arr))
+            plan(buf)
+            return copy(complex(buf))
+        end
+    else
+        # Use standard FFTW for partial transforms
+        buf_size = size(a)
+        buf_proto = Array{numeric_type}(undef, buf_size)
+        plan = plan_rfft(buf_proto, dims; flags=FFTW.ESTIMATE)
+        
+        # Use task-local storage for thread-safe buffer reuse
+        bufs = Dict{UInt, Array{numeric_type}}()
+        bufs_lock = ReentrantLock()
+        
+        return function (arr::AbstractArray)
+            tid = objectid(current_task())
+            buf = lock(bufs_lock) do
+                get!(bufs, tid) do
+                    Array{numeric_type}(undef, buf_size)
+                end
+            end
+            copyto!(buf, OffsetArrays.no_offset_view(arr))
+            return plan * buf
+        end
+    end
+end
+
+"""
+    buffered_planned_irfft(a::AbstractArray{T}, dims=1:ndims(a), d::Int=size(a,1)) where {T}
+
+Create a buffered, planned inverse real FFT function for arrays with the same size and type as `a`.
+
+Returns a function that performs an in-place irfft using a pre-computed plan.
+Each call uses a task-local buffer to ensure thread safety when used concurrently.
+
+# Arguments
+- `a`: Prototype array defining the size and element type
+- `dims`: Dimensions along which to perform the transform (default: all dimensions)
+- `d`: Size of the first transformed dimension in the original (real) array
+
+This is an internal function used by [`planned_fft`](@ref).
+"""
+function buffered_planned_irfft(a::AbstractArray{T}, dims=1:ndims(a), d::Int=size(a,1)) where {T}
+    numeric_type = T <: Real ? T : real(T)
+
+    if dims == 1:ndims(a) && length(dims) == ndims(a)
+        # Use RealFFTs.RCpair for full transforms (more efficient)
+        buf_proto = RealFFTs.RCpair{numeric_type}(undef, size(a))
+        plan = RealFFTs.plan_irfft!(buf_proto; flags=FFTW.ESTIMATE)
+        buf_size = size(a)
+        
+        # Use task-local storage for thread-safe buffer reuse
+        bufs = Dict{UInt, RealFFTs.RCpair{numeric_type}}()
+        bufs_lock = ReentrantLock()
+        
+        return function (arr::AbstractArray)
+            tid = objectid(current_task())
+            buf = lock(bufs_lock) do
+                get!(bufs, tid) do
+                    RealFFTs.RCpair{numeric_type}(undef, buf_size)
+                end
+            end
+            copy!(buf, OffsetArrays.no_offset_view(arr))
+            plan(buf)
+            return copy(real(buf))
+        end
+    else
+        # Use standard FFTW for partial transforms
+        input_size = collect(size(a))
+        input_size[dims[1]] = input_size[dims[1]] ÷ 2 + 1
+        buf_size = Tuple(input_size)
+        buf_proto = Array{Complex{numeric_type}}(undef, buf_size)
+        plan = plan_irfft(buf_proto, d, dims; flags=FFTW.ESTIMATE)
+        
+        # Use task-local storage for thread-safe buffer reuse
+        bufs = Dict{UInt, Array{Complex{numeric_type}}}()
+        bufs_lock = ReentrantLock()
+        
+        return function (arr::AbstractArray)
+            tid = objectid(current_task())
+            buf_in = lock(bufs_lock) do
+                get!(bufs, tid) do
+                    Array{Complex{numeric_type}}(undef, buf_size)
+                end
+            end
+            copyto!(buf_in, OffsetArrays.no_offset_view(arr))
+            return plan * buf_in
+        end
+    end
+end
+
+"""
+    planned_fft(A, kernel, [border="replicate"]) -> Algorithm.FFT
+
+Create a planned FFT algorithm that can be reused for filtering multiple images of the
+same size and type as `A`.
+
+This is useful when filtering many images with the same kernel, as the FFT plans are
+computed once and reused. The returned algorithm is thread-safe and can be used
+concurrently from multiple threads.
+
+# Arguments
+- `A`: A prototype array (the actual values are not used, only size and element type)
+- `kernel`: The filter kernel (array, tuple of arrays, or `Kernel` type)
+- `border`: Border specification (default: `"replicate"`). Note: `NA()` borders are not supported.
+
+# Returns
+An `Algorithm.FFT` instance with pre-computed plans that can be passed to `imfilter` or `imfilter!`.
+
+# Example
+```julia
+using ImageFiltering, ComputationalResources
+
+# Create a stack of images to filter
+imgstack = [rand(Float64, 512, 512) for _ in 1:100]
+kernel = Kernel.gaussian((3, 3))
+
+# Create the planned FFT algorithm once
+planned_alg = planned_fft(imgstack[1], kernel, "replicate")
+
+# Reuse for all images (can be parallelized with Threads.@threads)
+results = [imfilter(img, kernel, "replicate", planned_alg) for img in imgstack]
+
+# Or use with imfilter! and ComputationalResources
+out = similar(imgstack[1])
+for img in imgstack
+    imfilter!(CPU1(planned_alg), out, img, kernel, "replicate")
+    # process out...
+end
+```
+
+# Notes
+- The plan is specific to the array size, element type, kernel, and border specification.
+  Using it with differently-sized arrays will error.
+- IIR filters (like `KernelFactors.IIRGaussian`) are not supported; use `Algorithm.IIR()` instead.
+- For colorant images (e.g., `RGB`, `Gray`), the plans handle channel separation automatically.
+
+See also: [`imfilter`](@ref), [`imfilter!`](@ref), [`Algorithm.FFT`](@ref)
+"""
+function planned_fft(A::AbstractArray{T,N},
+            kernel::ProcessedKernel,
+            border::BorderSpecAny=Pad(:replicate)
+            ) where {T,N}
+    # Check if any kernel is an IIR filter (not compatible with FFT)
+    for k in kernel
+        # Check both direct IIR filters and ReshapedOneD-wrapped IIR filters
+        k_data = k isa ReshapedOneD ? k.data : k
+        if k_data isa IIRFilter
+            throw(ArgumentError("planned_fft does not support IIR filters like TriggsSdika or IIRGaussian. " *
+                              "IIR filters use a different algorithm that cannot be accelerated with FFT plans. " *
+                              "Use Algorithm.IIR() instead, or use imfilter without a plan."))
+        end
+    end
+    
+    # Use ffteltype to convert to appropriate floating point type for FFT
+    FT = ffteltype(T)
+
+    # Determine if we're dealing with colorants
+    if T <: Colorant
+        # For colorants, create target type with FFT-compatible element type
+        target_T = base_colorant_type(T){FT}
+        bord = border(kernel, A, Algorithm.FFT())
+        _A = padarray(target_T, A, bord)
+
+        # Get channelview and dims for colorant processing
+        Av, dims = channelview_dims(_A)
+
+        # Create planned functions that handle the dims parameter for colorants
+        bfp1 = buffered_planned_rfft(Av, dims)
+
+        # Create kernel for colorants
+        kern = samedims(_A, kernelconv(kernel...))
+        krn = FFTView(zeros(eltype(kern), map(length, axes(_A))))
+        for I in CartesianIndices(axes(kern))
+            krn[I] = kern[I]
+        end
+        kernrs = kreshape(T, krn)
+        bfp2 = buffered_planned_rfft(kernrs, dims)
+
+        # Create planned irfft with proper dimensions
+        bfp3 = buffered_planned_irfft(Av, dims, length(axes(Av, dims[1])))
+    else
+        # For regular arrays
+        bord = border(kernel, A, Algorithm.FFT())
+        _A = padarray(FT, A, bord)
+        bfp1 = buffered_planned_rfft(_A)
+        kern = samedims(_A, kernelconv(kernel...))
+        krn = FFTView(zeros(eltype(kern), map(length, axes(_A))))
+        bfp2 = buffered_planned_rfft(krn)
+        bfp3 = buffered_planned_irfft(_A)
+    end
+
+    return Algorithm.FFT(bfp1, bfp2, bfp3)
+end
+planned_fft(A::AbstractArray, kernel, border::AbstractString) = planned_fft(A, kernel, borderinstance(border))
+planned_fft(A::AbstractArray, kernel::Union{ArrayLike,Laplacian}, border::BorderSpecAny) = planned_fft(A, factorkernel(kernel), border)
+
+# Error methods for NA borders - these should not be used with planned FFT
+function planned_fft(A::AbstractArray{T,N},
+            kernel::ProcessedKernel,
+            border::NA) where {T,N}
+    throw(ArgumentError("NA borders are not supported with planned FFT algorithms."))
+end
+
+function planned_fft(A::AbstractArray,
+            kernel::Union{ArrayLike,Laplacian},
+            border::NA)
+    throw(ArgumentError("NA borders are not supported with planned FFT algorithms."))
+end
+
+planned_fft(A::AbstractArray, kernel, border::NA) = throw(ArgumentError("NA borders are not supported with planned FFT algorithms."))
+
+# Unified filtfft function for planned FFT operations
+function filtfft(A::AbstractArray{T}, krn, planned_rfft1::Function, planned_rfft2::Function, planned_irfft::Function) where {T}
+    if T <: Colorant
+        # Handle colorant arrays
+        Av, dims = channelview_dims(A)
+        kernrs = kreshape(T, krn)
+
+        # Use planned functions with proper dims handling
+        B = planned_rfft1(Av)
+        krn_buf = planned_rfft2(kernrs)
+        B .*= conj!(krn_buf)
+        Avf_no_offset = planned_irfft(B)
+
+        # Restore offset information by creating an OffsetArray with the original axes
+        Avf = OffsetArray(Avf_no_offset, axes(Av))
+
+        # Convert back to colorant array
+        return colorview(base_colorant_type(T){eltype(Avf)}, Avf)
+    else
+        # Handle regular arrays
+        B = planned_rfft1(A)
+        # Create a proper FFTView for the kernel and populate it
+        krn_fft = FFTView(zeros(eltype(krn), map(length, axes(A))))
+        for I in CartesianIndices(axes(krn))
+            krn_fft[I] = krn[I]
+        end
+        krn_buf = planned_rfft2(krn_fft)
+        B .*= conj!(krn_buf)
+        result = planned_irfft(B)
+
+        # Ensure the result has the same axes as the input array A
+        if axes(result) != axes(A)
+            # The planned IRFFT buffer might have different size or axes
+            if size(result) != size(A)
+                # Extract the portion that matches the size of A
+                result_view = view(result, ntuple(i -> 1:size(A,i), ndims(A))...)
+                return OffsetArray(collect(result_view), axes(A))
+            else
+                # Same size but different axes - use collect to get the actual data
+                return OffsetArray(collect(result), axes(A))
+            end
+        end
+        return result
+    end
+end
+filtfft(A, krn, ::Nothing, ::Nothing, ::Nothing) = filtfft(A, krn)
+
 function filtfft(A::AbstractArray{ST}, krn::AbstractArray{KT}) where {ST<:Union{Real,Complex},KT<:Union{Real,Complex}}
     CT = promote_type(ST, KT)
     B = _fft(A)
@@ -868,9 +1161,16 @@ end
 function filtfft(A::AbstractArray{CT}, krn) where {CT<:Colorant}
     Av, dims = channelview_dims(A)
     kernrs = kreshape(CT, krn)
-    B = rfft(Av, dims)
+    # Preserve offset information by working with offset arrays directly
+    # but use no_offset_view for RFFT operations
+    Av_no_offset = OffsetArrays.no_offset_view(Av)
+    B = rfft(Av_no_offset, dims)
     B .*= conj!(rfft(kernrs, dims))
-    Avf = irfft(B, length(axes(Av, dims[1])), dims)
+    Avf_no_offset = irfft(B, size(Av_no_offset, dims[1]), dims)
+
+    # Restore offset information by creating an OffsetArray with the original axes
+    Avf = OffsetArray(Avf_no_offset, axes(Av))
+
     colorview(base_colorant_type(CT){eltype(Avf)}, Avf)
 end
 channelview_dims(A::AbstractArray{C,N}) where {C<:Colorant,N} = channelview(A), ntuple(d -> d + 1, Val(N))
@@ -878,7 +1178,7 @@ channelview_dims(A::AbstractArray{C,N}) where {C<:ImageCore.Color1,N} = channelv
 
 function kreshape(::Type{C}, krn::FFTView) where {C<:Colorant}
     kern = parent(krn)
-    kernrs = FFTView(reshape(kern, 1, size(kern)...))
+    return FFTView(reshape(kern, 1, size(kern)...))
 end
 kreshape(::Type{C}, krn::FFTView) where {C<:ImageCore.Color1} = krn
 

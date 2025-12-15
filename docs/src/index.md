@@ -13,7 +13,7 @@ processing.
 
 The main functions provided by this package are:
 
-| Function                 | Action         | 
+| Function                 | Action         |
 |:-------------------------|:---------------|
 |[`imfilter`](@ref)        | Filter a one, two or multidimensional array img with a kernel by computing their correlation |
 |[`imfilter!`](@ref)       | Filter an array img with kernel kernel by computing their correlation, storing the result in imgfilt |
@@ -25,7 +25,7 @@ The main functions provided by this package are:
 |[`findlocalminima`](@ref) | Returns the coordinates of elements whose value is smaller than all of their immediate neighbors |
 |[`findlocalmaxima`](@ref) | Returns the coordinates of elements whose value is larger than all of their immediate neighbors |
 
-Common kernels (filters) are organized in the `Kernel` and `KernelFactors` modules. 
+Common kernels (filters) are organized in the `Kernel` and `KernelFactors` modules.
 
 A common task in image processing and computer vision is computing
 image *gradients* (derivatives), for which there is the dedicated
@@ -79,6 +79,24 @@ either choose a direct algorithm or one based on the fast Fourier
 transform (FFT).  By default, this choice is made based on kernel
 size. You can manually specify the algorithm using [`Algorithm.FFT()`](@ref)
 or [`Algorithm.FIR()`](@ref).
+
+#### Reusing FFT plans
+
+It is possible to reuse FFT plans if the operation is going to be done on the
+same array type and dimensions i.e. on each image of an image stack
+
+```julia
+using ImageFiltering, ComputationalResources
+imgstack = rand(Float64, 200, 100, 10)
+imgstack_filtered = similar(imgstack)
+
+kernel = ImageFiltering.factorkernel(Kernel.LoG(1))
+fft_planned = CPU1(ImageFiltering.planned_fft(imgstack_filtered[:,:,1], kernel))
+
+for i in axes(imgstack, 3)
+    imfilter!(fft_planned, imgstack_filtered[:,:,i], imgstack[:,:,i], kernel)
+end
+```
 
 ### Feature: Multithreading
 
