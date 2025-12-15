@@ -859,60 +859,104 @@ end
 @inline _stretch_mul(AT::Type{<:Real}, A_fft::AbstractArray, BT::Type{<:Real}, B_fft::AbstractArray, _::Int) = A_fft .* B_fft
 @inline _stretch_mul(AT::Type{<:Complex}, A_fft::AbstractArray, BT::Type{<:Complex}, B_fft::AbstractArray, _::Int) = A_fft .* B_fft
 
-# Unified planned FFT functions that handle both regular arrays and colorant channelviews
+"""
+    buffered_planned_rfft(a::AbstractArray{T}, dims=1:ndims(a)) where {T}
+
+Create a buffered, planned real FFT function for arrays with the same size and type as `a`.
+
+Returns a function that performs an in-place rfft using a pre-computed plan.
+Each call allocates a task-local buffer to ensure thread safety when used concurrently.
+
+For full transforms (all dimensions), uses `RealFFTs.RCpair` for efficiency.
+For partial transforms, uses standard FFTW plans.
+
+This is an internal function used by [`planned_fft`](@ref).
+"""
 function buffered_planned_rfft(a::AbstractArray{T}, dims=1:ndims(a)) where {T}
     numeric_type = T <: Real ? T : real(T)
 
     if dims == 1:ndims(a) && length(dims) == ndims(a)
         # Use RealFFTs.RCpair for full transforms (more efficient)
-        # Create a buffer and plan for the prototype
         buf_proto = RealFFTs.RCpair{numeric_type}(undef, size(a))
-        # Use ESTIMATE flag so plan works with any buffer of the same size
         plan = RealFFTs.plan_rfft!(buf_proto; flags=FFTW.ESTIMATE)
         buf_size = size(a)
         
-        # Return a function that creates thread-local buffers
+        # Use task-local storage for thread-safe buffer reuse
+        bufs = Dict{UInt, RealFFTs.RCpair{numeric_type}}()
+        bufs_lock = ReentrantLock()
+        
         return function (arr::AbstractArray)
-            # Each thread gets its own buffer to avoid race conditions
-            buf = RealFFTs.RCpair{numeric_type}(undef, buf_size)
+            tid = objectid(current_task())
+            buf = lock(bufs_lock) do
+                get!(bufs, tid) do
+                    RealFFTs.RCpair{numeric_type}(undef, buf_size)
+                end
+            end
             copy!(buf, OffsetArrays.no_offset_view(arr))
             plan(buf)
-            return complex(buf)
+            return copy(complex(buf))
         end
     else
         # Use standard FFTW for partial transforms
         buf_size = size(a)
         buf_proto = Array{numeric_type}(undef, buf_size)
-        # Use ESTIMATE flag so plan works with any buffer of the same size
         plan = plan_rfft(buf_proto, dims; flags=FFTW.ESTIMATE)
         
+        # Use task-local storage for thread-safe buffer reuse
+        bufs = Dict{UInt, Array{numeric_type}}()
+        bufs_lock = ReentrantLock()
+        
         return function (arr::AbstractArray)
-            # Each thread gets its own buffer
-            buf = Array{numeric_type}(undef, buf_size)
+            tid = objectid(current_task())
+            buf = lock(bufs_lock) do
+                get!(bufs, tid) do
+                    Array{numeric_type}(undef, buf_size)
+                end
+            end
             copyto!(buf, OffsetArrays.no_offset_view(arr))
             return plan * buf
         end
     end
 end
 
+"""
+    buffered_planned_irfft(a::AbstractArray{T}, dims=1:ndims(a), d::Int=size(a,1)) where {T}
+
+Create a buffered, planned inverse real FFT function for arrays with the same size and type as `a`.
+
+Returns a function that performs an in-place irfft using a pre-computed plan.
+Each call uses a task-local buffer to ensure thread safety when used concurrently.
+
+# Arguments
+- `a`: Prototype array defining the size and element type
+- `dims`: Dimensions along which to perform the transform (default: all dimensions)
+- `d`: Size of the first transformed dimension in the original (real) array
+
+This is an internal function used by [`planned_fft`](@ref).
+"""
 function buffered_planned_irfft(a::AbstractArray{T}, dims=1:ndims(a), d::Int=size(a,1)) where {T}
     numeric_type = T <: Real ? T : real(T)
 
     if dims == 1:ndims(a) && length(dims) == ndims(a)
         # Use RealFFTs.RCpair for full transforms (more efficient)
-        # Create a buffer and plan for the prototype
         buf_proto = RealFFTs.RCpair{numeric_type}(undef, size(a))
-        # Use ESTIMATE flag so plan works with any buffer of the same size
         plan = RealFFTs.plan_irfft!(buf_proto; flags=FFTW.ESTIMATE)
         buf_size = size(a)
         
-        # Return a function that creates thread-local buffers
+        # Use task-local storage for thread-safe buffer reuse
+        bufs = Dict{UInt, RealFFTs.RCpair{numeric_type}}()
+        bufs_lock = ReentrantLock()
+        
         return function (arr::AbstractArray)
-            # Each thread gets its own buffer to avoid race conditions
-            buf = RealFFTs.RCpair{numeric_type}(undef, buf_size)
+            tid = objectid(current_task())
+            buf = lock(bufs_lock) do
+                get!(bufs, tid) do
+                    RealFFTs.RCpair{numeric_type}(undef, buf_size)
+                end
+            end
             copy!(buf, OffsetArrays.no_offset_view(arr))
             plan(buf)
-            return real(buf)
+            return copy(real(buf))
         end
     else
         # Use standard FFTW for partial transforms
@@ -920,18 +964,73 @@ function buffered_planned_irfft(a::AbstractArray{T}, dims=1:ndims(a), d::Int=siz
         input_size[dims[1]] = input_size[dims[1]] ÷ 2 + 1
         buf_size = Tuple(input_size)
         buf_proto = Array{Complex{numeric_type}}(undef, buf_size)
-        # Use ESTIMATE flag so plan works with any buffer of the same size
         plan = plan_irfft(buf_proto, d, dims; flags=FFTW.ESTIMATE)
         
+        # Use task-local storage for thread-safe buffer reuse
+        bufs = Dict{UInt, Array{Complex{numeric_type}}}()
+        bufs_lock = ReentrantLock()
+        
         return function (arr::AbstractArray)
-            # Each thread gets its own buffer
-            buf_in = Array{Complex{numeric_type}}(undef, buf_size)
+            tid = objectid(current_task())
+            buf_in = lock(bufs_lock) do
+                get!(bufs, tid) do
+                    Array{Complex{numeric_type}}(undef, buf_size)
+                end
+            end
             copyto!(buf_in, OffsetArrays.no_offset_view(arr))
             return plan * buf_in
         end
     end
 end
 
+"""
+    planned_fft(A, kernel, [border="replicate"]) -> Algorithm.FFT
+
+Create a planned FFT algorithm that can be reused for filtering multiple images of the
+same size and type as `A`.
+
+This is useful when filtering many images with the same kernel, as the FFT plans are
+computed once and reused. The returned algorithm is thread-safe and can be used
+concurrently from multiple threads.
+
+# Arguments
+- `A`: A prototype array (the actual values are not used, only size and element type)
+- `kernel`: The filter kernel (array, tuple of arrays, or `Kernel` type)
+- `border`: Border specification (default: `"replicate"`). Note: `NA()` borders are not supported.
+
+# Returns
+An `Algorithm.FFT` instance with pre-computed plans that can be passed to `imfilter` or `imfilter!`.
+
+# Example
+```julia
+using ImageFiltering, ComputationalResources
+
+# Create a stack of images to filter
+imgstack = [rand(Float64, 512, 512) for _ in 1:100]
+kernel = Kernel.gaussian((3, 3))
+
+# Create the planned FFT algorithm once
+planned_alg = planned_fft(imgstack[1], kernel, "replicate")
+
+# Reuse for all images (can be parallelized with Threads.@threads)
+results = [imfilter(img, kernel, "replicate", planned_alg) for img in imgstack]
+
+# Or use with imfilter! and ComputationalResources
+out = similar(imgstack[1])
+for img in imgstack
+    imfilter!(CPU1(planned_alg), out, img, kernel, "replicate")
+    # process out...
+end
+```
+
+# Notes
+- The plan is specific to the array size, element type, kernel, and border specification.
+  Using it with differently-sized arrays will error.
+- IIR filters (like `KernelFactors.IIRGaussian`) are not supported; use `Algorithm.IIR()` instead.
+- For colorant images (e.g., `RGB`, `Gray`), the plans handle channel separation automatically.
+
+See also: [`imfilter`](@ref), [`imfilter!`](@ref), [`Algorithm.FFT`](@ref)
+"""
 function planned_fft(A::AbstractArray{T,N},
             kernel::ProcessedKernel,
             border::BorderSpecAny=Pad(:replicate)
