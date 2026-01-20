@@ -14,19 +14,19 @@ export mapwindow, mapwindow!
         border = "replicate",
         indices = default_imginds(img, window, border), callmode=:copy!)
 
-Apply `f` to sliding windows of `img``, with window size or axes specified by window. For
+Apply `f` to sliding windows of `img`, with window size or axes specified by window. For
 example, `mapwindow(median!, img, window)` returns an Array of values similar to `img`
 (median-filtered, of course), whereas `mapwindow(extrema, img, window)` returns an Array of
-(min, max) tuples over a window of size window centered on each point of `img`.
+(min, max) tuples over a window of size `window` centered on each point of `img`.
 
-The function `f` receives a buffer `buf`` for the window of data surrounding the current point.
+The function `f` receives a buffer `buf` for the window of data surrounding the current point.
 
-If `window`` is specified as a Dims-tuple (tuple-of-integers), then all the integers must be
+If `window` is specified as a Dims-tuple (tuple-of-integers), then all the integers must be
 odd and the window is centered around the current image point. 
 
-For example, if `window = (3,3)`, then `f` will receive an Array `buf``
-corresponding to offsets (-1:1, -1:1) from the `imgf[i, j]`` for which this is
-currently being computed. Alternatively, window can be a tuple of
+For example, if `window = (3,3)`, then `f` will receive an Array `buf`
+corresponding to offsets `(-1:1, -1:1)` from the `imgf[i, j]` for which this is
+currently being computed. Alternatively, `window` can be a tuple of
 `AbstractUnitRange`s, in which case the specified ranges are used for `buf`; this
 allows you to use asymmetric windows if needed.
 
