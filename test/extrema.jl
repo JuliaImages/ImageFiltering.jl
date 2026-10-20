@@ -55,5 +55,14 @@
         @test filter(b->b.amplitude > 0.1, blob_LoG(A, 2.0.^[0.5,0,1], edges=(true, true, true, false), σshape=(1.,1.,3.))) == blobs
         @test isempty(blob_LoG(A, 2.0.^[0,1], edges=(false, true, false, false), σshape=(1.,1.,3.)))
         @test length(blob_LoG([zeros(10); 1.0; 0.0], [4]; edges=true, rthresh=0)) > length(blob_LoG([zeros(10); 1.0; 0.0], [4]; edges=true))
+        # Scale normalization (#278): the strongest response to an N-dimensional ball
+        # of radius r is at its center, for σ = r/√N (the radius of a blob is σ√N)
+        ball(r, n, N) = [Float64(sum(abs2, Tuple(I) .- (n + 1) ÷ 2) < r^2) for I in CartesianIndices(ntuple(_ -> n, N))]
+        for (N, r, n) in ((1, 10, 63), (1, 6, 41), (2, 10, 63), (2, 6, 41), (3, 6, 25))
+            blobs = blob_LoG(ball(r, n, N), 1:12)
+            top = blobs[argmax(map(b -> b.amplitude, blobs))]
+            @test top.location == CartesianIndex(ntuple(_ -> (n + 1) ÷ 2, N))
+            @test abs(first(top.σ) - r / √N) <= 1
+        end
     end
 end
