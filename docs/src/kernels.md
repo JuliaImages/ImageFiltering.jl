@@ -31,6 +31,9 @@ supported:
   - `bickley`
   - `gaussian`
   - `IIRGaussian` (approximate gaussian filtering, fast even for large σ)
+  - `DCTGaussian` (approximate gaussian filtering in constant time per pixel, fast even for large σ)
+  - `slidinggaussian` (constant-time gaussian and gaussian derivatives)
+  - `DCTLoG` and `DCTDoG` (constant-time Laplacian and difference of gaussians)
 
 The two modules [`Kernel`](@ref) and [`KernelFactors`](@ref) implement popular
 correlation kernels in "dense" and "factored" forms, respectively. Type

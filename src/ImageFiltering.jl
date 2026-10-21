@@ -59,23 +59,26 @@ module Algorithm
         tilesize::Dims{N}
     end
     "Filter with an Infinite Impulse Response filter" struct IIR <: Alg end
+    "Filter with a sliding Discrete Cosine/Sine Transform, at a cost independent of the kernel size" struct DCT <: Alg end
     "Filter with a cascade of mixed types (IIR, FIR)" struct Mixed <: Alg end
 
     FIRTiled() = FIRTiled(())
 end
-using .Algorithm: Alg, FFT, FIR, FIRTiled, IIR, Mixed
+using .Algorithm: Alg, FFT, FIR, FIRTiled, IIR, DCT, Mixed
 
 Algorithm.Alg(r::AbstractResource{A}) where {A<:Alg} = r.settings
 
 include("utils.jl")
 include("compat.jl")
 include("kernelfactors.jl")
-using .KernelFactors: TriggsSdika, IIRFilter, ReshapedOneD, iterdims, kernelfactors
+using .KernelFactors: TriggsSdika, IIRFilter, SlidingKernel, SlidingDCT, SlidingDST, SeparableSum, ReshapedOneD, iterdims, kernelfactors
 
 const ReshapedVector{T,N,Npre,V<:AbstractVector} = ReshapedOneD{T,N,Npre,V}
 const ArrayType{T} = Union{AbstractArray{T}, ReshapedVector{T}}
 const ReshapedIIR{T,N,Npre,V<:IIRFilter} = ReshapedOneD{T,N,Npre,V}
 const AnyIIR{T} = Union{IIRFilter{T}, ReshapedIIR{T}}
+const ReshapedSliding{T,N,Npre,V<:SlidingKernel} = ReshapedOneD{T,N,Npre,V}
+const AnySliding{T} = Union{SlidingKernel{T}, ReshapedSliding{T}}
 const ArrayLike{T} = Union{ArrayType{T}, AnyIIR{T}}
 
 include("kernel.jl")

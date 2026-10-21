@@ -83,7 +83,8 @@ or [`Algorithm.FIR()`](@ref).
 ### Feature: Multithreading
 
 If you launch Julia with `JULIA_NUM_THREADS=n` (where `n > 1`), then
-FIR filtering will by default use multiple threads.  You can control
+FIR filtering and the constant-time sliding DCT/DST filtering (e.g.,
+[`KernelFactors.DCTGaussian`](@ref)) will by default use multiple threads.  You can control
 the algorithm by specifying a *resource* as defined by
 [ComputationalResources](https://github.com/timholy/ComputationalResources.jl).
 For example, `imfilter(CPU1(Algorithm.FIR()), img, ...)` would force

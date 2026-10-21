@@ -199,7 +199,7 @@ The `alg` parameter allows you to choose the particular algorithm: `Algorithm.FI
 (Fourier-based filtering). If no choice is specified, one will be chosen based
 on the size of the image and kernel in a way that strives to deliver good
 performance. Alternatively you can use a custom filter type, like
-[`KernelFactors.IIRGaussian`](@ref).
+[`KernelFactors.IIRGaussian`](@ref) or [`KernelFactors.DCTGaussian`](@ref).
 
 ## Convolution versus correlation
 

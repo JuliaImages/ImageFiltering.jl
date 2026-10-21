@@ -30,12 +30,21 @@ tinf = @snoopi_deep begin
     KernelFactors.gaussian((3.0,3.0))
     KernelFactors.IIRGaussian((3,3))
     KernelFactors.IIRGaussian(3.0)
+    KernelFactors.DCTGaussian((3,3))
+    KernelFactors.DCTGaussian(3.0)
+    KernelFactors.slidinggaussian((3.0,3.0); order=(1,0))
+    KernelFactors.DCTLoG(3.0)
+    KernelFactors.DCTDoG(3.0)
     KernelFactors.sobel()
 
     for img in images2d
         for kern in (Kernel.gaussian((3,3)),
                      KernelFactors.gaussian((3,3)),
-                     KernelFactors.IIRGaussian((3.0, 3.0)))
+                     KernelFactors.IIRGaussian((3.0, 3.0)),
+                     KernelFactors.DCTGaussian((3.0, 3.0)),
+                     KernelFactors.slidinggaussian((3.0, 3.0); order=(1,0)),
+                     KernelFactors.DCTLoG(3.0),
+                     KernelFactors.DCTDoG(3.0))
             imfilter(img, kern)
         end
         if eltype(img) <: Union{Number,Gray}
@@ -47,7 +56,8 @@ tinf = @snoopi_deep begin
     for img in images3d
         for kern in (Kernel.gaussian((3,3,3)),
                      KernelFactors.gaussian((3,3,3)),
-                     KernelFactors.IIRGaussian((3.0, 3.0, 3.0)))
+                     KernelFactors.IIRGaussian((3.0, 3.0, 3.0)),
+                     KernelFactors.DCTGaussian((3.0, 3.0, 3.0)))
             imfilter(img, kern)
         end
     end

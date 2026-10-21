@@ -48,5 +48,17 @@ using PrecompileTools
                 imfilter(img, kern)
             end
         end
+        # Sliding DCT/DST kernels are long, so they are not suited to the (tiled) resources above
+        for img in images2d
+            for kern in (KernelFactors.DCTGaussian((3.0, 3.0)),
+                         KernelFactors.slidinggaussian((3.0, 3.0); order = (1, 0)),
+                         KernelFactors.DCTLoG(3.0),
+                         KernelFactors.DCTDoG(3.0))
+                imfilter(img, kern)
+            end
+        end
+        for img in images3d
+            imfilter(img, KernelFactors.DCTGaussian((3.0, 3.0, 3.0)))
+        end
     end
 end
